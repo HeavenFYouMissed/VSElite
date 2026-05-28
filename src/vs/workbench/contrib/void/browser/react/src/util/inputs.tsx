@@ -753,12 +753,12 @@ export const VoidInputBox2 = forwardRef<HTMLTextAreaElement, InputBox2Props>(fun
 
 			disabled={!isEnabled}
 
-			className={`w-full resize-none max-h-[500px] overflow-y-auto text-void-fg-1 placeholder:text-void-fg-3 ${className}`}
+			// V3Code: flat surface — no nested inputBackground; inherits the
+			// VoidChatArea container's background so the input reads as a single
+			// modern card instead of a box-within-a-box.
+			className={`w-full resize-none max-h-[500px] overflow-y-auto bg-transparent text-void-fg-1 placeholder:text-void-fg-3 py-1 outline-none focus:outline-none ${className}`}
 			style={{
-				// defaultInputBoxStyles
-				background: asCssVariable(inputBackground),
 				color: asCssVariable(inputForeground)
-				// inputBorder: asCssVariable(inputBorder),
 			}}
 
 			onInput={useCallback((event: React.FormEvent<HTMLTextAreaElement>) => {

@@ -11,6 +11,15 @@ import './editCodeService.js'
 import './sidebarActions.js'
 import './sidebarPane.js'
 
+// register Agent panel mode + editor input (Ctrl+Shift+A toggles chat <-> agent main-editor split)
+import './voidChatEditorInput.js'
+import './agentPanelService.js'
+import './agentPanelActions.js'
+
+// register VIBE/DEV mode toggle (fullscreen agent panel powered by zen mode)
+import './vibeModeService.js'
+import './vibeModeActions.js'
+
 // register quick edit (Ctrl+K)
 import './quickEditActions.js'
 
@@ -54,6 +63,25 @@ import './tooltipService.js'
 
 // register onboarding service
 import './voidOnboardingService.js'
+
+// auto-register Context Bridge MCP server on startup
+import './contextBridgeStartup.js'
+
+// register Context Bridge native service (symbol-attached notes)
+import '../common/contextBridge/contextBridgeService.js'
+
+// register LSP Bridge Adapter (in-process VS Code language feature wrapper used by CB tools)
+import './contextBridge/lspBridgeAdapter.js'
+
+// register Semantic Index (codebase indexing + retrieval)
+// The renderer-side impl walks the workspace via IFileService, hashes via Web Crypto,
+// and stores chunks in-memory. Lexical retrieval is wired so the meter has real progress
+// and the agent's semantic_search gets non-empty results. The full sqlite + embeddings
+// pipeline lands when the IPC boundary to a node-host service is built.
+import '../common/semanticIndex/semanticIndexConfiguration.js'
+import './semanticIndexBrowserImpl.js'
+import './semanticIndexActions.js'
+import './semanticIndexStatusBar.js'
 
 // register misc service
 import './miscWokrbenchContrib.js'

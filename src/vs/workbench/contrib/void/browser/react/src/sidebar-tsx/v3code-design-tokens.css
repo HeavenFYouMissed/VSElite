@@ -1,0 +1,299 @@
+/*--------------------------------------------------------------------------------------
+ *  V3Code Design Tokens — Inspired by Trae's iCube system
+ *  Copyright 2025 Glass Devtools, Inc. All rights reserved.
+ *--------------------------------------------------------------------------------------*/
+
+/* ===== V3Code CSS Custom Properties ===== */
+:root {
+	/* ---- Background Colors ---- */
+	--v3code-bg: #0f0f1a;
+	--v3code-bg-secondary: #13132b;
+	--v3code-bg-tertiary: #1a1a35;
+	--v3code-bg-input: #1e1e3a;
+	--v3code-bg-active: rgba(139, 92, 246, 0.15);
+	--v3code-bg-hover: rgba(139, 92, 246, 0.08);
+	--v3code-bg-overlay: rgba(15, 15, 26, 0.95);
+	--v3code-bg-tooltip: #1e1e3a;
+
+	/* ---- Foreground / Text Colors ---- */
+	--v3code-fg: #e0e0e0;
+	--v3code-fg-secondary: #8888aa;
+	--v3code-fg-tertiary: #666688;
+	--v3code-fg-disabled: #444466;
+	--v3code-fg-on-accent: #ffffff;
+
+	/* ---- Border Colors ---- */
+	--v3code-border: #2a2a3a;
+	--v3code-border-light: #333355;
+	--v3code-border-focus: #8B5CF6;
+
+	/* ---- Accent / Brand Colors ---- */
+	--v3code-accent: #8B5CF6;
+	--v3code-accent-hover: #9B6DF7;
+	--v3code-accent-active: #7C4FE5;
+	--v3code-accent-glow: rgba(139, 92, 246, 0.4);
+
+	/* ---- Status Colors ---- */
+	--v3code-success: #34D399;
+	--v3code-success-bg: rgba(52, 211, 153, 0.12);
+	--v3code-error: #F87171;
+	--v3code-error-bg: rgba(248, 113, 113, 0.12);
+	--v3code-warning: #FBBF24;
+	--v3code-warning-bg: rgba(251, 191, 36, 0.12);
+	--v3code-info: #60A5FA;
+	--v3code-info-bg: rgba(96, 165, 250, 0.12);
+
+	/* ---- Button System ---- */
+	--v3code-btn-primary-bg: #8B5CF6;
+	--v3code-btn-primary-fg: #ffffff;
+	--v3code-btn-primary-hover-bg: #9B6DF7;
+	--v3code-btn-primary-active-bg: #7C4FE5;
+	--v3code-btn-primary-disabled-bg: #4a3a6a;
+	--v3code-btn-primary-disabled-fg: #888;
+
+	--v3code-btn-secondary-bg: #1e1e3a;
+	--v3code-btn-secondary-fg: #e0e0e0;
+	--v3code-btn-secondary-hover-bg: #2a2a4a;
+	--v3code-btn-secondary-active-bg: #333355;
+
+	--v3code-btn-ghost-bg: transparent;
+	--v3code-btn-ghost-fg: #8888aa;
+	--v3code-btn-ghost-hover-bg: rgba(139, 92, 246, 0.08);
+
+	/* ---- Elevation / Shadows (Cursor-style: 5 levels) ---- */
+	--v3code-shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.3);
+	--v3code-shadow-base: 0 2px 8px rgba(0, 0, 0, 0.4);
+	--v3code-shadow-soft: 0 4px 16px rgba(0, 0, 0, 0.3);
+	--v3code-shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+	--v3code-shadow-lg: 0 8px 24px rgba(0, 0, 0, 0.5);
+	--v3code-shadow-xl: 0 16px 48px rgba(0, 0, 0, 0.6);
+	--v3code-shadow-glow: 0 0 20px rgba(139, 92, 246, 0.3);
+
+	/* ---- Agent-Specific Tokens (Cursor-inspired) ---- */
+	--v3code-agent-panel-followup-mask-height: 40px;
+	--v3code-agent-status-dot-size: 8px;
+	--v3code-agent-status-font-size: 11px;
+	--v3code-meta-agent-thread-gap: 8px;
+	--v3code-meta-agent-thread-stack-inset: 16px;
+	--v3code-subagent-breadcrumb-height: 24px;
+
+	/* ---- Radius ---- */
+	--v3code-radius-sm: 4px;
+	--v3code-radius-md: 6px;
+	--v3code-radius-lg: 8px;
+	--v3code-radius-xl: 12px;
+	--v3code-radius-full: 9999px;
+
+	/* ---- Transitions ---- */
+	--v3code-transition-fast: 0.15s ease;
+	--v3code-transition-normal: 0.2s ease;
+	--v3code-transition-slow: 0.3s ease;
+
+	/* ---- Scrollbar ---- */
+	--v3code-scrollbar-bg: transparent;
+	--v3code-scrollbar-thumb: #2a2a4a;
+	--v3code-scrollbar-thumb-hover: #3a3a5a;
+
+	/* ---- VIBE Mode Specific ---- */
+	--v3code-vibe-gradient: linear-gradient(135deg, #8B5CF6 0%, #6D28D9 50%, #4C1D95 100%);
+	--v3code-vibe-glow: 0 0 20px rgba(139, 92, 246, 0.4), 0 0 40px rgba(139, 92, 246, 0.2);
+	--v3code-vibe-border: rgba(139, 92, 246, 0.3);
+}
+
+/* ===== Base Styles for V3Code Panels ===== */
+.@@void-scope {
+	scrollbar-width: thin;
+	scrollbar-color: var(--v3code-scrollbar-thumb) var(--v3code-scrollbar-bg);
+}
+
+.@@void-scope ::-webkit-scrollbar {
+	width: 6px;
+	height: 6px;
+}
+.@@void-scope ::-webkit-scrollbar-track {
+	background: var(--v3code-scrollbar-bg);
+}
+.@@void-scope ::-webkit-scrollbar-thumb {
+	background: var(--v3code-scrollbar-thumb);
+	border-radius: 3px;
+}
+.@@void-scope ::-webkit-scrollbar-thumb:hover {
+	background: var(--v3code-scrollbar-thumb-hover);
+}
+
+/* ===== V3Code Button System ===== */
+.v3code-btn {
+	display: inline-flex;
+	align-items: center;
+	justify-content: center;
+	gap: 6px;
+	padding: 8px 16px;
+	border-radius: var(--v3code-radius-md);
+	border: 1px solid transparent;
+	font-size: 13px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: all var(--v3code-transition-fast);
+	outline: none;
+}
+.v3code-btn:focus-visible {
+	box-shadow: 0 0 0 2px var(--v3code-border-focus);
+}
+.v3code-btn--primary {
+	background: var(--v3code-btn-primary-bg);
+	color: var(--v3code-btn-primary-fg);
+}
+.v3code-btn--primary:hover {
+	background: var(--v3code-btn-primary-hover-bg);
+}
+.v3code-btn--primary:active {
+	background: var(--v3code-btn-primary-active-bg);
+}
+.v3code-btn--secondary {
+	background: var(--v3code-btn-secondary-bg);
+	color: var(--v3code-btn-secondary-fg);
+	border-color: var(--v3code-border);
+}
+.v3code-btn--secondary:hover {
+	background: var(--v3code-btn-secondary-hover-bg);
+}
+.v3code-btn--ghost {
+	background: var(--v3code-btn-ghost-bg);
+	color: var(--v3code-btn-ghost-fg);
+}
+.v3code-btn--ghost:hover {
+	background: var(--v3code-btn-ghost-hover-bg);
+}
+.v3code-btn--sm { padding: 4px 10px; font-size: 12px; }
+.v3code-btn--lg { padding: 10px 20px; font-size: 14px; }
+.v3code-btn--block { width: 100%; }
+
+/* ===== V3Code Input System ===== */
+.v3code-input {
+	padding: 8px 12px;
+	border-radius: var(--v3code-radius-md);
+	border: 1px solid var(--v3code-border);
+	background: var(--v3code-bg-input);
+	color: var(--v3code-fg);
+	font-size: 13px;
+	outline: none;
+	transition: border-color var(--v3code-transition-fast);
+}
+.v3code-input:focus {
+	border-color: var(--v3code-border-focus);
+}
+.v3code-input::placeholder {
+	color: var(--v3code-fg-tertiary);
+}
+
+/* ===== VIBE Mode Animations ===== */
+@keyframes v3code-glow-pulse {
+	0%, 100% { opacity: 0.6; }
+	50% { opacity: 1; }
+}
+@keyframes v3code-glow-slide {
+	0% { transform: translateX(-100%); }
+	100% { transform: translateX(100%); }
+}
+@keyframes v3code-fade-in {
+	from { opacity: 0; transform: translateY(4px); }
+	to { opacity: 1; transform: translateY(0); }
+}
+@keyframes v3code-slide-in-left {
+	from { opacity: 0; transform: translateX(-20px); }
+	to { opacity: 1; transform: translateX(0); }
+}
+@keyframes v3code-thinking-dot {
+	0%, 80%, 100% { transform: scale(0); }
+	40% { transform: scale(1); }
+}
+
+.v3code-animate-fade-in {
+	animation: v3code-fade-in 0.2s ease forwards;
+}
+.v3code-animate-slide-left {
+	animation: v3code-slide-in-left 0.2s ease forwards;
+}
+
+/* ===== Chat Message Styles ===== */
+.v3code-chat-bubble {
+	padding: 12px 16px;
+	border-radius: var(--v3code-radius-lg);
+	margin-bottom: 8px;
+	animation: v3code-fade-in 0.2s ease forwards;
+}
+.v3code-chat-bubble--user {
+	background: var(--v3code-bg-active);
+	border: 1px solid var(--v3code-vibe-border);
+}
+.v3code-chat-bubble--assistant {
+	background: var(--v3code-bg-secondary);
+	border: 1px solid var(--v3code-border);
+}
+
+/* ===== Tool Call Card ===== */
+.v3code-tool-card {
+	padding: 10px 14px;
+	border-radius: var(--v3code-radius-md);
+	border: 1px solid var(--v3code-border);
+	background: var(--v3code-bg-tertiary);
+	margin: 4px 0;
+	animation: v3code-fade-in 0.15s ease forwards;
+}
+.v3code-tool-card--running {
+	border-color: var(--v3code-accent);
+}
+.v3code-tool-card--success {
+	border-color: var(--v3code-success);
+}
+.v3code-tool-card--error {
+	border-color: var(--v3code-error);
+}
+
+/* ===== Thinking Indicator ===== */
+.v3code-thinking-dots {
+	display: inline-flex;
+	gap: 4px;
+	align-items: center;
+	padding: 2px 0;
+}
+.v3code-thinking-dots span {
+	width: 6px;
+	height: 6px;
+	border-radius: 50%;
+	background: var(--v3code-fg-tertiary);
+	animation: v3code-thinking-dot 1.4s infinite ease-in-out both;
+}
+.v3code-thinking-dots span:nth-child(1) { animation-delay: -0.32s; }
+.v3code-thinking-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+/* ===== Todo List ===== */
+.v3code-todo-item {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 6px 0;
+	font-size: 13px;
+	color: var(--v3code-fg);
+}
+.v3code-todo-item--done {
+	color: var(--v3code-fg-tertiary);
+	text-decoration: line-through;
+}
+.v3code-todo-checkbox {
+	width: 16px;
+	height: 16px;
+	border-radius: 3px;
+	border: 1.5px solid var(--v3code-border);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-shrink: 0;
+	cursor: pointer;
+	transition: all var(--v3code-transition-fast);
+}
+.v3code-todo-checkbox--done {
+	background: var(--v3code-success);
+	border-color: var(--v3code-success);
+	color: #fff;
+}

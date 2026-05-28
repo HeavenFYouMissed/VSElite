@@ -127,7 +127,7 @@ const notifyUpdate = (res: VoidCheckUpdateRespose & { message: string }, notifSe
 	// })
 }
 const notifyErrChecking = (notifService: INotificationService): INotificationHandle => {
-	const message = `Void Error: There was an error checking for updates. If this persists, please get in touch or reinstall Void [here](https://voideditor.com/download-beta)!`
+	const message = `V3Code Error: There was an error checking for updates. If this persists, please get in touch or reinstall V3Code from https://v3code.dev !`
 	const notifController = notifService.notify({
 		severity: Severity.Info,
 		message: message,
@@ -177,7 +177,7 @@ registerAction2(class extends Action2 {
 		super({
 			f1: true,
 			id: 'void.voidCheckUpdate',
-			title: localize2('voidCheckUpdate', 'Void: Check for Updates'),
+			title: localize2('voidCheckUpdate', 'V3Code: Check for Updates'),
 		});
 	}
 	async run(accessor: ServicesAccessor): Promise<void> {

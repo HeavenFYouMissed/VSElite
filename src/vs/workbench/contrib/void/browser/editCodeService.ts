@@ -743,7 +743,7 @@ class EditCodeService extends Disposable implements IEditCodeService {
 		const elt: IUndoRedoElement = {
 			type: UndoRedoElementType.Resource,
 			resource: uri,
-			label: 'Void Agent',
+			label: 'V3Code Agent',
 			code: 'undoredo.editCode',
 			undo: async () => { opts?.onWillUndo?.(); await this._restoreVoidFileSnapshot(uri, beforeSnapshot) },
 			redo: async () => { if (afterSnapshot) await this._restoreVoidFileSnapshot(uri, afterSnapshot) }
@@ -1968,7 +1968,7 @@ class EditCodeService extends Disposable implements IEditCodeService {
 
 						const blocks = extractSearchReplaceBlocks(fullText)
 						if (blocks.length === 0) {
-							this._notificationService.info(`Void: We ran Fast Apply, but the LLM didn't output any changes.`)
+							this._notificationService.info(`V3Code: We ran Fast Apply, but the LLM didn't output any changes.`)
 						}
 						this._writeURIText(uri, originalFileCode, 'wholeFileRange', { shouldRealignDiffAreas: true })
 

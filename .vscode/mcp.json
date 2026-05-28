@@ -1,0 +1,12 @@
+{
+  "servers": {
+    "context-bridge": {
+      "type": "stdio",
+      "command": "C:\\nvm4w\\nodejs\\node.exe",
+      "args": ["C:\\Users\\heave\\Desktop\\mcp\\context-bridge\\mcp-server\\dist\\index.js"],
+      "env": {
+        "CONTEXT_BRIDGE_WORKSPACE": "${workspaceFolder}"
+      }
+    }
+  }
+}

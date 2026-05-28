@@ -6,8 +6,20 @@
 const gulp = require('gulp');
 const es = require('event-stream');
 const path = require('path');
+const cp = require('child_process');
 const task = require('./lib/task');
 const { hygiene } = require('./hygiene');
+
+const checkBuiltinToolsCoverageTask = task.define('check-builtin-tools-coverage', (done) => {
+	const scriptPath = path.join(__dirname, 'scripts', 'check-builtin-tools-coverage.js');
+	const result = cp.spawnSync(process.execPath, [scriptPath], { stdio: 'inherit' });
+	if (result.status !== 0) {
+		done(new Error('builtin-tools coverage check failed'));
+		return;
+	}
+	done();
+});
+gulp.task(checkBuiltinToolsCoverageTask);
 
 /**
  * @param {string} actualPath
@@ -47,5 +59,5 @@ const checkPackageJSONTask = task.define('check-package-json', () => {
 });
 gulp.task(checkPackageJSONTask);
 
-const hygieneTask = task.define('hygiene', task.series(checkPackageJSONTask, () => hygiene(undefined, false)));
+const hygieneTask = task.define('hygiene', task.series(checkPackageJSONTask, checkBuiltinToolsCoverageTask, () => hygiene(undefined, false)));
 gulp.task(hygieneTask);

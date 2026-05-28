@@ -16,7 +16,6 @@ import { ErrorDisplay } from './ErrorDisplay.js';
 import { BlockCode, TextAreaFns, VoidCustomDropdownBox, VoidInputBox2, VoidSlider, VoidSwitch, VoidDiffEditor } from '../util/inputs.js';
 import { ModelDropdown, } from '../void-settings-tsx/ModelDropdown.js';
 import { PastThreadsList } from './SidebarThreadSelector.js';
-import { VOID_CTRL_L_ACTION_ID } from '../../../actionIDs.js';
 import { VOID_OPEN_SETTINGS_ACTION_ID } from '../../../voidSettingsPane.js';
 import { ChatMode, displayInfoOfProviderName, FeatureName, isFeatureNameDisabled } from '../../../../../../../workbench/contrib/void/common/voidSettingsTypes.js';
 import { ICommandService } from '../../../../../../../platform/commands/common/commands.js';
@@ -342,13 +341,11 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
 			ref={divRef}
 			className={`
 				gap-x-1
-                flex flex-col p-2 relative input text-left shrink-0
-                rounded-md
-                bg-void-bg-1
-				transition-all duration-200
-				border border-void-border-3 focus-within:border-void-border-1 hover:border-void-border-1
-				max-h-[80vh] overflow-y-auto
-                ${className}
+                flex flex-col p-2.5 relative input text-left shrink-0
+                rounded-xl
+                bg-void-bg-2
+				border border-transparent
+				${className}
             `}
 			onClick={(e) => {
 				onClickAnywhere?.()
@@ -416,13 +413,14 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
 
 
 type ButtonProps = ButtonHTMLAttributes<HTMLButtonElement>
-const DEFAULT_BUTTON_SIZE = 22;
 export const ButtonSubmit = ({ className, disabled, ...props }: ButtonProps & Required<Pick<ButtonProps, 'disabled'>>) => {
 
 	return <button
 		type='button'
-		className={`rounded-full flex-shrink-0 flex-grow-0 flex items-center justify-center
-			${disabled ? 'bg-vscode-disabled-fg cursor-default' : 'bg-white cursor-pointer'}
+		className={`rounded-full flex-shrink-0 flex-grow-0 flex items-center justify-center w-7 h-7
+			bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)]
+			hover:brightness-110
+			${disabled ? 'opacity-40 cursor-default' : 'cursor-pointer'}
 			${className}
 		`}
 		// data-tooltip-id='void-tooltip'
@@ -430,20 +428,21 @@ export const ButtonSubmit = ({ className, disabled, ...props }: ButtonProps & Re
 		// data-tooltip-place='left'
 		{...props}
 	>
-		<IconArrowUp size={DEFAULT_BUTTON_SIZE} className="stroke-[2] p-[2px]" />
+		<IconArrowUp size={16} className="stroke-[2.5]" />
 	</button>
 }
 
 export const ButtonStop = ({ className, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) => {
 	return <button
-		className={`rounded-full flex-shrink-0 flex-grow-0 cursor-pointer flex items-center justify-center
-			bg-white
+		className={`rounded-full flex-shrink-0 flex-grow-0 flex items-center justify-center w-7 h-7
+			bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)]
+			hover:brightness-110 cursor-pointer
 			${className}
 		`}
 		type='button'
 		{...props}
 	>
-		<IconSquare size={DEFAULT_BUTTON_SIZE} className="stroke-[3] p-[7px]" />
+		<IconSquare size={16} className="stroke-[3] p-[7px]" />
 	</button>
 }
 
@@ -2944,8 +2943,6 @@ export const SidebarChat = () => {
 		await chatThreadsService.abortRunning(threadId)
 	}
 
-	const keybindingString = accessor.get('IKeybindingService').lookupKeybinding(VOID_CTRL_L_ACTION_ID)?.getLabel()
-
 	const threadId = currentThread.id
 	const currCheckpointIdx = chatThreadsState.allThreads[threadId]?.state?.currCheckpointIdx ?? undefined  // if not exist, treat like checkpoint is last message (infinity)
 
@@ -3077,8 +3074,8 @@ export const SidebarChat = () => {
 	>
 		<VoidInputBox2
 			enableAtToMention
-			className={`min-h-[81px] px-0.5 py-0.5`}
-			placeholder={`@ to mention, ${keybindingString ? `${keybindingString} to add a selection. ` : ''}Enter instructions...`}
+			className={`min-h-[60px] px-0.5 py-0.5`}
+			placeholder={`Message V3Code…`}
 			onChangeText={onChangeText}
 			onKeyDown={onKeyDown}
 			onFocus={() => { chatThreadsService.setCurrentlyFocusedMessageIdx(undefined) }}
@@ -3136,7 +3133,16 @@ export const SidebarChat = () => {
 
 		{Object.keys(chatThreadsState.allThreads).length > 1 ? // show if there are threads
 			<ErrorBoundary>
-				<div className='pt-8 mb-2 text-void-fg-3 text-root select-none pointer-events-none'>Previous Threads</div>
+				<div className='pt-8 mb-2 flex items-center justify-between'>
+					<span className='text-void-fg-3 text-root select-none pointer-events-none'>Previous Threads</span>
+					<button
+						className='text-void-fg-3 hover:text-void-fg-1 cursor-pointer p-1 rounded hover:bg-void-bg-1'
+						onClick={() => chatThreadsService.openNewThread()}
+						title='New chat'
+					>
+						<CirclePlus size={16} />
+					</button>
+				</div>
 				<PastThreadsList />
 			</ErrorBoundary>
 			:

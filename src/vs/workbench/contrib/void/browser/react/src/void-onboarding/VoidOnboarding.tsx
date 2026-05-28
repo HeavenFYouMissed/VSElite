@@ -12,6 +12,14 @@ import { OllamaSetupInstructions, OneClickSwitchButton, SettingsForProvider, Mod
 import { ColorScheme } from '../../../../../../../platform/theme/common/theme.js';
 import ErrorBoundary from '../sidebar-tsx/ErrorBoundary.js';
 import { isLinux } from '../../../../../../../base/common/platform.js';
+import V3CodeShader from './V3CodeShader.js';
+
+const V3CODE_ASCII = String.raw`██╗   ██╗██████╗  ██████╗ ██████╗ ██████╗ ███████╗
+██║   ██║╚════██╗██╔════╝██╔═══██╗██╔══██╗██╔════╝
+██║   ██║ █████╔╝██║     ██║   ██║██║  ██║█████╗
+╚██╗ ██╔╝ ╚═══██╗██║     ██║   ██║██║  ██║██╔══╝
+ ╚████╔╝ ██████╔╝╚██████╗╚██████╔╝██████╔╝███████╗
+  ╚═══╝  ╚═════╝  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝`;
 
 const OVERRIDE_VALUE = false
 
@@ -26,14 +34,27 @@ export const VoidOnboarding = () => {
 		<div className={`@@void-scope ${isDark ? 'dark' : ''}`}>
 			<div
 				className={`
-					bg-void-bg-3 fixed top-0 right-0 bottom-0 left-0 width-full z-[99999]
+					fixed top-0 right-0 bottom-0 left-0 width-full z-[99999]
 					transition-all duration-1000 ${isOnboardingComplete ? 'opacity-0 pointer-events-none' : 'opacity-100 pointer-events-auto'}
 				`}
-				style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+				style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#020207' }}
 			>
+				<V3CodeShader />
+				<div className='absolute inset-0 pointer-events-none'
+					style={{ background: 'radial-gradient(ellipse at center, transparent 0%, rgba(3,4,10,0.55) 55%, rgba(0,0,0,0.92) 100%)' }}
+				/>
+				<div className='absolute inset-0 pointer-events-none mix-blend-overlay opacity-40'
+					style={{ backgroundImage: 'repeating-linear-gradient(0deg, rgba(0,0,0,0.55) 0px, rgba(0,0,0,0.55) 1px, transparent 1px, transparent 3px)' }}
+				/>
+				{/* Corner brackets — terminal frame, present on every onboarding page */}
+				<div className='absolute top-6 left-6 font-mono text-xs pointer-events-none z-20' style={{ color: '#5A5A6E' }}>┌─ v3code.sys ──</div>
+				<div className='absolute top-6 right-6 font-mono text-xs pointer-events-none z-20' style={{ color: '#5A5A6E' }}>── status: ready ─┐</div>
+				<div className='absolute bottom-6 left-6 font-mono text-xs pointer-events-none z-20' style={{ color: '#5A5A6E' }}>└─ build: 0x0001 ──</div>
+				<div className='absolute bottom-6 right-6 font-mono text-xs pointer-events-none z-20' style={{ color: '#5A5A6E' }}>── KandD/labs ─┘</div>
 				<ErrorBoundary>
 					<VoidOnboardingContent />
 				</ErrorBoundary>
+				<style>{`@keyframes v3code-blink { 0%, 49% { opacity: 1 } 50%, 100% { opacity: 0 } }`}</style>
 			</div>
 		</div>
 	)
@@ -149,7 +170,7 @@ const AddProvidersPage = ({ pageIndex, setPageIndex }: { pageIndex: number, setP
 		};
 	}, [errorMessage]);
 
-	return (<div className="flex flex-col md:flex-row w-full h-[80vh] gap-6 max-w-[900px] mx-auto relative">
+	return (<div className="flex flex-col md:flex-row w-full h-[80vh] gap-6 max-w-[900px] mx-auto relative z-10">
 		{/* Left Column */}
 		<div className="md:w-1/4 w-full flex flex-col gap-6 p-6 border-none border-void-border-2 h-full overflow-y-auto">
 			{/* Tab Selector */}
@@ -157,16 +178,23 @@ const AddProvidersPage = ({ pageIndex, setPageIndex }: { pageIndex: number, setP
 				{[...tabNames, 'Cloud/Other'].map(tab => (
 					<button
 						key={tab}
-						className={`py-2 px-4 rounded-md text-left ${currentTab === tab
-							? 'bg-[#0e70c0]/80 text-white font-medium shadow-sm'
-							: 'bg-void-bg-2 hover:bg-void-bg-2/80 text-void-fg-1'
-							} transition-all duration-200`}
+						className={`font-mono uppercase tracking-widest text-xs py-2 px-4 text-left transition-all duration-200`}
+						style={currentTab === tab ? {
+							color: '#FFFFFF',
+							background: 'rgba(139,92,246,0.18)',
+							border: '1px solid #8B5CF6',
+							boxShadow: '0 0 18px rgba(139,92,246,0.45), inset 0 0 18px rgba(139,92,246,0.12)',
+						} : {
+							color: '#9CA3AF',
+							background: 'rgba(11,13,20,0.6)',
+							border: '1px solid rgba(139,92,246,0.18)',
+						}}
 						onClick={() => {
 							setCurrentTab(tab as TabName);
-							setErrorMessage(null); // Reset error message when changing tabs
+							setErrorMessage(null);
 						}}
 					>
-						{tab}
+						<span style={{ color: currentTab === tab ? '#7FE650' : '#5A5A6E', marginRight: 8 }}>&gt;</span>{tab}
 					</button>
 				))}
 			</div>
@@ -193,11 +221,18 @@ const AddProvidersPage = ({ pageIndex, setPageIndex }: { pageIndex: number, setP
 
 		{/* Right Column */}
 		<div className="flex-1 flex flex-col items-center justify-start p-6 h-full overflow-y-auto">
-			<div className="text-5xl mb-2 text-center w-full">Add a Provider</div>
+			<div className="font-mono uppercase tracking-[0.4em] text-3xl mb-2 text-center w-full"
+				style={{
+					color: '#E4E4ED',
+					textShadow: '0 0 18px rgba(139,92,246,0.7), 0 0 36px rgba(139,92,246,0.35)',
+				}}
+			>
+				<span style={{ color: '#7FE650' }}>&gt;</span> Add_Provider
+			</div>
 
 			<div className="w-full max-w-xl mt-4 mb-10">
-				<div className="text-4xl font-light my-4 w-full">{currentTab}</div>
-				<div className="text-sm opacity-80 text-void-fg-3 my-4 w-full">{descriptionOfTab[currentTab]}</div>
+				<div className="font-mono uppercase tracking-widest text-2xl my-4 w-full" style={{ color: '#A78BFA' }}>{currentTab}</div>
+				<div className="font-mono text-sm my-4 w-full" style={{ color: '#9CA3AF' }}>{descriptionOfTab[currentTab]}</div>
 			</div>
 
 			{providerNamesOfTab[currentTab].map((providerName) => (
@@ -547,7 +582,7 @@ const VoidOnboardingContent = () => {
 					voidMetricsService.capture('Completed Onboarding', { selectedProviderName, wantToUseOption })
 				}}
 				ringSize={voidSettingsState.globalSettings.isOnboardingComplete ? 'screen' : undefined}
-			>Enter the Void</PrimaryActionButton>
+			>Enter V3Code</PrimaryActionButton>
 		</div>
 	</div>
 
@@ -593,30 +628,77 @@ const VoidOnboardingContent = () => {
 
 
 	const contentOfIdx: { [pageIndex: number]: React.ReactNode } = {
-		0: <OnboardingPageShell
-			content={
-				<div className='flex flex-col items-center gap-8'>
-					<div className="text-5xl font-light text-center">Welcome to Void</div>
+		0: <div className='absolute inset-0 overflow-hidden flex flex-col items-center justify-center'>
+				{/* Horizon glow band */}
+				<div className='absolute inset-x-0 top-1/2 h-px pointer-events-none -translate-y-1/2'
+					style={{
+						background: 'linear-gradient(90deg, transparent, rgba(139,92,246,0.4), transparent)',
+						boxShadow: '0 0 24px 4px rgba(139,92,246,0.2)',
+					}}
+				/>
 
-					{/* Slice of Void image */}
-					<div className='max-w-md w-full h-[30vh] mx-auto flex items-center justify-center'>
-						{!isLinux && <VoidIcon />}
-					</div>
-
-
-					<FadeIn
-						delayMs={1000}
-					>
-						<PrimaryActionButton
-							onClick={() => { setPageIndex(1) }}
+				{/* Content stack */}
+				<div className='relative z-10 flex flex-col items-center gap-8 px-8 text-center'>
+					<FadeIn delayMs={150}>
+						<pre
+							className='font-mono text-white select-none'
+							style={{
+								fontSize: 'clamp(12px, 1.8vw, 22px)',
+								lineHeight: 1.05,
+								letterSpacing: '0.02em',
+								textShadow: '0 0 18px rgba(139,92,246,0.85), 0 0 48px rgba(139,92,246,0.45), 0 0 2px rgba(127,230,80,0.4)',
+								color: '#E4E4ED',
+								margin: 0,
+							}}
 						>
-							Get Started
-						</PrimaryActionButton>
+							{V3CODE_ASCII}
+						</pre>
 					</FadeIn>
 
+					<FadeIn delayMs={650}>
+						<div className='flex items-center gap-3 font-mono text-sm tracking-widest'>
+							<span style={{ color: '#7FE650', textShadow: '0 0 8px rgba(127,230,80,0.6)' }}>$</span>
+							<span style={{ color: '#A78BFA', textShadow: '0 0 12px rgba(167,139,250,0.5)' }}>structural_intelligence</span>
+							<span style={{ color: '#5A5A6E' }}>.</span>
+							<span style={{ color: '#E4E4ED' }}>init</span>
+							<span style={{ color: '#5A5A6E' }}>()</span>
+							<span className='inline-block w-2 h-4 -mb-0.5' style={{ background: '#7FE650', animation: 'v3code-blink 1s steps(2) infinite', boxShadow: '0 0 8px rgba(127,230,80,0.7)' }} />
+						</div>
+					</FadeIn>
+
+					<FadeIn delayMs={1100}>
+						<div className='font-mono text-xs uppercase tracking-[0.4em]' style={{ color: '#5A5A6E' }}>
+							[ ctx-bridge :: lsp :: graph :: pack ]
+						</div>
+					</FadeIn>
+
+					<FadeIn delayMs={1500}>
+						<button
+							onClick={() => { setPageIndex(1) }}
+							className='group relative font-mono text-sm tracking-widest uppercase px-8 py-3 transition-all duration-200'
+							style={{
+								color: '#E4E4ED',
+								background: 'rgba(11,13,20,0.75)',
+								border: '1px solid #8B5CF680',
+								boxShadow: '0 0 24px rgba(139,92,246,0.25), inset 0 0 24px rgba(139,92,246,0.08)',
+								backdropFilter: 'blur(6px)',
+							}}
+							onMouseEnter={(e) => {
+								e.currentTarget.style.borderColor = '#8B5CF6';
+								e.currentTarget.style.boxShadow = '0 0 32px rgba(139,92,246,0.55), inset 0 0 24px rgba(139,92,246,0.15)';
+								e.currentTarget.style.color = '#FFFFFF';
+							}}
+							onMouseLeave={(e) => {
+								e.currentTarget.style.borderColor = '#8B5CF680';
+								e.currentTarget.style.boxShadow = '0 0 24px rgba(139,92,246,0.25), inset 0 0 24px rgba(139,92,246,0.08)';
+								e.currentTarget.style.color = '#E4E4ED';
+							}}
+						>
+							<span style={{ color: '#7FE650' }}>&gt;</span> Initialize_
+						</button>
+					</FadeIn>
 				</div>
-			}
-		/>,
+			</div>,
 
 		1: <OnboardingPageShell hasMaxWidth={false}
 			content={
@@ -626,11 +708,18 @@ const VoidOnboardingContent = () => {
 		2: <OnboardingPageShell
 
 			content={
-				<div>
-					<div className="text-5xl font-light text-center">Settings and Themes</div>
+				<div className='relative z-10'>
+					<div className="font-mono uppercase tracking-[0.4em] text-3xl text-center"
+						style={{
+							color: '#E4E4ED',
+							textShadow: '0 0 18px rgba(139,92,246,0.7), 0 0 36px rgba(139,92,246,0.35)',
+						}}
+					>
+						<span style={{ color: '#7FE650' }}>&gt;</span> Settings_Themes
+					</div>
 
-					<div className="mt-8 text-center flex flex-col items-center gap-4 w-full max-w-md mx-auto">
-						<h4 className="text-void-fg-3 mb-4">Transfer your settings from an existing editor?</h4>
+					<div className="mt-10 text-center flex flex-col items-center gap-4 w-full max-w-md mx-auto">
+						<h4 className="font-mono uppercase tracking-widest text-xs mb-4" style={{ color: '#9CA3AF' }}>// transfer settings from an existing editor?</h4>
 						<OneClickSwitchButton className='w-full px-4 py-2' fromEditor="VS Code" />
 						<OneClickSwitchButton className='w-full px-4 py-2' fromEditor="Cursor" />
 						<OneClickSwitchButton className='w-full px-4 py-2' fromEditor="Windsurf" />

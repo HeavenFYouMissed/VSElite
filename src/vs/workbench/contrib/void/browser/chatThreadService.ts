@@ -751,6 +751,20 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 		const { chatMode } = this._settingsService.state.globalSettings // should not change as we loop even if user changes it, so it goes here
 		const { overridesOfModel } = this._settingsService.state
 
+		// Early guard: without a configured model provider, the LLM send loop silently retries 3x and
+		// commits an empty assistant message ("fake line"). Surface a clear error in the chat instead.
+		if (modelSelection === null) {
+			this._setStreamState(threadId, {
+				isRunning: undefined,
+				error: {
+					message: `No model provider is configured for Chat. Open V3Code Settings (gear icon) and add an API key for a Chat provider (e.g. OpenAI, Anthropic, DeepSeek), then try again.`,
+					fullError: null,
+				},
+			})
+			this._addUserCheckpoint({ threadId })
+			return
+		}
+
 		let nMessagesSent = 0
 		let shouldSendAnotherMessage = true
 		let isRunningWhenEnd: IsRunningType = undefined
@@ -865,7 +879,11 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 					else {
 						const { error } = llmRes
 						const { displayContentSoFar, reasoningSoFar, toolCallSoFar } = this.streamState[threadId].llmInfo
-						this._addMessageToThread(threadId, { role: 'assistant', displayContent: displayContentSoFar, reasoning: reasoningSoFar, anthropicReasoning: null })
+						// Only commit an assistant message when we actually have something to show.
+						// Otherwise we add an empty bubble ("fake line") on top of the streamState.error toast.
+						if (displayContentSoFar || reasoningSoFar) {
+							this._addMessageToThread(threadId, { role: 'assistant', displayContent: displayContentSoFar, reasoning: reasoningSoFar, anthropicReasoning: null })
+						}
 						if (toolCallSoFar) this._addMessageToThread(threadId, { role: 'interrupted_streaming_tool', name: toolCallSoFar.name, mcpServerName: this._computeMCPServerOfToolName(toolCallSoFar.name) })
 
 						this._setStreamState(threadId, { isRunning: undefined, error })

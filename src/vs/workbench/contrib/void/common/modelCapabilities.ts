@@ -263,13 +263,15 @@ const openSourceModelOptions_assumingOAICompat = {
 	},
 	'deepseekCoderV3': {
 		supportsFIM: false,
-		supportsSystemMessage: false, // unstable
+		supportsSystemMessage: 'system-role',
+		specialToolFormat: 'openai-style',
 		reasoningCapabilities: false,
 		contextWindow: 32_000, reservedOutputTokenSpace: 4_096,
 	},
 	'deepseekCoderV2': {
 		supportsFIM: false,
-		supportsSystemMessage: false, // unstable
+		supportsSystemMessage: 'system-role',
+		specialToolFormat: 'openai-style',
 		reasoningCapabilities: false,
 		contextWindow: 32_000, reservedOutputTokenSpace: 4_096,
 	},
@@ -945,7 +947,7 @@ const deepseekModelOptions = {
 
 const deepseekSettings: VoidStaticProviderInfo = {
 	modelOptions: deepseekModelOptions,
-	modelOptionsFallback: (modelName) => { return null },
+	modelOptionsFallback: extensiveModelOptionsFallback,
 	providerReasoningIOSettings: {
 		// reasoning: OAICompat +  response.choices[0].delta.reasoning_content // https://api-docs.deepseek.com/guides/reasoning_model
 		input: { includeInPayload: openAICompatIncludeInPayloadReasoning },

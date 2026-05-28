@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>V3Code — Structural Intelligence, Wired In</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ═══════════════════════════════════════════════════════════════════════════
+   V3Code Website — Agent Panel + IDE Editor
+   Palette: Abyss #020207, Void #0B0D14, Amethyst #8B5CF6, Venom #7FE650
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --abyss: #020207;
+  --void: #0B0D14;
+  --obsidian: #10121A;
+  --slate: #161820;
+  --ash: #1C1E27;
+  --amethyst: #8B5CF6;
+  --amethyst-glow: #A78BFA;
+  --venom: #7FE650;
+  --venom-bright: #9FFF3D;
+  --text-primary: #E4E4ED;
+  --text-secondary: #9898A6;
+  --text-tertiary: #5A5A6E;
+  --error: #EF4444;
+  --warning: #F59E0B;
+}
+
+*{margin:0;padding:0;box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  background:var(--abyss);
+  font-family:'DM Sans',system-ui,sans-serif;
+  color:var(--text-primary);
+  overflow-x:hidden;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   NAV
+   ═══════════════════════════════════════════════════════════════════════════ */
+nav{
+  position:fixed;top:0;left:0;right:0;z-index:1000;
+  background:rgba(2,2,7,0.85);
+  backdrop-filter:blur(16px) saturate(140%);
+  border-bottom:0.5px solid rgba(139,92,246,0.20);
+  padding:0 32px;height:52px;
+  display:flex;align-items:center;justify-content:space-between;
+}
+nav .logo{
+  font-family:'JetBrains Mono',monospace;
+  font-size:18px;font-weight:600;
+}
+nav .logo .v{color:var(--amethyst)}nav .logo .c{color:var(--text-primary)}
+nav .links{display:flex;gap:28px}
+nav .links a{
+  color:var(--text-secondary);text-decoration:none;
+  font-size:13px;font-weight:500;transition:color .15s;
+  font-family:'JetBrains Mono',monospace;letter-spacing:.02em;
+}
+nav .links a:hover,nav .links a.active{color:var(--amethyst-glow)}
+nav .cta{
+  background:var(--amethyst);color:#fff;border:none;
+  padding:8px 22px;border-radius:8px;font-size:13px;font-weight:600;
+  cursor:pointer;transition:all .15s;
+  font-family:'DM Sans',sans-serif;
+  box-shadow:0 0 20px rgba(139,92,246,0.35);
+}
+nav .cta:hover{
+  background:var(--amethyst-glow);
+  box-shadow:0 0 32px rgba(139,92,246,0.55);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   SECTIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+section{padding:100px 32px;position:relative}
+
+/* HERO — matches V3Code onboarding */
+.hero{
+  min-height:100vh;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;text-align:center;
+  background:var(--abyss);position:relative;overflow:hidden;
+}
+.hero::before{
+  content:'';position:absolute;inset:-25%;pointer-events:none;z-index:0;
+  background:
+    radial-gradient(circle at 25% 35%,rgba(59,21,104,0.45),transparent 55%),
+    radial-gradient(circle at 70% 55%,rgba(139,92,246,0.25),transparent 55%),
+    radial-gradient(circle at 50% 75%,rgba(127,230,80,0.06),transparent 40%);
+  filter:blur(80px);
+  animation:shader-drift 40s linear infinite;
+}
+@keyframes shader-drift{
+  0%{transform:rotate(0deg) scale(1)}
+  50%{transform:rotate(180deg) scale(1.15)}
+  100%{transform:rotate(360deg) scale(1)}
+}
+@keyframes shader-pulse{
+  0%,100%{opacity:0.55}
+  50%{opacity:1}
+}
+.hero::after{
+  content:'';position:absolute;inset:0;pointer-events:none;z-index:0;
+  background:radial-gradient(ellipse at center,transparent 0%,rgba(3,4,10,0.55) 55%,rgba(0,0,0,0.92) 100%);
+}
+/* scanlines */
+.hero .scanlines{
+  position:absolute;inset:0;pointer-events:none;z-index:0;
+  mix-blend-mode:overlay;opacity:0.35;
+  background-image:repeating-linear-gradient(0deg,rgba(0,0,0,0.55) 0px,rgba(0,0,0,0.55) 1px,transparent 1px,transparent 3px);
+}
+/* corner brackets */
+.hero .bracket{
+  position:absolute;font-family:'JetBrains Mono',monospace;
+  font-size:12px;color:var(--text-tertiary);pointer-events:none;z-index:2;
+}
+.hero .bracket.tl{top:24px;left:24px}
+.hero .bracket.tr{top:24px;right:24px}
+.hero .bracket.bl{bottom:24px;left:24px}
+.hero .bracket.br{bottom:24px;right:24px}
+/* horizon glow band */
+.hero .horizon{
+  position:absolute;left:0;right:0;top:50%;height:1px;pointer-events:none;z-index:1;
+  background:linear-gradient(90deg,transparent,rgba(139,92,246,0.40),transparent);
+  box-shadow:0 0 24px 4px rgba(139,92,246,0.20);
+}
+.hero .content{position:relative;z-index:3}
+.hero pre{
+  font-family:'JetBrains Mono',monospace;
+  font-size:clamp(11px,1.7vw,19px);line-height:1.08;letter-spacing:.02em;
+  color:var(--text-primary);margin:0;
+  text-shadow:0 0 18px rgba(139,92,246,0.85),0 0 48px rgba(139,92,246,0.45),0 0 2px rgba(127,230,80,0.4);
+  user-select:none;
+  animation:fadeIn 2s ease-out;
+}
+.hero .sub{
+  font-family:'JetBrains Mono',monospace;font-size:14px;
+  letter-spacing:.1em;margin-top:20px;
+  animation:fadeIn 2s ease-out .4s both;
+}
+.hero .sub .s{color:var(--venom);text-shadow:0 0 8px rgba(127,230,80,0.6)}
+.hero .sub .i{color:var(--amethyst-glow);text-shadow:0 0 12px rgba(167,139,250,0.5)}
+.hero .sub .dot{color:var(--text-tertiary)}
+.hero .sub .fn{color:var(--text-primary)}
+.hero .sub .cursor{
+  display:inline-block;width:8px;height:15px;background:var(--venom);
+  animation:v3code-blink 1s steps(2) infinite;
+  box-shadow:0 0 8px rgba(127,230,80,0.7);vertical-align:middle;
+}
+@keyframes v3code-blink{0%,49%{opacity:1}50%,100%{opacity:0}}
+.hero .arch{
+  font-family:'JetBrains Mono',monospace;font-size:12px;margin-top:14px;
+  color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.4em;
+  animation:fadeIn 2s ease-out .8s both;
+}
+.hero .init-btn{
+  margin-top:28px;
+  font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:500;
+  letter-spacing:.1em;text-transform:uppercase;
+  padding:14px 36px;color:var(--text-primary);
+  background:rgba(11,13,20,0.75);
+  border:1px solid rgba(139,92,246,0.50);
+  border-radius:8px;cursor:pointer;
+  box-shadow:0 0 24px rgba(139,92,246,0.25),inset 0 0 24px rgba(139,92,246,0.08);
+  backdrop-filter:blur(6px);
+  transition:all .2s ease;
+  animation:fadeIn 2s ease-out 1.2s both;
+}
+.hero .init-btn:hover{
+  border-color:var(--amethyst);
+  color:#fff;
+  box-shadow:0 0 32px rgba(139,92,246,0.55),inset 0 0 24px rgba(139,92,246,0.15);
+}
+.hero .scrolldown{
+  position:absolute;bottom:32px;left:50%;transform:translateX(-50%);
+  color:var(--text-tertiary);font-family:'JetBrains Mono',monospace;
+  font-size:10px;letter-spacing:.3em;z-index:3;
+  animation:fadeIn 2s ease-out 1.8s both;
+}
+@keyframes fadeIn{from{opacity:0}to{opacity:1}}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   AGENT PANEL
+   ═══════════════════════════════════════════════════════════════════════════ */
+.panel-wrap{max-width:1100px;margin:0 auto}
+.panel-head{
+  font-family:'JetBrains Mono',monospace;font-size:13px;
+  color:var(--text-tertiary);letter-spacing:.15em;text-transform:uppercase;
+  margin-bottom:24px;text-align:center;
+}
+.panel{
+  background:var(--void);border-radius:14px;overflow:hidden;
+  border:0.5px solid var(--ash);
+  box-shadow:0 0 60px rgba(139,92,246,0.08),0 0 120px rgba(2,2,7,0.5);
+}
+/* titlebar */
+.p-title{
+  display:flex;align-items:center;background:var(--obsidian);
+  padding:7px 14px;border-bottom:0.5px solid var(--ash);gap:10px;
+}
+.p-dots{display:flex;gap:7px}
+.p-dots div{width:12px;height:12px;border-radius:50%;opacity:.7}
+.p-title-name{font-size:13px;font-weight:500}
+.p-title-name .v3{color:var(--text-secondary)}.p-title-name .code{color:var(--amethyst)}
+.p-agent-pill{
+  margin-left:6px;display:flex;align-items:center;gap:7px;
+  background:rgba(139,92,246,0.12);border:0.5px solid rgba(139,92,246,0.40);
+  border-radius:20px;padding:4px 12px 4px 10px;cursor:pointer;
+  transition:all .15s;
+}
+.p-agent-pill:hover{background:rgba(139,92,246,0.20);border-color:rgba(139,92,246,0.60)}
+.p-agent-pill .p-dot{width:7px;height:7px;border-radius:50%;background:var(--amethyst);box-shadow:0 0 8px rgba(139,92,246,0.6)}
+.p-agent-pill span{font-size:11px;font-weight:600;color:var(--amethyst-glow);font-family:'JetBrains Mono',monospace;letter-spacing:.03em}
+.p-proj{font-size:12px;color:var(--text-tertiary);margin-left:6px}
+.p-right{margin-left:auto;display:flex;gap:16px}
+.p-right span{font-size:11px;color:var(--text-tertiary);font-family:'JetBrains Mono',monospace}
+/* body */
+.p-body{display:flex;height:520px}
+/* rail */
+.p-rail{
+  width:44px;background:var(--abyss);border-right:0.5px solid var(--ash);
+  display:flex;flex-direction:column;align-items:center;padding:10px 0;gap:3px;
+  flex-shrink:0;
+}
+.p-rail .ri{
+  width:32px;height:32px;border-radius:7px;display:flex;align-items:center;
+  justify-content:center;font-size:15px;color:var(--text-tertiary);
+  cursor:pointer;transition:all .12s;position:relative;
+}
+.p-rail .ri:hover{background:#16161F;color:var(--text-secondary)}
+.p-rail .ri.on{color:var(--amethyst);background:rgba(139,92,246,0.10)}
+.p-rail .ri.on::before{
+  content:'';position:absolute;left:-9px;top:7px;bottom:7px;width:2px;
+  background:var(--amethyst);border-radius:1px;
+}
+.p-rail .ri.spacer{flex:1}
+/* main */
+.p-main{flex:1;display:flex;flex-direction:column;background:var(--abyss);min-width:0}
+/* tabs */
+.p-tabs{
+  display:flex;align-items:center;background:var(--obsidian);
+  border-bottom:0.5px solid var(--ash);padding:0 10px;
+  gap:2px;overflow-x:auto;scrollbar-width:none;
+}
+.p-tab{
+  padding:10px 16px;font-size:12px;color:var(--text-tertiary);
+  display:flex;align-items:center;gap:7px;cursor:pointer;
+  white-space:nowrap;transition:all .12s;
+  border-top:2px solid transparent;border-radius:5px 5px 0 0;
+  font-family:'DM Sans',sans-serif;font-weight:500;
+}
+.p-tab:hover{color:var(--text-secondary)}
+.p-tab.on{color:var(--text-primary);background:var(--abyss);border-top-color:var(--amethyst)}
+.p-tab .d{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.p-tab-add{padding:7px 12px;font-size:16px;color:var(--text-tertiary);cursor:pointer}
+.p-tab-add:hover{color:var(--amethyst-glow)}
+/* chat */
+.p-chat{flex:1;overflow-y:auto;padding:18px 22px;display:flex;flex-direction:column;gap:14px}
+.msg-user{
+  align-self:flex-end;max-width:72%;background:#16161F;
+  border-radius:14px 14px 4px 14px;padding:12px 16px;
+  font-size:13px;line-height:1.55;word-break:break-word;
+}
+.block{max-width:88%}
+.block-h{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.block-h .d{width:6px;height:6px;border-radius:50%;background:var(--amethyst);box-shadow:0 0 8px rgba(139,92,246,0.6)}
+.block-h span{font-size:11px;color:var(--amethyst);font-weight:600;letter-spacing:.03em;font-family:'JetBrains Mono',monospace}
+.thinking{
+  background:var(--obsidian);border-left:2px solid rgba(139,92,246,0.25);
+  border-radius:0 9px 9px 0;padding:12px 16px;
+  font-size:12px;color:var(--text-secondary);line-height:1.6;
+}
+/* context bridge card */
+.cb{
+  background:var(--obsidian);border:0.5px solid var(--ash);
+  border-radius:10px;padding:12px 16px;font-size:12px;
+}
+.cb-head{display:flex;align-items:center;gap:7px;margin-bottom:10px;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--venom);font-weight:600;letter-spacing:.03em}
+.cb-row{display:flex;align-items:center;gap:9px;padding:3px 0}
+.cb-check{width:16px;height:16px;border-radius:4px;background:rgba(127,230,80,0.12);display:flex;align-items:center;justify-content:center;color:var(--venom);font-size:11px;flex-shrink:0}
+.cb-run{width:16px;height:16px;border-radius:4px;background:rgba(139,92,246,0.12);display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.cb-run .d2{width:7px;height:7px;border-radius:50%;background:var(--amethyst);animation:pulse 1.2s infinite}
+.cb-tool{color:var(--text-secondary);font-family:'JetBrains Mono',monospace;font-size:11px}
+.cb-tool.running{color:var(--amethyst-glow)}
+.cb-res{color:var(--text-tertiary);font-size:11px}
+/* memory note */
+.mem{
+  background:rgba(127,230,80,0.04);border:0.5px solid rgba(127,230,80,0.18);
+  border-radius:10px;padding:10px 14px;font-size:12px;display:flex;align-items:flex-start;gap:10px;
+}
+.mem .ico{color:var(--venom);font-size:14px;margin-top:2px;flex-shrink:0}
+.mem-head{color:var(--venom);font-size:10px;font-weight:600;margin-bottom:3px;letter-spacing:.03em;font-family:'JetBrains Mono',monospace}
+.mem-body{color:var(--text-secondary);line-height:1.55}
+/* response */
+.resp{font-size:13px;color:var(--text-primary);line-height:1.7;padding-left:16px;border-left:2px solid rgba(139,92,246,0.18)}
+.resp .hl-p{color:var(--amethyst-glow);font-weight:600}
+.resp .hl-g{color:var(--venom);font-family:'JetBrains Mono',monospace;font-size:12px}
+.resp .hl-w{color:var(--warning)}
+.resp .hl-r{color:var(--error)}
+.resp .hl-m{color:var(--text-secondary)}
+/* input */
+.p-input-area{border-top:0.5px solid var(--ash);padding:12px 18px;background:var(--obsidian)}
+.p-input-tools{display:flex;align-items:center;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.it{padding:4px 10px;border-radius:5px;background:#16161F;font-size:11px;color:var(--text-secondary);cursor:pointer;display:flex;align-items:center;gap:5px;transition:all .15s}
+.it:hover{background:#1c1c27;color:var(--text-primary)}
+.p-input-row{display:flex;align-items:center;gap:10px}
+.p-input-row input{
+  flex:1;background:#16161F;border:0.5px solid var(--ash);border-radius:10px;
+  padding:12px 16px;color:var(--text-primary);font-size:13px;outline:none;
+  font-family:'DM Sans',sans-serif;transition:border .15s;
+}
+.p-input-row input:focus{border-color:rgba(139,92,246,0.55)}
+.send-btn{
+  width:38px;height:38px;border-radius:10px;background:var(--amethyst);
+  display:flex;align-items:center;justify-content:center;cursor:pointer;
+  color:#fff;font-size:18px;border:none;transition:all .15s;flex-shrink:0;
+  box-shadow:0 0 14px rgba(139,92,246,0.35);
+}
+.send-btn:hover{background:var(--amethyst-glow);box-shadow:0 0 20px rgba(139,92,246,0.55)}
+.p-input-foot{display:flex;align-items:center;justify-content:space-between;margin-top:8px;font-size:10px;color:var(--text-tertiary)}
+.p-input-foot .cb-ind{display:flex;align-items:center;gap:7px}
+.p-input-foot .cb-ind .d{width:6px;height:6px;border-radius:50%;background:var(--venom);box-shadow:0 0 6px rgba(127,230,80,0.5)}
+/* status panel */
+.p-status{
+  width:200px;background:var(--obsidian);border-left:0.5px solid var(--ash);
+  display:flex;flex-direction:column;padding:14px;gap:14px;overflow-y:auto;
+  flex-shrink:0;
+}
+.st-label{font-size:10px;color:var(--text-tertiary);font-weight:600;letter-spacing:.06em;font-family:'JetBrains Mono',monospace;text-transform:uppercase;margin-bottom:8px}
+.st-badge{border-radius:8px;padding:9px 12px;display:flex;align-items:center;gap:7px}
+.st-badge .d{width:8px;height:8px;border-radius:50%}.st-badge span{font-size:11px;font-weight:500}
+.st-task{font-size:11px;color:var(--text-secondary);margin-bottom:7px;line-height:1.5}
+.st-prog{display:flex;gap:4px;margin-bottom:5px}.st-prog div{flex:1;height:3px;border-radius:2px}
+.st-step{font-size:10px;color:var(--text-tertiary)}
+.st-files{display:flex;flex-direction:column;gap:4px}
+.st-file{display:flex;align-items:center;gap:7px;font-size:11px}
+.st-file .d{width:4px;height:4px;border-radius:1px;flex-shrink:0}
+.st-file span{color:var(--text-secondary);font-family:'JetBrains Mono',monospace;font-size:10px}
+.st-mem{display:flex;flex-direction:column;gap:5px}
+.st-mem-item{background:rgba(127,230,80,0.04);border-radius:5px;padding:7px 9px;font-size:10px;color:var(--venom);line-height:1.45}
+.st-tools{display:flex;flex-wrap:wrap;gap:4px}
+.st-tools span{padding:3px 7px;border-radius:4px;background:#16161F;font-size:9px;color:var(--venom);font-family:'JetBrains Mono',monospace}
+.st-tools span.off{color:var(--text-secondary)}
+/* statusbar */
+.p-statusbar{
+  display:flex;align-items:center;justify-content:space-between;
+  background:var(--obsidian);border-top:0.5px solid var(--ash);
+  padding:4px 14px;font-size:10px;color:var(--text-tertiary);
+  font-family:'JetBrains Mono',monospace;
+}
+.p-statusbar .sbl,.p-statusbar .sbr{display:flex;align-items:center;gap:14px}
+.p-statusbar .sbd{display:flex;align-items:center;gap:5px}
+.p-statusbar .sbd .d{width:6px;height:6px;border-radius:50%;background:var(--amethyst);box-shadow:0 0 6px rgba(139,92,246,0.5)}
+.p-statusbar .green{color:var(--venom)}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FEATURES
+   ═══════════════════════════════════════════════════════════════════════════ */
+.features{text-align:center}
+.features h2{font-size:clamp(24px,4vw,36px);font-weight:700;margin-bottom:48px}
+.features h2 span{color:var(--amethyst)}
+.features .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:18px;max-width:1000px;margin:0 auto}
+.features .card{
+  background:var(--obsidian);border:0.5px solid var(--ash);
+  border-radius:12px;padding:28px 24px;text-align:left;
+  transition:border-color .2s;
+}
+.features .card:hover{border-color:rgba(139,92,246,0.30)}
+.features .card .ico{font-size:24px;margin-bottom:14px}
+.features .card h4{font-size:16px;font-weight:600;margin-bottom:8px}
+.features .card h4.am{color:var(--amethyst-glow)}
+.features .card h4.ve{color:var(--venom)}
+.features .card p{font-size:13px;color:var(--text-secondary);line-height:1.6}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   COMPARISON TABLE
+   ═══════════════════════════════════════════════════════════════════════════ */
+.compare{text-align:center}
+.compare h2{font-size:clamp(24px,4vw,36px);font-weight:700;margin-bottom:48px}
+.compare h2 span{color:var(--amethyst)}
+.compare .table-wrap{overflow-x:auto;max-width:900px;margin:0 auto}
+.compare table{width:100%;border-collapse:collapse;font-size:13px;text-align:center}
+.compare th{font-family:'JetBrains Mono',monospace;font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.06em;padding:14px 16px 10px;border-bottom:1px solid var(--ash)}
+.compare td{padding:12px 16px;border-bottom:0.5px solid rgba(28,30,39,0.5);color:var(--text-secondary)}
+.compare td:first-child{text-align:left;font-weight:500;color:var(--text-primary)}
+.compare td.yes{color:var(--venom);font-weight:600}
+.compare td.no{color:var(--text-tertiary)}
+.compare tr.ours td{background:rgba(139,92,246,0.06)}
+.compare tr.ours td.yes{color:var(--venom-bright)}
+.compare tr.ours td:first-child{color:var(--amethyst-glow)}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   FOOTER
+   ═══════════════════════════════════════════════════════════════════════════ */
+footer{
+  text-align:center;padding:60px 32px 40px;
+  border-top:0.5px solid var(--ash);margin-top:40px;
+}
+footer .brand{font-family:'JetBrains Mono',monospace;font-size:16px;margin-bottom:8px}
+footer .brand .v{color:var(--amethyst)}footer .brand .c{color:var(--text-primary)}
+footer .tag{font-size:12px;color:var(--text-tertiary);margin-bottom:24px}
+footer .copy{font-size:10px;color:var(--text-tertiary);font-family:'JetBrains Mono',monospace}
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   ANIMATIONS
+   ═══════════════════════════════════════════════════════════════════════════ */
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* responsive */
+@media(max-width:768px){
+  .p-status{display:none}
+  .p-rail{width:36px}
+  .hero pre{font-size:clamp(8px,3vw,13px)}
+  nav .links{display:none}
+  .compare table{font-size:11px}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════════════ NAV ═══════════════ -->
+<nav>
+  <div class="logo"><span class="v">V3</span><span class="c">Code</span></div>
+  <div class="links">
+    <a href="#hero" class="active">Home</a>
+    <a href="#agent">Agent Panel</a>
+    <a href="#features">Features</a>
+    <a href="#compare">vs Copilot</a>
+    <a href="#compare">vs Cursor</a>
+  </div>
+  <button class="cta">Download v3code</button>
+</nav>
+
+<!-- ═══════════════ HERO — Welcome Page ═══════════════ -->
+<section class="hero" id="hero">
+  <div class="scanlines"></div>
+  <div class="bracket tl">┌─ v3code.sys ──</div>
+  <div class="bracket tr">── status: ready ─┐</div>
+  <div class="bracket bl">└─ build: 0x0003 ──</div>
+  <div class="bracket br">── KandD/labs ─┘</div>
+  <div class="horizon"></div>
+  <div class="content">
+    <pre>██╗   ██╗██████╗  ██████╗ ██████╗ ██████╗ ███████╗
+██║   ██║╚════██╗██╔════╝██╔═══██╗██╔══██╗██╔════╝
+██║   ██║ █████╔╝██║     ██║   ██║██║  ██║█████╗
+╚██╗ ██╔╝ ╚═══██╗██║     ██║   ██║██║  ██║██╔══╝
+ ╚████╔╝ ██████╔╝╚██████╗╚██████╔╝██████╔╝███████╗
+  ╚═══╝  ╚═════╝  ╚═════╝ ╚═════╝ ╚═════╝ ╚══════╝</pre>
+    <div class="sub">
+      <span class="s">$</span>
+      <span class="i">structural_intelligence</span>
+      <span class="dot">.</span>
+      <span class="fn">init</span>
+      <span class="dot">()</span>
+      <span class="cursor"></span>
+    </div>
+    <div class="arch">[ ctx-bridge :: lsp :: graph :: pack ]</div>
+    <a href="#agent"><button class="init-btn"><span style="color:var(--venom)">&gt;</span> Initialize_</button></a>
+  </div>
+  <div class="scrolldown">scroll to explore &darr;</div>
+</section>
+
+<!-- ═══════════════ AGENT PANEL ═══════════════ -->
+<section id="agent">
+  <div class="panel-wrap">
+    <div class="panel-head">&#9678; Live Agent Panel — Context Bridge Active</div>
+    <div class="panel" id="thePanel">
+      <!-- titlebar -->
+      <div class="p-title">
+        <div class="p-dots">
+          <div style="background:var(--error)"></div>
+          <div style="background:var(--warning)"></div>
+          <div style="background:var(--venom)"></div>
+        </div>
+        <span class="p-title-name"><span class="v3">V3</span><span class="code">Code</span></span>
+        <div class="p-agent-pill" id="agentToggle" title="Ctrl+Shift+A — Toggle Agent Mode">
+          <div class="p-dot"></div><span>AGENT</span>
+        </div>
+        <span class="p-proj">context-bridge</span>
+        <div class="p-right">
+          <span id="pClock">build: 0x0003</span>
+          <span>kandD/labs</span>
+        </div>
+      </div>
+      <!-- body -->
+      <div class="p-body">
+        <!-- rail -->
+        <div class="p-rail" id="rail">
+          <div class="ri on" data-view="chat" title="Chat (Ctrl+1)">&#9679;</div>
+          <div class="ri" data-view="files" title="Files (Ctrl+2)">&#9776;</div>
+          <div class="ri" data-view="search" title="Semantic Search (Ctrl+3)">&#9906;</div>
+          <div class="ri" data-view="memory" title="Persistent Memory (Ctrl+4)">&#9678;</div>
+          <div class="ri spacer"></div>
+          <div class="ri" data-view="terminal" title="Terminal (Ctrl+5)">&gt;_</div>
+          <div class="ri" data-view="settings" title="Settings (Ctrl+,)">&#9881;</div>
+        </div>
+        <!-- main -->
+        <div class="p-main" id="pMain"></div>
+        <!-- status -->
+        <div class="p-status" id="pStatus"></div>
+      </div>
+      <!-- statusbar -->
+      <div class="p-statusbar">
+        <div class="sbl">
+          <div class="sbd"><div class="d" id="sbDot"></div><span id="sbState">agent: active</span></div>
+          <span id="sbChats">3 chats</span>
+          <span class="green">ctx-bridge: connected</span>
+        </div>
+        <div class="sbr">
+          <span>deepseek-r1</span>
+          <span id="sbTokens">tokens: 12.4k</span>
+          <span>v3code 0.1.0</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ FEATURES ═══════════════ -->
+<section class="features" id="features">
+  <h2>Why <span>V3Code</span></h2>
+  <div class="grid">
+    <div class="card">
+      <div class="ico">&#9733;</div>
+      <h4 class="am">AI That Actually Reads Your Codebase</h4>
+      <p>Context Bridge pipes real LSP symbol data — definitions, callers, callees, references, type hierarchies — directly into the AI agent. Not grep. Not guessing. Real structure from the language server.</p>
+    </div>
+    <div class="card">
+      <div class="ico">&#128274;</div>
+      <h4 class="ve">Your Code Never Leaves Your Machine</h4>
+      <p>Local embeddings index via sqlite-vec powered by tree-sitter semantic chunking + HyDE query expansion. Everything runs on-device. No cloud upload. No auth. No billing.</p>
+    </div>
+    <div class="card">
+      <div class="ico">&#9783;</div>
+      <h4 class="ve">Persistent Institutional Memory</h4>
+      <p><code style="color:var(--venom);font-family:'JetBrains Mono',monospace;font-size:11px">remember</code> attaches notes to symbols that survive across sessions. Every future AI session sees what you learned. The project never forgets.</p>
+    </div>
+    <div class="card">
+      <div class="ico">&#9889;</div>
+      <h4 class="am">13+ LLM Providers, BYOK</h4>
+      <p>DeepSeek V4 Pro, Anthropic Claude, OpenAI, Gemini, Groq, Ollama, LM Studio... bring your own keys or use local models. No lock-in. No vendor allegiance.</p>
+    </div>
+    <div class="card">
+      <div class="ico">&#9881;</div>
+      <h4 class="am">10 Structural Intelligence Tools</h4>
+      <p><code style="color:var(--amethyst-glow);font-family:'JetBrains Mono',monospace;font-size:11px">get_symbol_context</code>, <code style="color:var(--amethyst-glow);font-family:'JetBrains Mono',monospace;font-size:11px">get_call_graph</code>, <code style="color:var(--amethyst-glow);font-family:'JetBrains Mono',monospace;font-size:11px">pack_context</code>, <code style="color:var(--amethyst-glow);font-family:'JetBrains Mono',monospace;font-size:11px">get_file_dependencies</code>, <code style="color:var(--amethyst-glow);font-family:'JetBrains Mono',monospace;font-size:11px">semantic_search</code> — tools no other editor gives its AI agent.</p>
+    </div>
+    <div class="card">
+      <div class="ico">&#128200;</div>
+      <h4 class="ve">Live Index, Always Current</h4>
+      <p>File watcher with 2s debounce keeps the index live. Tree-sitter semantic chunking by function/class/method — not blind line windows. Incremental Merkle-hash updates. Full reindex of 10k files in under 5 minutes.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════ COMPARISON ═══════════════ -->
+<section class="compare" id="compare">
+  <h2>How <span>V3Code</span> Stacks Up</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr><th>Capability</th><th>GitHub Copilot</th><th>Cursor</th><th>Void (upstream)</th><th style="color:var(--amethyst)">V3Code</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>LSP-backed symbol context in agent</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="yes">Yes — Built-in</td></tr>
+        <tr><td>Persistent symbol notes (cross-session)</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="yes">Yes</td></tr>
+        <tr><td>Call graph traversal</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="yes">Yes</td></tr>
+        <tr><td>MCP support</td><td class="no">Half-baked</td><td class="no">No</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+        <tr><td>DeepSeek support</td><td class="no">No</td><td class="no">No</td><td class="yes">Yes</td><td class="yes">Yes</td></tr>
+        <tr><td>BYOK providers</td><td class="no">Locked catalog</td><td class="no">Locked + paid</td><td class="yes">13+</td><td class="yes">13+</td></tr>
+        <tr><td>Local embeddings (@workspace)</td><td class="yes">Yes (cloud)</td><td class="yes">Yes ($20/mo)</td><td class="no">No</td><td class="yes" style="color:var(--venom-bright)">Yes — free, local</td></tr>
+        <tr><td>File dependency mapping</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="yes">Yes</td></tr>
+        <tr><td>Task-typed context packing</td><td class="no">No</td><td class="no">No</td><td class="no">No</td><td class="yes">Yes</td></tr>
+        <tr class="ours"><td>Agent operating system prompt</td><td class="no">Minimal</td><td class="no">Good</td><td class="no">Good</td><td class="yes">Battle-tested + LSP-aware</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<!-- ═══════════════ FOOTER ═══════════════ -->
+<footer>
+  <div class="brand"><span class="v">V3</span><span class="c">Code</span></div>
+  <div class="tag">The editor whose AI actually understands your code.</div>
+  <div class="copy">Built by KandD Labs · v3code.dev · &copy; 2026</div>
+</footer>
+
+<!-- ═══════════════ SCRIPT ═══════════════ -->
+<script>
+// ── Rail items ──
+const railViews = [
+  {id:'chat', ic:'&#9679;', title:'Chat (Ctrl+1)'},
+  {id:'files', ic:'&#9776;', title:'Explorer (Ctrl+2)'},
+  {id:'search', ic:'&#9906;', title:'Semantic Search (Ctrl+3)'},
+  {id:'memory', ic:'&#9678;', title:'Persistent Memory (Ctrl+4)'},
+  {id:'terminal', ic:'&gt;_', title:'Terminal (Ctrl+5)'},
+];
+let currentView = 'chat';
+let isAgentMode = true;
+
+// ── Tab data ──
+const tabs = [
+  {
+    id:'auth', name:'Refactor auth', dot:'#7FE650', state:'active',
+    chat:[
+      {type:'user', text:'Refactor the auth middleware to use session tokens instead of JWT. Keep backward compatibility for 2 weeks.'},
+      {type:'plan', text:'Analyzing auth module structure via Context Bridge...'},
+      {type:'cb', rows:[
+        {s:'done', t:'pack_context', r:'→ auth/middleware.ts : 12 symbols, 3 callers, 2 notes'},
+        {s:'done', t:'get_call_graph', r:'→ validateToken : 8 callers across 4 files'},
+        {s:'run', t:'get_file_dependencies', r:'→ resolving dependency graph...'}
+      ]},
+      {type:'mem', head:'MEMORY NOTE — saved 3 days ago', body:'JWT secret is shared with the payment service — changing auth format requires coordinating with payments team. See payment-gateway/config.ts:24'},
+      {type:'resp', html:'Based on structural analysis, here\'s the migration:<br><br><span class="hl-p">Phase 1</span> — Add session store alongside JWT (backward compatible)<br><span class="hl-m">Files: </span><span class="hl-g">auth/session.ts</span> (new), <span class="hl-g">auth/middleware.ts</span><br><br><span class="hl-p">Phase 2</span> — Migrate callers (8 across 4 files)<br><span class="hl-w">⚠ Note:</span> Payment service shares JWT secret. Coordinate before Phase 2.'}
+    ],
+    status:{badge:{c:'#8B5CF6',bg:'rgba(139,92,246,0.06)',txt:'#A78BFA',label:'Working...',pulse:true},task:'Refactor auth → sessions',prog:['#7FE650','#7FE650','#8B5CF6','#1C1E27'],step:'Step 3 of 4',files:[['#7FE650','middleware.ts'],['#7FE650','session.ts'],['#8B5CF6','routes/api.ts'],['#1C1E27','config.ts']],mem:['JWT shared with payments','Rate limiter added May 23'],tools:[['pack',1],['graph',1],['deps',1],['mem',0],['sym',0]]}
+  },
+  {
+    id:'api', name:'Fix API routes', dot:'#5A5A6E', state:'idle',
+    chat:[
+      {type:'user', text:'The /users endpoint returns 500 on POST. Find why and fix it.'},
+      {type:'plan', text:'Investigating the users route handler...'},
+      {type:'cb', rows:[
+        {s:'done', t:'get_symbol_context', r:'→ createUser : routes/users.ts:42'},
+        {s:'done', t:'find_text', r:'→ "req.body.email" : 3 matches'},
+        {s:'done', t:'get_file_context', r:'→ routes/users.ts : missing body-parser'}
+      ]},
+      {type:'resp', html:'Found it. <span class="hl-g">routes/users.ts</span> reads <span class="hl-g">req.body.email</span> but <span class="hl-g">express.json()</span> isn\'t registered for this router — so <span class="hl-g">req.body</span> is undefined, throwing on access.<br><br><span class="hl-p">Fix:</span> add <span class="hl-g">router.use(express.json())</span> at the top. One line.'}
+    ],
+    status:{badge:{c:'#7FE650',bg:'rgba(127,230,80,0.06)',txt:'#7FE650',label:'Resolved',pulse:false},task:'Fix /users 500',prog:['#7FE650','#7FE650','#7FE650','#7FE650'],step:'Complete',files:[['#7FE650','routes/users.ts'],['#5A5A6E','app.ts']],mem:['Body parser scoped per-router'],tools:[['sym',1],['find',1],['file',1],['pack',0]]}
+  },
+  {
+    id:'pay', name:'Debug payment', dot:'#F59E0B', state:'running',
+    chat:[
+      {type:'user', text:'Payments intermittently fail with a timeout. Trace the call path and find the bottleneck.'},
+      {type:'plan', text:'Tracing the payment flow across services...'},
+      {type:'cb', rows:[
+        {s:'done', t:'get_call_graph', r:'→ processPayment : 4 levels, 11 nodes'},
+        {s:'done', t:'pack_context', r:'→ chargeCard : 2 callers, 1 note'},
+        {s:'run', t:'get_call_graph', r:'→ tracing retry loop (depth 3)...'}
+      ]},
+      {type:'mem', head:'MEMORY NOTE — saved 1 week ago', body:'chargeCard has no timeout on the Stripe call — flagged during the last incident. A hanging request blocks the whole worker.'},
+      {type:'resp', html:'The call graph shows <span class="hl-g">chargeCard</span> → <span class="hl-g">stripeClient.charge</span> with no timeout (confirmed by memory). Under load, a slow Stripe response holds the worker until the gateway times out at 30s.<br><br><span class="hl-r">Root cause:</span> missing request timeout + no circuit breaker. Still mapping the retry loop.'}
+    ],
+    status:{badge:{c:'#F59E0B',bg:'rgba(245,158,11,0.06)',txt:'#F59E0B',label:'Running...',pulse:true},task:'Debug payment timeout',prog:['#7FE650','#8B5CF6','#1C1E27','#1C1E27'],step:'Step 2 of 4',files:[['#7FE650','payment/charge.ts'],['#8B5CF6','payment/worker.ts'],['#1C1E27','stripe/client.ts']],mem:['chargeCard has no timeout','Worker pool size = 4'],tools:[['graph',1],['pack',1],['mem',1],['deps',0]]}
+  }
+];
+let activeTab = 0;
+
+// ── Files data ──
+const fileTree = [
+  {d:0,ic:'▼',n:'context-bridge',f:1},
+  {d:1,ic:'▶',n:'mcp-server',f:1},
+  {d:2,ic:'▶',n:'src',f:1},
+  {d:2,n:'package.json',g:'M'},
+  {d:1,ic:'▼',n:'src',f:1},
+  {d:2,n:'index.ts',g:'M'},
+  {d:2,n:'lsp-bridge.ts',g:'M'},
+  {d:2,n:'types.ts'},
+  {d:2,ic:'▶',n:'tools',f:1},
+  {d:1,n:'AGENTS.md',g:'U'},
+  {d:1,n:'.github/copilot-instructions.md',g:'U'},
+  {d:1,n:'README.md'},
+  {d:0,n:'package.json'},
+  {d:0,n:'tsconfig.json'},
+];
+
+// ── Search ──
+const searchResults = [
+  {file:'src/lsp-bridge.ts',cnt:4,lines:[
+    [543,'export class <span class="hl-g">LspBridge</span> {'],
+    [744,'  async <span class="hl-g">getIncomingCalls</span>(file: string) {']
+  ]},
+  {file:'src/index.ts',cnt:2,lines:[[20,'  const bridge = new <span class="hl-g">LspBridge</span>({ workspaceRoot });']]},
+  {file:'src/tools/get-symbol-context.ts',cnt:1,lines:[[23,'  bridge: <span class="hl-g">LspBridge</span>,']]},
+];
+
+// ── Memory ──
+const memNotes = [
+  {sym:'validateToken',loc:'auth/middleware.ts:88',txt:'JWT secret is shared with the payment service. Changing auth format requires coordinating with payments.',date:'saved 3 days ago'},
+  {sym:'chargeCard',loc:'payment/charge.ts:142',txt:'No timeout on the Stripe call. A hanging request blocks the whole worker. Flagged during last incident.',date:'saved 1 week ago'},
+  {sym:'rateLimiter',loc:'middleware/rate.ts:12',txt:'Added May 23. Uses a sliding window, 100 req/min per IP. Redis-backed.',date:'saved 3 days ago'},
+  {sym:'LspBridge',loc:'lsp-bridge.ts:543',txt:'On Windows, spawn tsserver via node.exe + cli.mjs. The .cmd wrapper cannot be spawned directly.',date:'saved 4 days ago'},
+];
+
+// ── Terminal ──
+const termLines = [
+  {c:'prompt',t:'$ '},{c:'',t:'npx context-bridge init'},
+  {c:'info',t:'[context-bridge] starting MCP server...'},
+  {c:'dim',t:'[lsp] spawning typescript-language-server via node.exe'},
+  {c:'ok',t:'[lsp] language server ready (tsserver 5.4.2)'},
+  {c:'ok',t:'[preload] indexed 247 files in workspace + 4 gitignores applied'},
+  {c:'info',t:'[mcp] registered 10 tools: pack_context, get_symbol_context,'},
+  {c:'dim',t:'      get_file_context, get_call_graph, get_file_dependencies,'},
+  {c:'dim',t:'      find_text, remember, forget, list_notes, semantic_search'},
+  {c:'ok',t:'[mcp] context-bridge connected — 24 tests passing'},
+  {c:'info',t:'[memory] loaded 4 persisted notes from .context-bridge/'},
+  {c:'',t:''},
+  {c:'prompt',t:'$ '},{c:'cursor',t:''}
+];
+
+// ── Render ──
+function render() {
+  renderRail();
+  renderMain();
+  renderStatus();
+  updateStatusBar();
+}
+function renderRail() {
+  const el = document.getElementById('rail');
+  el.querySelectorAll('.ri[data-view]').forEach(r => {
+    r.classList.toggle('on', r.dataset.view === currentView);
+  });
+}
+function renderMain() {
+  const main = document.getElementById('pMain');
+  const status = document.getElementById('pStatus');
+  status.style.display = 'flex';
+  if (currentView === 'chat') renderChatView(main);
+  else if (currentView === 'files') renderFiles(main);
+  else if (currentView === 'search') renderSearch(main);
+  else if (currentView === 'memory') renderMemory(main);
+  else if (currentView === 'terminal') renderTerminal(main);
+  else if (currentView === 'settings'){ renderSettings(main); status.style.display = 'none'; }
+}
+function renderChatView(main) {
+  const tabsHtml = tabs.map((t,i) => {
+    const ds = t.state === 'running' ? `background:${t.dot};animation:pulse 2s infinite` : `background:${t.dot}`;
+    return `<div class="p-tab${i===activeTab?' on':''}" data-tab="${i}"><div class="d" style="${ds}"></div>${t.name}</div>`;
+  }).join('');
+  main.innerHTML = `<div class="p-tabs">${tabsHtml}<div class="p-tab-add" id="addTab">+</div></div>
+    <div class="p-chat" id="chat"></div>
+    <div class="p-input-area">
+      <div class="p-input-tools">
+        <div class="it">📎 Attach</div><div class="it">@ Symbol</div><div class="it">🌐 Browser</div><div class="it">📱 Phone</div>
+        <div class="it" onclick="toggleAgent()">⚡ ${isAgentMode?'Agent':'Chat'} Mode</div>
+      </div>
+      <div class="p-input-row">
+        <input type="text" id="msgInput" placeholder="Ask V3Code to build, refactor, or debug...">
+        <button class="send-btn" id="sendBtn">↑</button>
+      </div>
+      <div class="p-input-foot">
+        <div><span style="color:var(--amethyst);font-family:'JetBrains Mono',monospace">${isAgentMode?'agent':'chat'}</span> · deepseek-r1</div>
+        <div class="cb-ind">Context Bridge <div class="d"></div> connected</div>
+      </div>
+    </div>`;
+  main.querySelectorAll('.p-tab').forEach(el => el.onclick = () => { activeTab = +el.dataset.tab; render(); });
+  main.querySelector('#addTab').onclick = addTab;
+  main.querySelector('#sendBtn').onclick = sendMsg;
+  main.querySelector('#msgInput').addEventListener('keydown', e => { if (e.key === 'Enter') sendMsg(); });
+  renderChat();
+}
+function renderChat() {
+  const el = document.getElementById('chat'); if (!el) return; el.innerHTML = '';
+  tabs[activeTab].chat.forEach(m => {
+    if (m.type === 'user') el.innerHTML += `<div class="msg-user">${m.text}</div>`;
+    else if (m.type === 'plan') el.innerHTML += `<div class="block"><div class="block-h"><div class="d"></div><span>PLANNING</span></div><div class="thinking">${m.text}</div></div>`;
+    else if (m.type === 'cb') {
+      const rows = m.rows.map(r => r.s === 'done'
+        ? `<div class="cb-row"><div class="cb-check">✓</div><span class="cb-tool">${r.t}</span><span class="cb-res">${r.r}</span></div>`
+        : `<div class="cb-row"><div class="cb-run"><div class="d2"></div></div><span class="cb-tool running">${r.t}</span><span class="cb-res">${r.r}</span></div>`
+      ).join('');
+      el.innerHTML += `<div class="block"><div class="cb"><div class="cb-head">⚡ CONTEXT BRIDGE</div>${rows}</div></div>`;
+    } else if (m.type === 'mem') el.innerHTML += `<div class="block"><div class="mem"><div class="ico">☣</div><div><div class="mem-head">${m.head}</div><div class="mem-body">${m.body}</div></div></div></div>`;
+    else if (m.type === 'resp') el.innerHTML += `<div class="block"><div class="block-h"><div class="d" style="box-shadow:none"></div><span style="color:var(--text-secondary);font-family:'DM Sans',sans-serif;font-weight:400">Agent</span></div><div class="resp">${m.html}</div></div>`;
+  });
+  el.scrollTop = el.scrollHeight;
+}
+function renderStatus() {
+  const el = document.getElementById('pStatus');
+  const s = tabs[activeTab].status;
+  const ds = s.badge.pulse ? `background:${s.badge.c};box-shadow:0 0 8px ${s.badge.c}80;animation:pulse 2s infinite` : `background:${s.badge.c};box-shadow:0 0 6px ${s.badge.c}80`;
+  el.innerHTML = `<div><div class="st-label">Status</div><div class="st-badge" style="background:${s.badge.bg}"><div class="d" style="${ds}"></div><span style="color:${s.badge.txt}">${s.badge.label}</span></div></div>
+    <div><div class="st-label">Task</div><div class="st-task">${s.task}</div><div class="st-prog">${s.prog.map(c => `<div style="background:${c}"></div>`).join('')}</div><div class="st-step">${s.step}</div></div>
+    <div><div class="st-label">Files</div><div class="st-files">${s.files.map(f => `<div class="st-file"><div class="d" style="background:${f[0]}"></div><span style="${f[0]==='#1C1E27'?'color:var(--text-tertiary)':''}">${f[1]}</span></div>`).join('')}</div></div>
+    <div><div class="st-label">Memory</div><div class="st-mem">${s.mem.map(m => `<div class="st-mem-item">${m}</div>`).join('')}</div></div>
+    <div><div class="st-label">Tools</div><div class="st-tools">${s.tools.map(t => `<span class="${t[1]?'':'off'}">${t[0]}</span>`).join('')}</div></div>`;
+}
+function renderFiles(main) {
+  const rows = fileTree.map(f => {
+    const ind = f.d === 0 ? '' : f.d === 1 ? 'style="padding-left:18px"' : 'style="padding-left:34px"';
+    const ic = f.f ? `<span style="color:var(--amethyst-glow);font-size:11px;width:12px">${f.ic||''}</span>` : `<span style="color:var(--text-tertiary);font-size:11px;width:12px">◇</span>`;
+    const nm = f.f ? `<span style="color:var(--amethyst-glow)">${f.n}</span>` : `<span>${f.n}</span>`;
+    const gd = f.g ? `<span style="margin-left:auto;font-size:9px;width:14px;text-align:center;border-radius:3px;color:${f.g==='M'?'var(--warning)':f.g==='U'?'var(--venom)':'var(--amethyst)'}">${f.g}</span>` : '';
+    return `<div ${ind} style="display:flex;align-items:center;gap:7px;padding:3px 4px;border-radius:4px;cursor:pointer;font-family:'JetBrains Mono',monospace;font-size:12px;color:var(--text-secondary)">${ic}${nm}${gd}</div>`;
+  }).join('');
+  main.innerHTML = `<div style="padding:10px 16px;border-bottom:0.5px solid var(--ash);font-size:11px;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;gap:8px"><span style="color:var(--amethyst)">☰</span> Explorer — context-bridge</div><div style="flex:1;overflow-y:auto;padding:14px 16px">${rows}</div>`;
+}
+function renderSearch(main) {
+  const res = searchResults.map(r => {
+    const lines = r.lines.map(l => `<div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text-secondary);padding:2px 0 2px 16px;display:flex;gap:8px"><span style="color:var(--text-tertiary);min-width:28px">${l[0]}</span><span>${l[1]}</span></div>`).join('');
+    return `<div style="margin-bottom:12px"><div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--amethyst-glow);margin-bottom:4px;display:flex;align-items:center;gap:6px">◇ ${r.file} <span style="color:var(--text-tertiary)">(${r.cnt})</span></div>${lines}</div>`;
+  }).join('');
+  main.innerHTML = `<div style="padding:10px 16px;border-bottom:0.5px solid var(--ash);font-size:11px;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;gap:8px"><span style="color:var(--amethyst)">✢</span> Semantic Search</div><div style="flex:1;overflow-y:auto;padding:14px 16px">
+    <div style="display:flex;align-items:center;gap:8px;background:#16161F;border:0.5px solid var(--ash);border-radius:8px;padding:8px 12px;margin-bottom:14px"><span style="color:var(--text-tertiary)">✢</span><input value="LspBridge" readonly style="flex:1;background:transparent;border:none;outline:none;color:var(--text-primary);font-size:13px;font-family:'JetBrains Mono',monospace"><span style="font-size:9px;color:var(--venom);font-family:'JetBrains Mono',monospace;background:rgba(127,230,80,0.08);padding:2px 6px;border-radius:3px">RRF · HyDE · FTS5</span></div>
+    <div style="font-size:10px;color:var(--text-tertiary);margin-bottom:12px;font-family:'JetBrains Mono',monospace">7 results in 3 files — ranked by Reciprocal Rank Fusion (k=60)</div>
+    ${res}</div>`;
+}
+function renderMemory(main) {
+  const notes = memNotes.map(n => `<div style="background:var(--obsidian);border:0.5px solid var(--ash);border-left:2px solid rgba(127,230,80,0.35);border-radius:0 8px 8px 0;padding:10px 13px;margin-bottom:10px">
+    <div style="font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--venom);margin-bottom:3px;display:flex;align-items:center;gap:6px">☣ ${n.sym} <span style="color:var(--text-tertiary);font-size:10px">${n.loc}</span></div>
+    <div style="font-size:12px;color:var(--text-secondary);line-height:1.5;margin-bottom:4px">${n.txt}</div>
+    <div style="font-size:9px;color:#4a4b5a;font-family:'JetBrains Mono',monospace">${n.date}</div>
+  </div>`).join('');
+  main.innerHTML = `<div style="padding:10px 16px;border-bottom:0.5px solid var(--ash);font-size:11px;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;gap:8px"><span style="color:var(--amethyst)">◈</span> Persistent Memory — ${memNotes.length} notes</div><div style="flex:1;overflow-y:auto;padding:14px 16px">${notes}</div>`;
+}
+function renderTerminal(main) {
+  let html = '';
+  for (let i = 0; i < termLines.length; i++) {
+    const l = termLines[i];
+    if (l.c === 'prompt') {
+      const next = termLines[i + 1];
+      if (next && next.c === 'cursor') { html += `<div style="white-space:pre-wrap"><span style="color:var(--venom)">${l.t}</span><span class="hero .sub .cursor" style="display:inline-block;width:7px;height:13px;background:var(--venom);animation:v3code-blink 1s steps(2) infinite;vertical-align:middle"></span></div>`; i++; }
+      else if (next) { html += `<div style="white-space:pre-wrap"><span style="color:var(--venom)">${l.t}</span>${next.t}</div>`; i++; }
+      else html += `<div style="white-space:pre-wrap"><span style="color:var(--venom)">${l.t}</span></div>`;
+    } else {
+      const cl = l.c === 'ok' ? 'color:var(--venom)' : l.c === 'info' ? 'color:var(--amethyst-glow)' : l.c === 'warn' ? 'color:var(--warning)' : l.c === 'dim' ? 'color:var(--text-tertiary)' : '';
+      html += `<div style="white-space:pre-wrap;${cl}">${l.t || '&nbsp;'}</div>`;
+    }
+  }
+  main.innerHTML = `<div style="padding:10px 16px;border-bottom:0.5px solid var(--ash);font-size:11px;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;gap:8px"><span style="color:var(--amethyst)">&gt;_</span> Terminal — pwsh</div><div style="flex:1;overflow-y:auto;padding:14px 16px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.7;color:var(--text-secondary)">${html}</div>`;
+}
+function renderSettings(main) {
+  main.innerHTML = `<div style="padding:10px 16px;border-bottom:0.5px solid var(--ash);font-size:11px;color:var(--text-secondary);font-family:'JetBrains Mono',monospace;letter-spacing:.05em;text-transform:uppercase;display:flex;align-items:center;gap:8px"><span style="color:var(--amethyst)">⚙</span> Settings</div><div style="flex:1;overflow-y:auto;padding:14px 16px">
+    <div style="margin-bottom:18px"><h4 style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.05em;font-family:'JetBrains Mono',monospace;margin-bottom:8px">Active Models</h4>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--obsidian);border:0.5px solid var(--ash);border-radius:8px;margin-bottom:6px;font-size:12px"><span style="color:var(--text-primary)">Agent model</span><span style="color:var(--text-secondary);font-family:'JetBrains Mono',monospace;font-size:11px">deepseek-r1</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--obsidian);border:0.5px solid var(--ash);border-radius:8px;margin-bottom:6px;font-size:12px"><span style="color:var(--text-primary)">Autocomplete</span><span style="color:var(--text-secondary);font-family:'JetBrains Mono',monospace;font-size:11px">deepseek-v4-flash</span></div>
+    </div>
+    <div style="margin-bottom:18px"><h4 style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.05em;font-family:'JetBrains Mono',monospace;margin-bottom:8px">Context Bridge</h4>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--obsidian);border:0.5px solid var(--ash);border-radius:8px;margin-bottom:6px;font-size:12px"><span style="color:var(--text-primary)">Status</span><span style="color:var(--text-secondary);font-family:'JetBrains Mono',monospace;font-size:11px;display:flex;align-items:center;gap:6px"><div style="width:6px;height:6px;border-radius:50%;background:var(--venom)"></div>connected</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--obsidian);border:0.5px solid var(--ash);border-radius:8px;margin-bottom:6px;font-size:12px"><span style="color:var(--text-primary)">Persistent memory</span><div class="toggle on" style="width:32px;height:18px;border-radius:10px;background:var(--amethyst);position:relative;cursor:pointer" onclick="this.classList.toggle('on')"><div style="position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:2px;right:2px"></div></div></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--obsidian);border:0.5px solid var(--ash);border-radius:8px;margin-bottom:6px;font-size:12px"><span style="color:var(--text-primary)">Semantic search</span><div class="toggle on" style="width:32px;height:18px;border-radius:10px;background:var(--amethyst);position:relative;cursor:pointer" onclick="this.classList.toggle('on')"><div style="position:absolute;width:14px;height:14px;border-radius:50%;background:#fff;top:2px;right:2px"></div></div></div>
+    </div>
+    <div style="margin-bottom:18px"><h4 style="font-size:10px;color:var(--text-tertiary);text-transform:uppercase;letter-spacing:.05em;font-family:'JetBrains Mono',monospace;margin-bottom:8px">Providers</h4>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--obsidian);border:0.5px solid var(--ash);border-radius:8px;margin-bottom:6px;font-size:12px"><span style="color:var(--text-primary)">Anthropic</span><span style="color:var(--text-secondary);font-family:'JetBrains Mono',monospace;font-size:11px;display:flex;align-items:center;gap:6px"><div style="width:6px;height:6px;border-radius:50%;background:var(--venom)"></div>key set</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--obsidian);border:0.5px solid var(--ash);border-radius:8px;margin-bottom:6px;font-size:12px"><span style="color:var(--text-primary)">DeepSeek</span><span style="color:var(--text-secondary);font-family:'JetBrains Mono',monospace;font-size:11px;display:flex;align-items:center;gap:6px"><div style="width:6px;height:6px;border-radius:50%;background:var(--venom)"></div>key set</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:9px 12px;background:var(--obsidian);border:0.5px solid var(--ash);border-radius:8px;margin-bottom:6px;font-size:12px"><span style="color:var(--text-primary)">Ollama (local)</span><span style="color:var(--text-secondary);font-family:'JetBrains Mono',monospace;font-size:11px;display:flex;align-items:center;gap:6px"><div style="width:6px;height:6px;border-radius:50%;background:var(--venom)"></div>localhost:11434</span></div>
+    </div></div>`;
+}
+
+function updateStatusBar() {
+  document.getElementById('sbChats').textContent = tabs.length + ' chats';
+  const running = tabs.some(t => t.state === 'running');
+  document.getElementById('sbState').textContent = running ? 'agent: working' : 'agent: active';
+  document.getElementById('sbDot').style.background = running ? 'var(--warning)' : 'var(--amethyst)';
+}
+function toggleAgent() {
+  isAgentMode = !isAgentMode;
+  const pill = document.getElementById('agentToggle');
+  pill.querySelector('span').textContent = isAgentMode ? 'AGENT' : 'CHAT';
+  pill.querySelector('.p-dot').style.background = isAgentMode ? 'var(--amethyst)' : 'var(--text-tertiary)';
+  pill.style.borderColor = isAgentMode ? 'rgba(139,92,246,0.40)' : 'rgba(90,90,110,0.30)';
+  render();
+}
+function addTab() {
+  const n = tabs.length + 1;
+  tabs.push({id:'new'+n,name:'New chat',dot:'#5A5A6E',state:'idle',
+    chat:[{type:'plan',text:'Ready. The Context Bridge is connected. What should we build?'}],
+    status:{badge:{c:'#5A5A6E',bg:'#16161F',txt:'var(--text-secondary)',label:'Idle',pulse:false},task:'No active task',prog:['#1C1E27','#1C1E27','#1C1E27','#1C1E27'],step:'Waiting',files:[],mem:[],tools:[['pack',0],['graph',0],['deps',0],['sym',0]]}
+  });
+  activeTab = tabs.length - 1; render();
+}
+function sendMsg() {
+  const input = document.getElementById('msgInput'); const txt = input.value.trim(); if (!txt) return;
+  const t = tabs[activeTab];
+  t.chat.push({type:'user',text:txt});
+  t.chat.push({type:'plan',text:'Querying Context Bridge for relevant symbols...'});
+  t.state = 'running'; t.dot = '#F59E0B';
+  t.status.badge = {c:'#F59E0B',bg:'rgba(245,158,11,0.06)',txt:'#F59E0B',label:'Running...',pulse:true};
+  input.value = ''; render();
+  setTimeout(() => {
+    t.chat.push({type:'cb',rows:[{s:'done',t:'pack_context',r:'→ resolved 6 symbols, 2 callers, 1 note'},{s:'run',t:'get_call_graph',r:'→ analyzing dependency tree (depth 2)...'}]});
+    if (currentView === 'chat') renderChat();
+  }, 700);
+  setTimeout(() => {
+    t.chat.push({type:'resp',html:'Got the structural context. Working through the change now — I\'ll surface any saved notes on these symbols as I go. The Context Bridge shows 2 saved notes on related symbols.'});
+    t.state = 'active'; t.dot = '#7FE650';
+    t.status.badge = {c:'#8B5CF6',bg:'rgba(139,92,246,0.06)',txt:'var(--amethyst-glow)',label:'Working...',pulse:true};
+    render();
+  }, 1600);
+}
+
+// ── Rail click handler ──
+document.getElementById('rail').addEventListener('click', e => {
+  const ri = e.target.closest('.ri[data-view]');
+  if (ri) { currentView = ri.dataset.view; render(); }
+});
+
+// ── Toggle agent via pill ──
+document.getElementById('agentToggle').addEventListener('click', toggleAgent);
+
+// ── Init ──
+render();
+</script>
+</body>
+</html>

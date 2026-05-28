@@ -1,6 +1,17 @@
 import { URI } from '../../../../base/common/uri.js'
+import {
+	CallGraphOutput,
+	FileContextOutput,
+	FileDependenciesOutput,
+	PackContextTask,
+	PackContextOutput,
+	ProjectBriefingOutput,
+	SymbolContextOutput,
+	SymbolNote,
+} from './contextBridge/contextBridgeTypes.js';
 import { RawMCPToolCall } from './mcpServiceTypes.js';
 import { builtinTools } from './prompt/prompts.js';
+import { Hit as SemanticHit } from './semanticIndex/semanticIndexTypes.js';
 import { RawToolParamsObj } from './sendLLMMessageTypes.js';
 
 
@@ -27,6 +38,9 @@ export const approvalTypeOfBuiltinToolName: Partial<{ [T in BuiltinToolName]?: '
 	'run_persistent_command': 'terminal',
 	'open_persistent_terminal': 'terminal',
 	'kill_persistent_terminal': 'terminal',
+	// Context Bridge tools — write-side notes need approval, find_text is read-only.
+	'remember': 'MCP tools',
+	'forget': 'MCP tools',
 }
 
 
@@ -60,6 +74,21 @@ export type BuiltinToolCallParams = {
 	'open_persistent_terminal': { cwd: string | null },
 	'run_persistent_command': { command: string; persistentTerminalId: string },
 	'kill_persistent_terminal': { persistentTerminalId: string },
+	// ---
+	// Context Bridge — symbol-attached notes + workspace text search.
+	'remember': { filePath: string, symbolName: string, note: string },
+	'forget': { noteId: string },
+	'list_notes': { filePath: string | null },
+	'find_text': { query: string, isRegex: boolean, includePattern: string | null, pageNumber: number },
+	// V3Code semantic index — embeddings + FTS retrieval.
+	'semantic_search': { query: string, topK: number | null, includeFile: string | null, includeFiles: string[] | null },
+	// LSP-backed context tools (Phase B.2).
+	'get_file_context': { filePath: string },
+	'get_file_dependencies': { filePath: string },
+	'get_symbol_context': { filePath: string, symbolName: string },
+	'get_call_graph': { filePath: string, symbolName: string, direction: 'incoming' | 'outgoing', depth: number },
+	'pack_context': { filePath: string, symbolName: string, task: PackContextTask, maxTokens: number },
+	'get_project_briefing': { includeNotes: boolean },
 }
 
 // RESULT OF TOOL CALL
@@ -81,6 +110,18 @@ export type BuiltinToolResultType = {
 	'run_persistent_command': { result: string; resolveReason: TerminalResolveReason; },
 	'open_persistent_terminal': { persistentTerminalId: string },
 	'kill_persistent_terminal': {},
+	// ---
+	'remember': { note: SymbolNote },
+	'forget': { deleted: boolean },
+	'list_notes': { notes: SymbolNote[] },
+	'find_text': { matches: Array<{ uri: URI, lineNumber: number, previewText: string }>, hasNextPage: boolean },
+	'semantic_search': { hits: SemanticHit[], indexState: string },
+	'get_file_context': FileContextOutput,
+	'get_file_dependencies': FileDependenciesOutput,
+	'get_symbol_context': SymbolContextOutput,
+	'get_call_graph': CallGraphOutput,
+	'pack_context': PackContextOutput,
+	'get_project_briefing': ProjectBriefingOutput,
 }
 
 

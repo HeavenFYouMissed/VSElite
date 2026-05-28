@@ -1,0 +1,2212 @@
+!max-w-30
+[&_svg]:w-5 [&_svg]:h-5
+absolute -right-1 -bottom-1 w-4 h-4 rounded-full bg-bg-default flex items-center justify-center
+absolute h-full bg-primary
+absolute inset-0 bg-bg-menu/80 flex items-center justify-center backdrop-blur-sm z-10
+absolute inset-0 z-10 flex items-center justify-center bg-bg-overlay-l1/80 backdrop-blur
+absolute left-2 flex h-3.5 w-3.5 items-center justify-center
+absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-text-tertiary
+absolute right-[5px] top-1/2 flex h-4 w-4 -translate-y-1/2 items-center justify-center text-icon-secondary hover:text-icon-default
+absolute right-2 top-1/2 w-6 h-6 -translate-y-1/2 text-text-tertiary hover:text-text-secondary
+absolute right-3 top-3 z-[1] flex h-7 items-center rounded-[8px] border border-border-neutral-l1 bg-bg-overlay-l1 px-2
+absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-secondary
+absolute top-2 right-2 z-10 px-2 h-6 text-text-secondary hover:text-text-default
+action-container
+actions
+actions icube-action-text-button primary
+actions icube-action-text-button secondary
+actions retry
+actions sidechat label-button non-bg
+actions-container actions statusbar
+actions-group floating-actions
+add-agent-avatar
+add-agent-avatar-plus
+add-custom-model-form-extra-label
+add-custom-model-modal
+add-doc-button
+add-model-button-content
+add-model-connect-button
+add-model-container
+add-model-error
+add-model-error-detail
+add-model-error-tip
+add-model-toc-advanced-content
+add-model-toc-advanced-header
+add-model-toc-advanced-hint
+add-model-toc-advanced-icon
+add-model-toc-advanced-title
+add-model-toc-base-url-label
+add-model-toc-field-description
+add-model-toc-form
+add-model-toc-input-label
+add-model-toc-label-right
+add-model-toc-label-with-switch
+add-model-toc-modal
+add-model-toc-row-inputs
+add-model-toc-switch-icon
+add-model-toc-switch-input
+add-model-toc-switch-label
+add-model-toc-switch-thumb
+add-model-toc-tabs
+add-model-toc-url-tips
+add-to-agent-container
+advanced-settings-content
+advanced-settings-content-icon
+advanced-settings-content-text
+advanced-settings-header
+advanced-settings-icon
+advanced-settings-section
+advanced-settings-title
+agent-autocomplete-popup-container
+agent-autocomplete-popup-item-name
+agent-avatar
+agent-avatar sliding-fade-in
+agent-avatar sliding-fade-out
+agent-avatar sliding-in-down
+agent-avatar sliding-out-up
+agent-avatar-container
+agent-avatar-uploader__con
+agent-avatar-uploader__icon-edit
+agent-avatar-uploader__img
+agent-avatar-uploader__inner
+agent-avatar-uploader__input
+agent-avatar-uploader__preview
+agent-avatar-wrapper
+agent-description
+agent-entry-icon
+agent-error-wrap
+agent-extension-arrow
+agent-extension-editor-modal
+agent-extension-item-operation-popup
+agent-extension-marketplace-modal
+agent-extension-mcp-title-dropdown-popup-tag
+agent-extension-name
+agent-extension-name clickable
+agent-extension-name__workspace_suffix
+agent-item
+agent-list icube-scrollbar
+agent-name
+agent-plan-items
+agent-plan-items assistant-chat-turn-element
+agent-popup-description
+agent-popup-divider
+agent-popup-footer
+agent-popup-footer-text
+agent-popup-inner
+agent-popup-item-disabled
+agent-popup-item-disabled-desc
+agent-popup-item-disabled-title
+agent-popup-item-free_trail
+agent-popup-item-free_trail-desc
+agent-popup-item-group
+agent-popup-item-group-content
+agent-popup-item-group-title
+agent-popup-item-main
+agent-popup-item-pending
+agent-popup-item-pending-desc
+agent-popup-item-pending-title
+agent-popup-item-sub
+agent-popup-item-sub-content
+agent-popup-item-sub-edit-link
+agent-popup-item-sub-edit-link-con
+agent-popup-item-sub-edit-link-text
+agent-popup-item-sub-group
+agent-popup-item-sub-group-content
+agent-popup-item-sub-group-content-horizontal
+agent-popup-item-sub-group-content-mcp
+agent-popup-item-sub-group-item builder-with-mcp no-hover-bg
+agent-popup-item-sub-group-item no-hover-bg
+agent-popup-item-sub-group-item no-pointer no-hover-bg
+agent-popup-item-sub-group-item-auto-relative-mcp
+agent-popup-item-sub-group-item-leaf-icon
+agent-popup-item-sub-group-item-leaf-icon-go-mcp-list
+agent-popup-item-sub-group-item-text
+agent-popup-item-sub-group-title
+agent-popup-item-upgrade_guide
+agent-popup-item-upgrade_guide-button
+agent-popup-item-upgrade_guide-desc
+agent-popup-list-container
+agent-popup-list-group
+agent-popup-meta-info-container
+agent-popup-name
+agent-proposal
+agent-proposal-wrapper
+ai-agent-chat-input-editor-v2
+ai-agent-list-item-name
+ai-agent-list-item-solo-only
+ai-agent-list-item-sub-name
+ai-agent-list-popover-item-delete
+ai-agent-task
+ai-agent-task-browser-group
+ai-agent-task-chunk
+ai-agent-task-chunk-actions
+ai-agent-task-chunk-toggle
+ai-agent-task-list
+ai-agent-task-section-container
+ai-agent-task-section-header
+ai-agent-task-section-header__loading
+ai-agent-task-section-header__status
+ai-agent-task-section-indicator
+ai-agent-task-section-indicator__line
+ai-agent-task-section-list
+ai-agent-task-section-main
+ai-agent-task-tool
+ai-avatar-express-badge
+ai-deep-thinking-state-bar state-reasoning expandable
+ai-deep-thinking-state-bar state-thinking
+ai-deep-thinking-state-bar__elapsed-time
+ai-deep-thinking-state-bar__icon
+ai-deep-thinking-state-bar__icon thinking
+ai-deep-thinking-state-bar__text
+ai-input-image
+ai-input-image-btn
+ai-input-image-item
+ai-input-image-wrap
+ai-input-image-wrap-error
+ai-logo-container
+ai-model-select
+ai-ng-welcome-nologin
+ai-quote-row-wrapper
+ai-quote-row-wrapper__bar
+ai-quote-row-wrapper__bar__vertical-line
+ai-quote-row-wrapper__content
+ai-runCommandCard-historyRunMode
+ai-setting-dynamic-input-list
+ai-setting-field-item-error-message
+ai-setting-form-item-label
+ai-setting-required-icon
+ai-setting-select-dropdown-container
+ai-setting-select-extend
+ai-setting-select-list icube-scrollbar
+ai-setting-select-placeholder
+ai-setting-switch-handle
+ai-task-memory-card-actions-button
+ai-task-memory-card-actions-main
+ai-task-memory-card-body-main
+ai-task-memory-card-body-text evicted
+ai-task-memory-card-container
+ai-task-memory-card-header
+ai-task-memory-card-header-icon
+ai-task-memory-card-line ai-task-memory-card-actions-line
+ai-task-memory-card-line ai-task-memory-card-body-line
+alert-card-body
+alert-card-content
+alert-card-empty
+alert-card-header
+alert-card-icon alert-card-icon-error
+alert-card-icon alert-card-icon-tip
+alert-card-icon alert-card-icon-warning
+alert-card-label
+alert-card-link-wrapper
+alert-card-list
+alert-card-list-item
+alert-card-list-item-value
+alert-card-name
+alert-card-title
+alert-content
+alert-error-icon
+animate-spin
+animated-agent-avatar
+animated-agent-avatar__background
+animated-agent-avatar__face
+animated-agent-avatar__face-inner
+animated-agent-avatar__svg
+AskUserQuestionTipCard-module__tip-card-body___JGl82
+AskUserQuestionTipCard-module__tip-card-close___IXDpW
+AskUserQuestionTipCard-module__tip-card-content___aYRvp
+AskUserQuestionTipCard-module__tip-card-icon___Vo_n3
+AskUserQuestionTipCard-module__tip-card-icon-bulb___kWn9z
+AskUserQuestionTipCard-module__tip-card-wrap___AQIAf
+asr-record-bar-container
+asr-record-bar-text
+assistant-action-bar-buttons
+assistant-action-bar-popover-trigger
+assistant-chat-turn-content
+assistant-chat-turn-content-inner-agent-wrapper
+assistant-chat-turn-content-inner-wrapper
+assistant-chat-turn-thinking-process
+auth-type-form
+auto-accept-confirm-popover-body
+auto-accept-confirm-popover-content
+auto-accept-confirm-popover-extra
+auto-accept-confirm-popover-extra-action
+auto-accept-confirm-popover-footer
+auto-accept-confirm-popover-header
+auto-accept-confirm-popover-icon-close
+auto-accept-confirm-popover-inner
+auto-accept-confirm-popover-main-title
+auto-run-confirm-popover-body
+auto-run-confirm-popover-checkbox
+auto-run-confirm-popover-content
+auto-run-confirm-popover-extra
+auto-run-confirm-popover-footer
+auto-run-confirm-popover-header
+auto-run-confirm-popover-icon-close
+auto-run-confirm-popover-inner
+auto-run-confirm-popover-main-title
+auto-run-setting-link
+auto-run-setting-link__close
+auto-run-setting-link__con
+auto-run-setting-link__icon
+auto-run-setting-link__switch
+auto-run-setting-link__tips
+autocomplete-popup-icon
+autocomplete-popup-suffix
+avatar
+banner
+base-url-actual-url
+base-url-info-icon
+bash-runner-mirror
+bash-runner-mirror-output-wrapper
+bash-running-output
+bash-running-output-placeholder
+block h-5 w-5 rounded-full border-2 border-primary bg-background ring-offset-background transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50
+block h-auto w-full max-w-[400px] object-contain text-black dark:hidden aspect-[10/7]
+block mb-1 text-sm font-medium text-text-default
+body
+bottom-bar
+bottom-notification-list
+box-border w-full p-3 space-y-2
+brand agent-popup-item-free_trail-desc
+bread root
+bread second
+bread-split
+builder-confirm-popover-body
+builder-confirm-popover-close
+builder-confirm-popover-container
+builder-confirm-popover-content
+builder-confirm-popover-content-main-tips
+builder-confirm-popover-content-title
+builder-confirm-popover-extra
+builder-confirm-popover-extra-description
+builder-confirm-popover-footer
+builder-confirm-popover-header
+bulb-icon
+button-icon
+chat-body
+chat-header
+chat-history-empty-simple
+chat-history-empty-text
+chat-image-grid-wrap
+chat-input-selected-agent-icon-tools
+chat-input-selected-agent-name
+chat-input-selected-agent-split-line
+chat-input-selected-agent-title
+chat-input-selected-agent-title-inner
+chat-input-selected-agent-title-mcp-icon
+chat-input-selected-agent-wrap
+chat-input-v2-editor-part
+chat-input-v2-editor-part-lower__right
+chat-input-v2-editor-part-lower-content
+chat-input-v2-editor-part-upper-content
+chat-input-v2-editor-part-wrapper
+chat-input-v2-input-box-editable
+chat-input-v2-mention-popup-locator
+chat-input-v2-placeholder
+chat-input-v2-prompt-optimize-button__loading
+chat-input-v2-send-button-sending-icon
+chat-input-wrapper
+chat-list-wrapper
+chat-loading-mask
+chat-loading-text
+chat-markdown
+chat-markdown extra-message-content-before
+chat-markdown-a-link-icon
+chat-markdown-a-span
+chat-markdown-blockquote
+chat-markdown-h1
+chat-markdown-h2
+chat-markdown-h3
+chat-markdown-h4
+chat-markdown-h5
+chat-markdown-h6
+chat-markdown-hr
+chat-markdown-inline-code inline-code-start inline-code-end
+chat-markdown-li
+chat-markdown-memory-reference
+chat-markdown-ol
+chat-markdown-p
+chat-markdown-table
+chat-markdown-table-outer-wrapper
+chat-markdown-table-outer-wrapper icube-scrollbar
+chat-markdown-tbody
+chat-markdown-td
+chat-markdown-tfoot
+chat-markdown-th
+chat-markdown-thead
+chat-markdown-tr
+chat-markdown-ul
+chat-pending-message-item
+chat-pending-message-item__content
+chat-pending-message-item__delete
+chat-pending-message-item__icon
+chat-pending-message-item__images
+chat-pending-message-list
+chat-resource-widget
+chat-revert-button chat-revert-button-cancel
+chat-revert-button-container
+chat-revert-file-item
+chat-revert-file-list
+chat-revert-file-loading
+chat-revert-file-loading-icon
+chat-revert-file-loading-row
+chat-revert-file-loading-text
+chat-revert-modal-button
+chat-revert-modal-button-left
+chat-revert-modal-container
+chat-revert-modal-description
+chat-revert-modal-memory-tip
+chat-revert-modal-memory-tip-icon
+chat-revert-modal-memory-tip-link
+chat-revert-modal-memory-tip-text
+chat-revert-modal-title
+chat-revert-modal-title-wrapper
+chat-revert-modal-wrapper
+chat-todolist-bar
+chat-todolist-wrapper
+chat-turn assistant task
+chat-turn user
+chat-turn-feedback-actions
+chat-turn-feedback-body
+chat-turn-feedback-checkbox
+chat-turn-feedback-checkbox-label
+chat-turn-feedback-experience-option
+chat-turn-feedback-experience-option-icon
+chat-turn-feedback-experience-option-label
+chat-turn-feedback-experience-options
+chat-turn-feedback-reasons
+chat-turn-feedback-reasons-group
+chat-turn-feedback-row
+chat-turn-feedback-row chat-turn-feedback-row-vote
+chat-turn-feedback-textarea
+chat-turn-feedback-thanks
+chat-turn-feedback-thanks extra-padding-top
+chat-turn-feedback-wrap
+chat-turn-heading assistant
+chat-turn-heading user
+chat-turn-hooks-continued
+chat-turn-hooks-continued-content
+chat-turn-hooks-continued-line
+chat-turn-hooks-label
+chat-turn-sep
+chat-turn-sep-block
+chat-turn-sep-content
+chat-turn-sep-content-block
+chat-turn-sep-line
+checkbox-label
+checked-icon
+chip-tag
+ckg-status ckg-status-error
+ckg-status ckg-status-in-progress
+ckg-status ckg-status-not-built
+class
+close
+close-btn
+close-icon
+code-block
+codeIndex-divider
+codeIndex-exceeded-banner-wrapper
+codeIndex-info-icon
+codeIndex-item-icon codeIndex-icon-workspace
+codeIndex-list-item
+codeIndex-percent-text
+codeIndex-progress-bar
+codeIndex-progress-fill
+codeIndex-progress-wrapper
+codeIndex-row-left
+codeIndex-row-right
+codeIndex-settings-menu
+codeIndex-settings-menu-item
+codeIndex-settings-menu-item codeIndex-settings-menu-item-danger
+codeIndex-settings-trigger
+codeIndex-title-line
+codicon
+codicon codicon-arrow-down
+codicon codicon-arrow-up
+codicon codicon-chevron-right
+codicon codicon-close
+codicon codicon-error
+codicon codicon-icube-assistant
+codicon codicon-icube-CloseSimple
+codicon codicon-icube-Docset autocomplete-popup-icon
+codicon codicon-icube-Docset mention-symbol-icon doc-mention-symbol-icon
+codicon codicon-icube-DocsetEnterprise autocomplete-popup-icon
+codicon codicon-icube-DocsetEnterprise mention-symbol-icon doc-mention-symbol-icon
+codicon codicon-icube-folderOpened
+codicon codicon-icube-History
+codicon codicon-icube-History autocomplete-popup-icon
+codicon codicon-icube-Search
+codicon codicon-icube-SoloSwitch
+codicon codicon-loading codicon-modifier-spin
+codicon codicon-loading codicon-modifier-spin skill-install-confirm-loading
+codicon codicon-refresh
+codicon codicon-terminal
+codicon-modifier-spin
+color-gray-text font-14 flex-no-shrink
+command-floating-panel
+command-guide-close-icon
+command-guide-icon-container
+command-guide-open-icon
+command-guide-open-icon-container
+command-metadata-form
+command-metadata-form-label
+command-metadata-wrapper
+command-panel-container
+command-panel-refresh-icon-wrapper
+command-panel-title-right
+command-widget-container
+config-editor-footer
+config-editor-input
+confirm-popover-body
+confirm-popover-checkbox
+confirm-popover-content
+confirm-popover-extra
+confirm-popover-footer
+confirm-popover-header
+confirm-popover-icon-close
+confirm-popover-inner
+confirm-popover-main-title
+confirm-popover-wrap
+content
+content-container
+context-table-header overflow-hidden text-ellipsis text-[13px] leading-5 text-text-default
+context-table-header text-heading-md leading-heading-md font-semibold text-text-default
+copy-success-icon
+counter
+custom-config-form
+custom-config-form-actions
+custom-config-form-advanced-content
+custom-config-form-advanced-header
+custom-config-form-advanced-hint
+custom-config-form-advanced-icon
+custom-config-form-advanced-title
+custom-config-form-base-url-label
+custom-config-form-base-url-text
+custom-config-form-field-description
+custom-config-form-input-label
+custom-config-form-label-with-switch
+custom-config-form-row-inputs
+custom-config-form-switch-icon
+custom-config-form-switch-input
+custom-config-form-switch-label
+custom-config-form-switch-thumb
+custom-config-form-url-tips
+custom-info-icon
+custom-model-name-row
+custom-model-no-data
+custom-model-no-data-action
+custom-model-no-data-action disabled
+custom-model-no-data-description
+custom-model-row
+custom-model-row-delete
+custom-model-row-error
+custom-model-row-field display-name-field
+custom-model-row-field model-id-field
+custom-model-row-field model-type-field
+custom-model-row-inputs
+custom-model-rows-add-btn
+custom-model-rows-add-icon
+custom-model-rows-header
+custom-model-rows-section
+custom-model-select-extend
+custom-model-select-extend-description
+custom-rule-guide-close-icon
+custom-rule-guide-icon-container
+custom-rule-guide-open-icon
+custom-rule-guide-open-icon-container
+custom-rule-widget-container
+custom-rules-floating-panel
+delete-btn
+delete-custom-model-actions
+delete-custom-model-container
+delete-custom-model-icon
+delete-custom-model-modal
+deploy-and-promo-code-wrap
+deploy-authorization-dialog
+deploy-authorization-dialog__auth-all-project
+deploy-authorization-dialog__auth-tips
+deploy-authorization-dialog__body
+deploy-authorization-dialog__close-icon
+deploy-authorization-dialog__deploy-action
+deploy-authorization-dialog__deploy-btn
+deploy-authorization-dialog__deploy-icon
+deploy-authorization-dialog__deploy-scope-suggest
+deploy-authorization-dialog__deploy-tips
+deploy-authorization-dialog__deploy-title
+deploy-authorization-dialog__select-all-project
+deploy-authorization-dialog__select-specific-project
+deploy-authorization-dialog__select-suggest
+deploy-authorization-dialog__selected-icon-pre
+deploy-authorization-dialog__selected-icon-pre-inner
+deploy-authorization-dialog__selected-icon-sub
+deploy-authorization-dialog__selected-item
+deploy-authorization-dialog__unselect-icon-pre
+deploy-authorization-dialog__unselect-item
+description
+description-input
+disabled
+divide-y divide-border-neutral-l1
+doc-content
+doc-header-actions
+doc-info-icon
+doc-list-item-container flex align-center font-12
+doc-list-item-name text-ellipsis
+doc-mention-external-item
+doc-mention-external-item-label
+doc-modal-footer
+doc-reference-list
+dot dot-1
+dot dot-2
+dot dot-3
+dropdown
+editor-container
+ellipsis
+empty
+empty-avatar
+empty-content
+empty-page-button
+empty-page-buttons
+empty-page-description
+empty-page-title
+error
+error-description
+error-details-content icube-scrollbar
+error-details-header
+error-message
+error-title
+example-text
+extend
+extension-status-action
+extension-status-label
+feedback-form-actions
+feedback-form-body
+feedback-form-body feedback-form-success
+feedback-form-btn cancel
+feedback-form-btn submit
+feedback-form-close
+feedback-form-container
+feedback-form-field
+feedback-form-header
+feedback-form-hint
+feedback-form-image-count
+feedback-form-image-item
+feedback-form-image-loading
+feedback-form-image-remove
+feedback-form-image-spinner
+feedback-form-images
+feedback-form-label
+feedback-form-textarea
+feedback-form-title
+figma-add-more-tips-hidden
+figma-mention-item-icon
+file-op-actions
+file-op-actions-btn-allowlist
+file-op-actions-btn-cancel
+file-op-actions-btn-run
+file-op-actions-container
+file-op-allowlist-btn-count
+file-op-run-mode-slot
+file-outside-session-indicator
+file-selection
+file-status
+fill-bg-tooltip
+flex
+flex flex-1 flex-col gap-4
+flex flex-1 gap-2 items-center min-w-0
+flex flex-1 items-center gap-2
+flex flex-1 items-center gap-2 min-w-0
+flex flex-1 w-full items-center gap-2 cursor-pointer p-1.5 justify-between rounded-radius-4 overflow-hidden text-text-default text-[12px] font-medium leading-[18px] hover:bg-bg-overlay-l2 hover:text-text-default-hover
+flex flex-col
+flex flex-col flex-1 justify-center items-center p-6
+flex flex-col flex-1 min-h-0 overflow-hidden
+flex flex-col flex-1 min-w-0
+flex flex-col gap-1
+flex flex-col gap-2
+flex flex-col gap-2 justify-center items-center h-full text-status-error
+flex flex-col gap-2 justify-center items-center h-full text-text-tertiary
+flex flex-col gap-2 text-xs text-text-secondary
+flex flex-col gap-3
+flex flex-col gap-3 py-4 min-h-full
+flex flex-col gap-4
+flex flex-col gap-4 p-4 pt-1 bg-bg-menu flex-1 min-h-0 overflow-hidden
+flex flex-col items-center justify-center gap-1 py-8 text-center
+flex flex-col items-start
+flex flex-col justify-center items-center min-h-[200px] py-8
+flex flex-shrink-0 justify-center items-center bg-bg-overlay-l2 w-10 h-10 rounded
+flex gap-1 items-center text-xs text-status-error
+flex gap-2 items-center self-stretch
+flex gap-2 items-center self-stretch p-4
+flex gap-3 items-center
+flex gap-3 justify-end items-center px-6 py-4 pt-6 mt-auto border-t border-border-neutral-l2
+flex gap-4 items-center
+flex h-[30px] w-[30px] shrink-0 items-center justify-center overflow-hidden rounded-[4px] bg-bg-overlay-l3
+flex h-[88px] w-full items-center justify-center gap-1 rounded-radius-6 border border-solid border-border-neutral-l1
+flex h-4 w-4 items-center justify-center rounded-sm bg-bg-overlay-l2
+flex h-6 w-6 items-center justify-center
+flex h-7 px-2 items-center rounded-radius-4
+flex h-9 items-center gap-2 rounded-radius-4 bg-bg-overlay-l1 px-2 py-[10px] transition-colors
+flex items-center gap-0 flex-shrink-0
+flex items-center gap-1
+flex items-center gap-1 text-[13px] font-medium leading-5 text-text-default
+flex items-center gap-1 text-body-md leading-body-md text-text-secondary
+flex items-center gap-1 text-body-sm text-text-default
+flex items-center gap-1 text-body-sm text-text-secondary hover:text-text-default
+flex items-center gap-1 text-text-tertiary hover:text-text-secondary
+flex items-center gap-1 text-xs text-status-success
+flex items-center gap-1.5
+flex items-center gap-1.5 text-[12px] leading-[18px] text-text-secondary mt-1
+flex items-center gap-1.5 text-[12px] leading-[18px] text-text-tertiary mt-1
+flex items-center gap-2
+flex items-center gap-2 cursor-pointer hover:bg-bg-base-secondary focus:bg-bg-base-secondary
+flex items-center gap-2 cursor-pointer text-status-error hover:bg-bg-base-secondary focus:bg-bg-base-secondary focus:text-status-error-active
+flex items-center gap-2 justify-end mt-2
+flex items-center gap-2 min-w-0 text-xs text-status-error
+flex items-center gap-2 min-w-0 text-xs text-status-warning
+flex items-center gap-2 py-1
+flex items-center gap-3
+flex items-center gap-3 min-w-0 text-body-md text-status-warning
+flex items-center gap-3 min-w-0 text-xs text-status-error
+flex items-center justify-between
+flex items-center justify-between gap-3
+flex items-center justify-between gap-3 p-3 relative border-b border-border-neutral-l1
+flex items-center justify-between gap-4 border-t border-border-neutral-l1 p-4 sm:justify-between
+flex items-center justify-center
+flex items-center justify-center h-[138px]
+flex items-center justify-center w-8 h-8 rounded-radius-4
+flex items-center justify-end gap-1 mt-2 h-8
+flex items-center justify-end gap-2
+flex items-center px-3 gap-6 overflow-hidden border-b border-border-neutral-l1
+flex justify-between
+flex justify-between items-center
+flex justify-between items-center gap-3 w-full screen-m:w-auto min-w-0
+flex justify-between items-center min-h-5
+flex justify-center items-center px-3 py-[60px] w-full h-full
+flex justify-center items-center py-4
+flex min-h-0 flex-1 flex-col
+flex min-h-0 flex-1 flex-col overflow-hidden
+flex min-h-0 flex-1 flex-col overflow-hidden rounded-[6px] border border-border-neutral-l1 bg-bg-overlay-l1 relative
+flex min-w-0 flex-1 items-center gap-5
+flex overflow-auto flex-1 justify-center
+flex overflow-hidden flex-col h-full
+flex overflow-hidden justify-center items-center w-[32px] h-[32px] rounded-[6px] shadow-sm bg-bg-base-default text-text-secondary
+flex overflow-hidden justify-center items-center w-6 h-6 rounded-[6px] shadow-sm bg-bg-base-default text-text-secondary
+flex overflow-y-auto flex-col flex-1 p-6
+flex p-1.5 flex-col items-start rounded-radius-6 border border-border-neutral-l1 bg-bg-menu shadow-[0_4px_8px_0_rgba(0,0,0,0.08),0_2px_4px_0_rgba(0,0,0,0.04)]
+flex py-3 px-4 flex-col items-start self-stretch border-x border-b border-border-neutral-l1 first:border-t first:rounded-t-radius-6 last:rounded-b-radius-6
+flex relative flex-col w-full h-full agent-settings-root text-text-default solo-theme
+flex shrink-0 items-center gap-2
+flex shrink-0 items-center justify-between gap-4 border-t border-border-neutral-l1 p-4 sm:justify-between
+flex w-7 h-7 justify-center items-center rounded-radius-4 cursor-pointer hover:bg-bg-overlay-l3
+flex w-full flex-col gap-1.5
+flex w-full flex-col gap-5
+flex w-full items-center gap-1.5
+flex-1
+flex-1 min-h-0
+flex-1 min-w-0
+flex-1 min-w-0 overflow-hidden flex flex-col justify-center gap-px
+flex-1 min-w-0 truncate basis-0 text-heading-sm text-text-default
+flex-shrink-0 flex items-center justify-center gap-1 relative
+fold
+footer-buttons
+footer-err-msg
+fork
+form-field
+ghost-text-suggestion
+grid grid-cols-2 gap-1
+group relative
+h-[14px] w-[14px]
+h-[14px] w-[14px] text-icon-default
+h-[18px] w-[60px] gap-0 border-none bg-bg-overlay-l2 px-1 text-body-md-strong font-medium text-text-secondary
+h-2 w-2 fill-current
+h-2.5 w-2.5 fill-current text-current
+h-3 w-3
+h-3 w-3 shrink-0
+h-3 w-px ml-1.5 bg-border-neutral-l2
+h-3.5 w-3.5
+h-3.5 w-3.5 text-text-default
+h-4 w-4
+h-4 w-4 shrink-0
+h-4 w-4 shrink-0 text-status-success mt-0.5
+h-4 w-4 shrink-0 transition-transform duration-200
+h-4 w-4 text-icon-default
+h-4 w-4 text-icon-secondary opacity-70
+h-4 w-4 text-status-success
+h-5 w-5
+h-5 w-5 text-icon-default
+h-6 w-6 animate-spin text-text-tertiary
+h-7 px-2 bg-bg-overlay-l2 rounded-radius-4 self-center
+h-7 w-20 gap-1 rounded-[4px] bg-bg-overlay-l3 px-2 text-[13px] leading-5 hover:bg-bg-overlay-l4 active:bg-bg-overlay-l5
+h-7 w-20 gap-1 rounded-[4px] px-2 text-[13px] leading-5
+h-7 w-7 shrink-0 rounded-[4px] bg-text-default text-text-onaccent hover:bg-text-default/90
+h-7 w-7 shrink-0 rounded-radius-4 bg-bg-overlay-l2 text-icon-default hover:bg-bg-overlay-l2 hover:text-icon-default-active
+h-7 w-7 shrink-0 rounded-radius-4 bg-bg-overlay-l2 text-icon-default hover:bg-bg-overlay-l2 hover:text-status-error
+h-7 w-full rounded-[4px] border border-[rgba(194,202,242,0.08)] bg-bg-overlay-l1 pl-9 pr-3 text-body-base text-text-default placeholder:text-text-tertiary focus:border-border-brand-default focus:ring-1 focus:ring-border-brand-default
+h-7 w-full rounded-radius-4 border border-border-neutral-l1 bg-bg-overlay-l1 px-2 pr-7 text-body-md text-text-default placeholder:text-text-disabled focus-visible:ring-0
+h-7 w-full rounded-radius-4 border border-border-neutral-l1 bg-bg-overlay-l1 px-2 text-body-md text-text-default placeholder:text-text-disabled focus-visible:ring-0
+h-full
+h-full overflow-auto p-4 font-mono text-[13px] leading-6 text-text-secondary
+h-full w-full object-cover
+h-full w-full rounded-[inherit]
+header
+header-bar
+help-icon
+hidden
+hidden h-auto w-full max-w-[400px] object-contain text-white dark:block aspect-[10/7]
+hidden screen-m:flex items-center gap-3 flex-shrink-0 ml-auto
+highlight-line
+hint-text
+hooks-continued-tooltip-btn
+hooks-continued-tooltip-btn-icon
+hooks-continued-tooltip-content
+hooks-continued-tooltip-divider
+hooks-continued-tooltip-message icube-scrollbar
+hooks-continued-tooltip-title
+icb-link-setting-item-icon
+icb-link-setting-item-icon-content
+icb-setting-item-content
+icb-setting-item-description
+icb-setting-item-info
+icb-setting-item-label
+icb-setting-item-left-slot
+icb-setting-item-operation
+icd-accordion-header
+icd-accordion-no-data-element
+icd-accordion-section
+icd-accordion-table
+icd-accordion-table-container
+icd-accordion-title
+icd-agent-setting-popover
+icd-ai-chat-file-list-container icube-scrollbar
+icd-ai-chat-file-list-item
+icd-ai-chat-file-list-item__name
+icd-ai-chat-file-list-item__range
+icd-btn icd-btn-tertiary run-command-inline-header__text-btn
+icd-btn-content
+icd-btn-v2-content
+icd-code-block-file-icon
+icd-code-block-file-name
+icd-code-block-language-id
+icd-code-block-toolbar
+icd-confirm-bubble-body
+icd-confirm-bubble-btn icd-confirm-bubble-btn-cancel
+icd-confirm-bubble-btn icd-confirm-bubble-btn-confirm
+icd-confirm-bubble-desc
+icd-confirm-bubble-footer
+icd-confirm-bubble-header
+icd-confirm-bubble-icon
+icd-confirm-bubble-title
+icd-docset-edit-button icd-docset-edit-confirm
+icd-docset-empty-content
+icd-docset-empty-text
+icd-docset-error-icon
+icd-docset-file-error-icon
+icd-docset-file-error-indicator
+icd-docset-file-list
+icd-docset-file-list-header
+icd-docset-file-list-loading
+icd-docset-file-name
+icd-docset-list
+icd-docset-list-item-actions
+icd-docset-list-item-content
+icd-docset-list-item-edit-container
+icd-docset-list-item-edit-counter
+icd-docset-list-item-edit-input
+icd-docset-list-item-error-indicator
+icd-docset-list-item-error-message
+icd-docset-list-item-header
+icd-docset-list-item-info
+icd-docset-list-item-name
+icd-docset-list-item-text
+icd-docset-menu icd-docset-menu-fixed
+icd-docset-menu-item
+icd-docset-menu-item icd-docset-menu-item-danger
+icd-docset-menu-item-icon
+icd-env-card__content
+icd-env-card__error-area
+icd-env-card__error-msg
+icd-env-card__header
+icd-env-card__label
+icd-env-card__manage
+icd-env-card__right-area
+icd-env-card__row
+icd-env-card__value
+icd-error-fallback-result
+icd-file-card__diff
+icd-file-card__diff_add
+icd-file-card__diff_remove
+icd-file-card__file-name
+icd-file-card__left-area
+icd-file-card__left-area-title
+icd-file-card__left-area-title-wrapper
+icd-file-card__lines
+icd-file-card__lint-error-content icube-scrollbar
+icd-file-card__lint-error-item-line
+icd-file-card__lint-error-item-line-content
+icd-file-card__lint-error-item-line-number
+icd-file-card__lint-error-item-msg
+icd-file-card__lint-error-title
+icd-file-card__lint-error-title-text
+icd-file-card__lint-error-wrapper
+icd-file-card__review-area
+icd-file-card__review-area-btn
+icd-file-card__right-area
+icd-file-card__status
+icd-file-card__status-icon icd-file-card__status-icon-create
+icd-file-card__status-icon icd-file-card__status-icon-delete
+icd-file-card__status-icon icd-file-card__status-icon-edit
+icd-file-card-wrapper
+icd-file-view
+icd-file-view-icon
+icd-file-view-text
+icd-history-container
+icd-history-content
+icd-history-list
+icd-history-list-container
+icd-history-list-item-delete-btn
+icd-history-list-item-pin-icon
+icd-history-list-item-title
+icd-history-list-time-group
+icd-history-list-time-group-title
+icd-input-suffix
+icd-input-suffix-icon
+icd-input-toggle-password
+icd-loading-icon
+icd-loading-text
+icd-modal-body
+icd-modal-close
+icd-modal-content
+icd-modal-footer
+icd-modal-header
+icd-modal-title
+icd-modal-v2-body
+icd-modal-v2-close
+icd-modal-v2-content
+icd-modal-v2-footer
+icd-modal-v2-header
+icd-modal-v2-title
+icd-model-divider
+icd-model-select-dollar-usage-billing-notice-arrow
+icd-model-select-free-user-premium-model-notice-arrow
+icd-model-select-max-mode-notice-arrow
+icd-model-select-tips-background-tag
+icd-model-select-tips-desc-warning
+icd-model-select-tips-model-tags
+icd-model-select-tips-model-tips
+icd-model-select-tips-new-memory-tag
+icd-pagination-ellipsis
+icd-pagination-size-changer
+icd-pagination-size-check
+icd-pagination-size-dropdown
+icd-select-empty-v2
+icd-select-extend
+icd-select-list
+icd-select-list-v2
+icd-select-option-v2-check
+icd-select-option-v2-content
+icd-select-option-v2-description
+icd-select-option-v2-label
+icd-select-option-v2-text
+icd-select-placeholder
+icd-shine-text
+icd-tooltip-v2-arrow
+icd-tooltip-v2-container
+icd-tooltip-v2-text
+icd-vote-button__content
+icd-vote-button__icon
+icd-vote-button__icon-wrap
+icd-vote-button__text
+icd-web-search-card__header-icon
+icd-web-search-card__left-area
+icd-web-search-card__query-text
+icd-web-search-card__query-wrapper
+icd-web-search-card__result-item
+icd-web-search-card__result-item-index
+icd-web-search-card__result-item-title
+icd-web-search-card__result-num
+icd-web-search-card__result-num-wrap
+icd-web-search-card__results
+icd-web-search-card__results-popover
+icd-web-search-card-wrap
+icon
+icon-container
+icon-loading
+icon-warning
+icon-wrapper
+icu-settings-category-title
+icu-settings-category-title-wrapper
+icu-settings-title-content
+icu-settings-title-right
+icu-settings-title-wrapper
+icube_mcp_scrollable_list_container icube-scrollbar
+icube_mcp_search_result_tip_container
+icube_mcp_servers_container
+icube-action-text-button-pre
+icube-add-custom-model-config-content
+icube-ai-custom-agent-avatar-modal
+icube-ai-custom-agent-avatar-modal-close-icon
+icube-ai-custom-agent-create-btn-content
+icube-ai-custom-agent-create-btn-content-text
+icube-ai-custom-agent-create-cancel-confirm-modal
+icube-ai-custom-agent-create-cancel-confirm-modal-button-group
+icube-ai-custom-agent-create-cancel-confirm-modal-content
+icube-ai-custom-agent-create-cancel-confirm-modal-desc
+icube-ai-custom-agent-create-cancel-confirm-modal-title
+icube-ai-custom-agent-create-container
+icube-ai-custom-agent-create-container-wrapper
+icube-ai-custom-agent-create-content-flex
+icube-ai-custom-agent-create-form
+icube-ai-custom-agent-create-form icube-ai-custom-agent-create-form-buildin-tools-detail
+icube-ai-custom-agent-create-form-buildin-tools
+icube-ai-custom-agent-create-form-buildin-tools 
+icube-ai-custom-agent-create-form-buildin-tools-desc-icon
+icube-ai-custom-agent-create-form-builin
+icube-ai-custom-agent-create-form-category
+icube-ai-custom-agent-create-form-category-select
+icube-ai-custom-agent-create-form-input
+icube-ai-custom-agent-create-form-input-wrapper
+icube-ai-custom-agent-create-form-label
+icube-ai-custom-agent-create-form-label required
+icube-ai-custom-agent-create-form-label-badge
+icube-ai-custom-agent-create-form-label-tip
+icube-ai-custom-agent-create-form-mcp
+icube-ai-custom-agent-create-form-name
+icube-ai-custom-agent-create-form-prompt
+icube-ai-custom-agent-create-form-prompt-copy-wrapper
+icube-ai-custom-agent-create-form-prompt-label
+icube-ai-custom-agent-create-form-sub-agent-item
+icube-ai-custom-agent-create-form-sub-agent-item-avatar
+icube-ai-custom-agent-create-form-sub-agent-item-checkbox
+icube-ai-custom-agent-create-form-sub-agent-item-desc
+icube-ai-custom-agent-create-form-sub-agent-item-edit
+icube-ai-custom-agent-create-form-sub-agent-item-left
+icube-ai-custom-agent-create-form-sub-agent-item-name
+icube-ai-custom-agent-create-form-sub-agent-item-sub-name
+icube-ai-custom-agent-create-form-textarea-wrapper
+icube-ai-custom-agent-create-form-wrapper
+icube-ai-custom-agent-create-header-left-part
+icube-ai-custom-agent-create-header-right-part
+icube-ai-custom-agent-create-header-split
+icube-ai-custom-agent-create-parent-title
+icube-ai-custom-agent-create-save-guide-modal
+icube-ai-custom-agent-create-save-guide-modal-button-group
+icube-ai-custom-agent-create-save-guide-modal-content
+icube-ai-custom-agent-create-save-guide-modal-desc
+icube-ai-custom-agent-create-save-guide-modal-title
+icube-ai-custom-agent-create-share-icon
+icube-ai-custom-agent-create-title
+icube-ai-custom-agent-edit-btn-content
+icube-ai-custom-agent-edit-btn-content-text
+icube-ai-custom-agent-edit-cancel-modal
+icube-ai-custom-agent-edit-cancel-modal-button-group
+icube-ai-custom-agent-edit-cancel-modal-content
+icube-ai-custom-agent-edit-cancel-modal-desc
+icube-ai-custom-agent-edit-cancel-modal-title
+icube-ai-custom-agent-edit-container
+icube-ai-custom-agent-edit-container-wrapper
+icube-ai-custom-agent-edit-form-wrapper
+icube-ai-custom-agent-edit-save-guide-modal
+icube-ai-custom-agent-edit-save-guide-modal-button-group
+icube-ai-custom-agent-edit-save-guide-modal-content
+icube-ai-custom-agent-edit-save-guide-modal-desc
+icube-ai-custom-agent-edit-save-guide-modal-title
+icube-ai-custom-agent-import-accordion-scroll
+icube-ai-custom-agent-import-accordion-scroll icube-ai-custom-agent-import-accordion-editor-wrapper
+icube-ai-custom-agent-list-delete-confirm-modal
+icube-ai-custom-agent-list-delete-confirm-modal-button-group
+icube-ai-custom-agent-list-delete-confirm-modal-content
+icube-ai-custom-agent-list-delete-confirm-modal-desc
+icube-ai-custom-agent-list-delete-confirm-modal-title
+icube-ai-custom-agent-share-close-icon
+icube-ai-custom-agent-share-media-icon icube-ai-custom-agent-share-media-icon-default
+icube-ai-custom-agent-share-media-icon icube-ai-custom-agent-share-media-icon-juejin
+icube-ai-custom-agent-share-media-icon icube-ai-custom-agent-share-media-icon-twitter
+icube-ai-custom-agent-share-media-icon-default-inner
+icube-ai-custom-agent-share-media-icon-default-small
+icube-ai-custom-agent-share-media-icon-juejin-inner
+icube-ai-custom-agent-share-media-icon-juejin-small
+icube-ai-custom-agent-share-media-icon-twitter-inner
+icube-ai-custom-agent-share-media-icon-twitter-small
+icube-ai-custom-agent-share-modal
+icube-ai-custom-agent-share-modal-avator
+icube-ai-custom-agent-submit-review-result-modal
+icube-ai-custom-agent-submit-review-result-modal-button-group
+icube-ai-custom-agent-submit-review-result-modal-content
+icube-ai-custom-agent-submit-review-result-modal-desc
+icube-ai-custom-agent-submit-review-result-modal-title
+icube-ai-custome-agent-buildin-tool-description
+icube-ai-custome-agent-buildin-tool-icon
+icube-ai-custome-agent-create-form-fromshare-line
+icube-ai-custome-agent-create-form-fromshare-line-left
+icube-ai-custome-agent-create-form-fromshare-line-left-icon
+icube-ai-custome-agent-create-form-fromshare-line-left-text
+icube-ai-custome-agent-create-form-fromshare-line-right
+icube-ai-custome-agent-create-form-line
+icube-ai-custome-agent-create-form-line icube-ai-custome-agent-create-form-tools
+icube-ai-custome-agent-create-form-sub-agent-wrapper
+icube-ai-custome-agent-sub-agent-form-content
+icube-ai-custome-agent-sub-agent-form-desc
+icube-ai-custome-agent-sub-agent-form-desc-input-wrapper
+icube-ai-custome-agent-sub-agent-form-desc-label required
+icube-ai-custome-agent-sub-agent-form-name
+icube-ai-custome-agent-sub-agent-form-name-input-wrapper
+icube-ai-custome-agent-sub-agent-form-name-label required
+icube-ai-custome-agent-sub-agent-form-title
+icube-ai-custome-agent-sub-agent-form-title-left
+icube-ai-custome-agent-sub-agent-form-title-left-desc
+icube-ai-custome-agent-sub-agent-form-title-left-desc-link
+icube-ai-custome-agent-sub-agent-form-title-left-title
+icube-ai-custome-agent-sub-agent-form-title-right
+icube-ai-memento-task-close-icon
+icube-ai-memento-task-loading-icon
+icube-ai-memento-task-title-text
+icube-alert-action
+icube-alert-button-action
+icube-alert-button-container
+icube-alert-checkbox
+icube-alert-checkbox-text
+icube-alert-close
+icube-alert-content
+icube-alert-copy-detail
+icube-alert-description
+icube-alert-line1
+icube-alert-msg
+icube-alert-reason-collapse-action
+icube-alert-reason-detail
+icube-alert-title
+icube-alert-with-detail
+icube-alert-with-detail-buttons
+icube-alert-with-detail-container
+icube-chat-request-context figma-mention-item show-file-icons
+icube-chat-request-context lint-error-mention-item show-file-icons
+icube-chat-request-context log-mention-item log-mention-item--vercel show-file-icons
+icube-chat-request-context log-mention-item show-file-icons
+icube-chat-request-context past-chat-mention-item show-file-icons
+icube-chat-request-context problem-file-mention-item show-file-icons
+icube-chat-request-context problem-item-mention-item show-file-icons
+icube-chat-request-context show-file-icons
+icube-chat-request-context show-file-icons icube-chat-request-web-search-context
+icube-chat-request-context slash-command-item
+icube-chat-request-context visual-editor-changes-mention-item show-file-icons
+icube-chat-request-lint-error-icon
+icube-chat-request-log-context
+icube-chat-request-log-icon
+icube-chat-request-past-chat-icon
+icube-chat-request-problem-icon
+icube-chat-request-visual-editor-changes-icon
+icube-chat-request-web-element-context label-container
+icube-chat-request-web-element-icon
+icube-chat-request-websearch-context websearch-ref-icon
+icube-chat-request-workspace-context
+icube-chat-request-workspace-context doc-ref-icon
+icube-chat-request-workspace-icon
+icube-chat-view-container
+icube-chat-view-wrap
+icube-checkbox-icon-wrapper
+icube-command
+icube-cue-v2-panel icube-cue-v2-panel-status
+icube-cue-v2-panel-desc
+icube-cue-v2-panel-horizontal-line
+icube-cue-v2-panel-operation-btn
+icube-cue-v2-panel-operations
+icube-cue-v2-panel-title
+icube-cue-v2-panel-title-text
+icube-custom-agent-mcp-item
+icube-custom-agent-mcp-tool-item
+icube-custom-agent-mcp-tool-list-wrapper
+icube-custom-model-modal-provider-card-skeleton
+icube-design-history-list-tag
+icube-design-history-list-tag-text
+icube-inline-chat-view-container
+icube-inline-reference-content
+icube-inline-reference-fileicon
+icube-inline-reference-filename
+icube-inline-reference-item icube-inline-reference-more-btn
+icube-inline-reference-item icube-reference-file show-file-icons
+icube-inline-reference-list
+icube-inline-reference-status-text
+icube-mcp-category-title
+icube-mcp-delete-confirm-content
+icube-mcp-delete-confirm-popover
+icube-mcp-installed-container
+icube-mcp-item-error-info-tooltip-content
+icube-mcp-item-market-detail-tooltip-content
+icube-mcp-item-status-badge-container
+icube-mcp-marketplace-content
+icube-mcp-marketplace-modal
+icube-mcp-marketplace-modal-content
+icube-mcp-marketplace-page-container
+icube-mcp-servers-list-header
+icube-mcp-servers-list-header-operation
+icube-mcp-servers-list-placeholder
+icube-mcp-servers-page-container
+icube-mcp-settings-container
+icube-model-select-badge-text
+icube-model-select-beta-badge
+icube-model-select-beta-badge-text
+icube-model-select-free-badge-text
+icube-model-select-new-and-beta-badge
+icube-model-select-new-badge-text
+icube-model-select-portal-model-item-icon-logo-holder
+icube-modules-ai-custom-agent-list-pane-container-inner-wrapper
+icube-modules-ai-custom-agent-list-pane-container-title
+icube-reference-filename
+icube-reference-label-suffix
+icube-references-header
+icube-select-check-wrapper
+icube-select-raw-icon
+icube-selected-agent-settings
+icube-setting-language-trigger
+image-ocr-card-body
+image-ocr-card-content
+image-ocr-card-header
+image-ocr-card-name
+image-ocr-card-text
+image-ocr-card-title
+import-settings-module__import-settings___fYEWG
+import-settings-module__import-settings-group___so__J
+in-progress-loading
+in-progress-loading-text
+index-module__action-content___nNPVQ
+index-module__action-divider___FbLNB
+index-module__action-icon___SbgeR
+index-module__action-text___trD3J
+index-module__actions___V6jtg
+index-module__addToChat___YDG35
+index-module__agent-questioning-settings__body___b6iG_
+index-module__agent-questioning-settings__left-content___bJ4sV
+index-module__agent-questioning-settings__main-tips___PKU_k
+index-module__agent-questioning-settings__main-title___u_pD9
+index-module__agent-questioning-settings__right-switch___EG0JH
+index-module__agent-questioning-settings__split-line___u61an
+index-module__agent-questioning-settings__switch-con___zLN3w
+index-module__arrow___MTXky
+index-module__auto-running-settings__title-info-icon___Dja3o
+index-module__auto-running-settings_config-item___DaUD7
+index-module__auto-running-settings_config-item-action___DEKWO
+index-module__auto-running-settings_config-item-action-add-btn___sz7J0
+index-module__auto-running-settings_config-item-action-add-group___CIEdr
+index-module__auto-running-settings_config-item-action-add-input___p0HlK
+index-module__auto-running-settings_config-item-label-text___E0hUy
+index-module__auto-running-settings_config-item-label-wrap___TlgVM
+index-module__auto-running-settings_config-item-value-expand___Q2Fjk
+index-module__auto-running-settings_config-item-value-expand-span___AisnE
+index-module__auto-running-settings_config-item-value-item___pS1iM
+index-module__auto-running-settings_config-item-value-item-close___T1G1E
+index-module__auto-running-settings_config-item-value-item-text___GQ5oT
+index-module__auto-running-settings_config-item-value-list___m4Nqq
+index-module__background-agents-bar___OvvMo
+index-module__background-agents-bar_close___LwoM1
+index-module__background-agents-bar_content___m9cFH
+index-module__background-agents-bar_core___TjoIv
+index-module__background-agents-bar_count___WHz8L
+index-module__background-agents-bar_glow___GF_88
+index-module__background-agents-bar_indicator___FhgPo
+index-module__background-agents-bar_label___QSNzb
+index-module__background-agents-bar_text___Rrm73
+index-module__browser-automation-settings___jUKuX
+index-module__check-console-log-card__icon___WWWJs
+index-module__check-console-log-card__text___AFepq
+index-module__check-console-log-card-wrap___wdyR4
+index-module__code-review-settings__left-content___woR2J
+index-module__code-review-settings__main-tips___aNuiE
+index-module__code-review-settings__main-title___zoy6y
+index-module__code-review-settings__right-switch___rlkfp index-module__code-review-settings__right-switch-select___KItgf
+index-module__code-review-settings__split-line___E0BH9
+index-module__code-review-settings__switch-con___LYwPv
+index-module__container___oCkEg
+index-module__content___tHLTD
+index-module__context-menu___eRecN
+index-module__custom-popover__wrap___US3lo
+index-module__delete-worktree-confirm-modal__footer____okeZ
+index-module__delete-worktree-confirm-modal__footer-delete-branch___uriVG
+index-module__deploy-recommend-card__action___x6Im4
+index-module__deploy-recommend-card__body___NWlvC
+index-module__deploy-recommend-card__icon-close___G4uG3
+index-module__deploy-recommend-card__icon-deploy____CkwL
+index-module__deploy-recommend-card__sub-title___G0UCY
+index-module__deploy-recommend-card__tips___ts1Xb
+index-module__deploy-recommend-card__title___dunkS
+index-module__deploy-recommend-card-wrap___xm8hA
+index-module__doc-reference-item___J7_9G
+index-module__doc-reference-item-icon___aK6CB
+index-module__doc-reference-item-label___nMERr
+index-module__document-card__content___mfbxY
+index-module__document-card__content-doc-type___opszp
+index-module__document-card__icon___CzSs4
+index-module__document-card__status-cancel___rvguv
+index-module__document-card__status-fail___wAv31
+index-module__document-card__status-fail-icon___Icmmj
+index-module__document-card__status-fail-text___LV1SJ
+index-module__document-card__status-success-icon___dk9Uw
+index-module__document-card-wrap___dWauC
+index-module__document-tip-text___GXN1M
+index-module__document-tip-text-wrapper___j5rm_
+index-module__edit-plan-mode-card__icon___gfpQv
+index-module__edit-plan-mode-card-body___MmkZV
+index-module__edit-plan-mode-card-body__accept-btn___LASAq
+index-module__edit-plan-mode-card-body__accept-btn-icon___I_x85
+index-module__edit-plan-mode-card-body__accept-btn-text___yJINs
+index-module__edit-plan-mode-card-body__desc___ESj4R
+index-module__edit-plan-mode-card-body__status___q0urM
+index-module__edit-plan-mode-card-body__status-fail____5M_Y
+index-module__edit-plan-mode-card-body__status-fail-text___NiDcb
+index-module__edit-plan-mode-card-body__status-success___nlSfD
+index-module__edit-plan-mode-card-body__status-success-text___CTSHE
+index-module__edit-plan-mode-card-body__title___QSrVW
+index-module__edit-plan-mode-card-tips___GP_bB
+index-module__edit-plan-mode-card-tips__close___EoA5L
+index-module__edit-plan-mode-card-tips__icon___oWWkG
+index-module__edit-plan-mode-card-tips__text___y_EL2
+index-module__edit-plan-mode-card-wrap___vMAiH
+index-module__enterprise-blacklist-commands___IO86G
+index-module__enterprise-blacklist-commands__body___PIiGs
+index-module__enterprise-blacklist-commands__expand-btn___V6J1A
+index-module__enterprise-blacklist-commands__left-content___OfPLW
+index-module__enterprise-blacklist-commands__main-tips___jqiXv
+index-module__enterprise-blacklist-commands__main-title___K1wiV
+index-module__enterprise-blacklist-commands__switch-con___b7rgb
+index-module__enterprise-blacklist-commands__tag-item___xZ6o5
+index-module__enterprise-blacklist-commands__tag-list___VdnxH
+index-module__hooks-config-card___fUnlF
+index-module__hooks-config-card-action___GzfAN
+index-module__hooks-config-card-content___DAxWz
+index-module__hooks-config-card-description___Sp4z8
+index-module__hooks-config-card-icon___QQkRw
+index-module__hooks-config-card-title____YarU
+index-module__hooks-config-card-wrapper___xtXVQ
+index-module__hooks-config-divider___xI64S
+index-module__hooks-config-settings-btn-plain___sjm_a
+index-module__hooks-config-warning___zGJmz
+index-module__hooks-config-warning-link___LIGYw
+index-module__hooks-config-warning-text___QjnYW
+index-module__hooks-run-mode-content___AmeQO
+index-module__hooks-run-mode-item___OabCa
+index-module__hooks-run-mode-item-content___WcTV5
+index-module__hooks-run-mode-item-desc___oksOn
+index-module__hooks-run-mode-item-indicator___pDgYV
+index-module__hooks-run-mode-item-title___JAgjc
+index-module__hooks-run-mode-section___YfOy8
+index-module__hooks-run-mode-select___o22vt
+index-module__hooks-run-mode-trigger___aQY3B
+index-module__hooks-run-mode-trigger-content___Fqy8j
+index-module__hooks-run-mode-trigger-icon___TAAqr
+index-module__hooks-run-mode-trigger-title___mGQhU
+index-module__hooks-run-mode-viewport___T_cUw
+index-module__hooks-workspace-tabs___L2afJ
+index-module__hoverPopoverContainer___qjn8R
+index-module__hoverPopoverContent___WXqwa
+index-module__hoverRef___a4i4L
+index-module__hoverText___xnBeC
+index-module__hoverWrap___O_K7R
+index-module__icd-alert-card__action___Mkkpo
+index-module__icd-alert-card__body___G2ov5
+index-module__icd-alert-card__content___jFL63
+index-module__icd-alert-card__icon___wHSZl
+index-module__icd-alert-card__icon-bulb___ZSplY
+index-module__icube-chat-error-tip__innner_action___zAPYz
+index-module__icube-chat-error-tip__innner_action_btn_____jzm
+index-module__icube-chat-error-tip__innner_action_close-icon___Wi5yF
+index-module__icube-chat-error-tip__innner_content___HdwyD
+index-module__icube-chat-error-tip__wrapper___ZdQvy
+index-module__icube-warningIcon___RJiIr
+index-module__import-settings___jH0yl
+index-module__import-settings-group___rUl8B
+index-module__import-settings-icon___rDWNS
+index-module__item___MkKHx
+index-module__knowledges-action-row___c_Nz9
+index-module__knowledges-content___rLlLH
+index-module__knowledges-section___Zw2TU
+index-module__knowledges-settings-group___aKNTi
+index-module__knowledges-tree-chevron___KbHEO
+index-module__knowledges-tree-container___Henz4
+index-module__knowledges-tree-dir___v9LDF
+index-module__knowledges-tree-dir-label___XCdeQ
+index-module__knowledges-tree-file___YQwfC
+index-module__knowledges-tree-file-content___ocSjn
+index-module__knowledges-tree-file-desc___SVKn8
+index-module__knowledges-tree-file-icon___QgFnB
+index-module__knowledges-tree-file-name___CPsfZ
+index-module__knowledges-tree-scroll___jozk1
+index-module__lark-connect-card__actions___PCS7j
+index-module__lark-connect-card__body___XUVmk
+index-module__lark-connect-card__connected___u907Y
+index-module__lark-connect-card__logo___MtrQc
+index-module__lark-connect-card__tips___h9aX7
+index-module__lark-connect-card__title___dYaYA
+index-module__lark-connect-card__title-text___fJDSL
+index-module__lark-connect-card-wrap___MMqEv
+index-module__left___E4lcY
+index-module__lint-error-toggle-settings__right-switch___Lg38c
+index-module__lint-error-toggle-settings__split-line___rwrAO
+index-module__lint-error-toggle-settings__switch-container___JtEem
+index-module__llm_config__configured____Z9QW
+index-module__llm_config__configured-text-success___gsNPU
+index-module__llm-config-card__popover-item___vsdqC
+index-module__llm-config-card__popover-item-title___mQhzt
+index-module__llm-config-card__popover-list___TeAZU
+index-module__llm-config-card__popover-title___imdFU
+index-module__llm-config-single-status___YlRws
+index-module__llm-config-status-text___ZheS0
+index-module__mermaid-block___RMG8Q
+index-module__mermaid-block-fullscreen___DHlvI
+index-module__mermaid-block-fullscreen-icon___ufwWK
+index-module__mermaid-fullscreen-actions-wrapper___bSGeu
+index-module__mermaid-fullscreen-close-btn___nyrla
+index-module__mermaid-fullscreen-content___GZ8fJ
+index-module__mermaid-fullscreen-graph___IiTcj
+index-module__mermaid-fullscreen-inner___W4TWy
+index-module__more-button___dJ1dg
+index-module__more-icon___LcCb8
+index-module__notification-switches___BZzfO
+index-module__pagination___Zd78g
+index-module__person___UZn3x
+index-module__popoverContainer___thtFJ
+index-module__popoverContent___wYTR7
+index-module__popoverDivider___TjE0l
+index-module__popoverHeading___nRObm
+index-module__popoverList___U7S3R
+index-module__popoverRowSuffix___d5NLn
+index-module__popoverRowText___nhmvl
+index-module__preview-card__content___mQWI2
+index-module__preview-card__content-doc-type___loiIu
+index-module__preview-card__icon___qtUcm
+index-module__preview-card__status-error___EpWYV
+index-module__preview-card__status-error-icon___Ktoyl
+index-module__radio-circle___j_IUT
+index-module__radio-dot___wZw1E
+index-module__radio-icon___nEg_s
+index-module__radio-label___GRFMs
+index-module__radio-unchecked___I3Ex0
+index-module__rename-dialog___o6YVF
+index-module__rename-dialog-footer___YURDM
+index-module__rename-dialog-input___J_G9z
+index-module__rename-dialog-input-row___OyZwF
+index-module__search-reference-item-container___ZyMsD
+index-module__search-reference-item-content___z8hvd
+index-module__search-reference-item-favicon___h2z6o
+index-module__search-reference-item-index___M44PN
+index-module__search-reference-item-link___qXtVz
+index-module__section-description___Linph
+index-module__shell-execute-preference___li4Cq
+index-module__show-widget-card___O7NZk
+index-module__show-widget-card__body___kzr5l
+index-module__show-widget-card__copy-btn___WZAs4
+index-module__show-widget-card__error___vM2Xk
+index-module__show-widget-card__header___w6dFi
+index-module__show-widget-card__icon___pOX2r
+index-module__show-widget-card__iframe-outer___QQqeX
+index-module__show-widget-card__info___geK_n
+index-module__show-widget-card__loading-msg___agql2
+index-module__show-widget-card__loading-row___Ceq3P
+index-module__show-widget-card__open-panel___lyRuW
+index-module__show-widget-card__panel-overlay___Xg3Jf
+index-module__show-widget-card__progress-bar___Mg5sU
+index-module__show-widget-card__status___z9jyZ
+index-module__show-widget-card__status-fail___K4XlR
+index-module__show-widget-card__status-fail-icon___G8A24
+index-module__show-widget-card__status-fail-text___vVKt0
+index-module__show-widget-card__title___N5FYj
+index-module__solo-one-settings__container___IB4k3
+index-module__solo-one-settings__item___mbCVz
+index-module__solo-one-settings__label___RSN4z
+index-module__solo-one-settings__radio-group___gETbe
+index-module__supabase-connect-card__body___vg6Nu
+index-module__supabase-connect-card__footer___AYl6Z
+index-module__supabase-connect-card__header-connected___I_MZn
+index-module__supabase-connect-card__header-content___IscCZ
+index-module__supabase-connect-card__header-tips___OO4hb
+index-module__supabase-connect-card__header-title___doc05
+index-module__supabase-connect-card__header-title-text___sLDLM
+index-module__supabase-connect-card__supabase-logo___VOB9k
+index-module__supabase-connect-card-wrap___IpCgB
+index-module__tag___EMnO7
+index-module__tagAt___lUtPs
+index-module__tagCount___UMfP5
+index-module__tagInner___Li2k9
+index-module__task-assistant-avatar___ZfmAj
+index-module__task-item-action___BJqBE
+index-module__task-item-action__more-icon___gFbsG
+index-module__task-item-action__worktree-icon___KS_R_
+index-module__task-item-info___JEoEz
+index-module__task-notification-settings___hTyay
+index-module__task-notification-settings__container___GxWI5
+index-module__task-notification-settings__split-line___m0viU
+index-module__task-notification-settings__switch-container___TioIs
+index-module__task-notification-settings_config-item-action___qYPqo
+index-module__task-notification-settings_config-item-action-add-group___Dsrh0
+index-module__task-notification-settings_config-item-action-add-input___WPaj8
+index-module__task-notification-settings_config-item-sound-item___rL8zZ
+index-module__task-notification-settings_config-item-sound-item-left___oiUSy
+index-module__task-notification-settings_config-item-sound-item-left-content___vxZgR
+index-module__task-notification-settings_config-item-sound-item-left-desc___FVdjX
+index-module__task-notification-settings_config-item-sound-item-left-desc-filename___ikg6j
+index-module__task-notification-settings_config-item-sound-item-left-title___zsiK8
+index-module__task-notification-settings_config-item-sound-item-right___LrM_g
+index-module__task-refactor-avatar___vRjUf
+index-module__task-status__complete___ThOzg
+index-module__task-status__interrupted___hDRSk
+index-module__task-status__todo___bBLFe
+index-module__task-status-dot___ElQAP
+index-module__task-status-icon___OQCSs
+index-module__task-title___OSyX1
+index-module__task-type-wrap___Tjr5Y
+index-module__task-type-wrap__status___GI3cH
+index-module__task-type-wrap__time___MjD3o
+index-module__task-type-wrap__time-icon___dPjzZ
+index-module__tasks-list-settings__auto-fold-popover___pVMHm
+index-module__tasks-list-settings__auto-fold-popover-content___XGDeK
+index-module__tasks-list-settings__auto-fold-popover-img___K8QjP
+index-module__tasks-list-settings__auto-fold-popover-title___wYZX2
+index-module__tasks-list-settings__label-suffix___R3xRH
+index-module__tasks-list-settings__label-suffix-icon____vK0s
+index-module__tasks-list-settings__label-suffix-tag___obV0Y
+index-module__tasks-list-settings__label-suffix-tag-text___mvEZl
+index-module__tasks-list-settings__right-switch___W9boB
+index-module__tasks-list-settings__split-line___LMw41
+index-module__tasks-list-settings__switch-container___iDoTV
+index-module__text___YTptd
+index-module__too-many-conversation-turns-tip__close___jVkyy
+index-module__too-many-conversation-turns-tip__icon___VSQ_V
+index-module__too-many-conversation-turns-tip__new-chat___g3LN1
+index-module__too-many-conversation-turns-tip__title___Xsni3
+index-module__too-many-conversation-turns-tip-wrap___fzchy
+index-module__web-summary-card___RXLG4
+index-module__web-summary-card-content___H2O_m
+index-module__web-summary-card-head___GuAZi
+index-module__web-summary-card-head-label___RxX6z
+index-module__web-summary-card-title___MUR8o
+index-module__welcome-chat-history-container___euOuJ
+index-module__welcome-chat-history-header___IWa7D
+index-module__welcome-chat-history-item___w429A
+index-module__welcome-chat-history-item-description___mPwJX
+index-module__welcome-chat-history-item-icon___sSe4j
+index-module__welcome-chat-history-item-title___XsKHB
+index-module__welcome-chat-history-list___EBtRJ
+index-module__welcome-chat-history-list-title___qMAv0
+index-module__worktree-invalid-dailog__checkbox___Onxmy
+index-module__worktree-invalid-dailog__git-config-command___B7998
+index-module__worktree-invalid-dailog__git-configure___MMv09
+index-module__worktree-invalid-dailog__git-configure-content___sc3Aw
+index-module__worktree-invalid-dailog__git-configure-desc___weBIs
+index-module__worktree-invalid-dailog__git-configure-title___DHwJR
+index-module__worktree-invalid-dailog__git-configure-title-copy___Kq_Vt
+index-module__worktree-invalid-dailog__git-configure-title-text___c3M9t
+index-module__worktree-invalid-dailog__icon___zewr7
+index-module__worktree-settings___VgnMB
+index-module__worktree-settings__container___Of3qb
+index-module__worktree-settings__section___y_6tN
+index-module__worktree-settings__section-title___to2wM
+index-module__worktree-settings_config-item-action-add-input___CppZu
+infinite-scroll-component 
+infinite-scroll-component__outerdiv
+inline-alert-bar-action-item
+inline-alert-bar-close-action
+inline-alert-bar-content
+inline-alert-bar-icon
+inline-chat-container
+inline-chat-status-container
+inline-feedback-container
+inline-flex h-5 items-center gap-1 rounded-[4px] bg-bg-overlay-l2 px-1.5
+inline-flex items-center ml-1 align-middle
+input
+input-container
+input-wrapper
+integration-item__actions
+integration-item__content
+integration-item__desc
+integration-item__extra
+integration-item__header
+integration-item__icon
+integration-item__icon-wrap
+integration-item__info
+integration-item__main
+integration-item__name
+integration-item__platform-divider
+integration-item__platform-label
+integration-item__platform-support
+integration-item__status-icon--warn
+integration-item-btn integration-item-btn--connect
+integration-item-btn integration-item-btn--loading
+integration-item-btn integration-item-btn--settings
+integration-item-confirm
+integration-item-confirm__actions
+integration-item-confirm__btn integration-item-confirm__btn--cancel
+integration-item-confirm__btn integration-item-confirm__btn--confirm
+integration-item-confirm__desc
+integration-item-dropdown
+integration-item-dropdown__confirm-anchor
+integration-item-dropdown__item
+integration-item-dropdown__menu
+integration-tooltip
+item
+item-label
+item-label-desc
+item-label-icon
+item-title
+json-btn
+json-item-key
+json-item-value
+json-preview-alert-header
+json-preview-alert-header-icon
+json-preview-alert-header-text
+json-preview-content
+json-preview-text-header
+justify-center sm:justify-center
+keybinding-label-container
+Label
+label-container
+label-desc-item
+label-desc-separator
+label-description
+label-name
+latest-assistant-bar-divider
+latest-assistant-bar-left-part
+latest-assistant-bar-query-diff-text
+latest-assistant-bar-query-diff-wrapper
+latest-assistant-bar-right-part
+latex-block-container
+left-l
+length-limit
+line-clamp-2 overflow-hidden text-text-tertiary break-all text-[11px] leading-4
+line-clamp-2 text-[12px] leading-[18px] text-text-secondary
+line-clamp-4 text-[12px] leading-[18px] text-text-secondary
+link
+list icube-scrollbar
+list-container
+list-item-actions flex align-center justify-center
+loading-spinner
+log-mention-node__vercel-deployment-id
+log-mention-node__vercel-deployment-id-wrapper
+log-mention-node-icon log-mention-node-icon--default
+log-mention-node-icon log-mention-node-icon--vercel
+logo
+max-w-[240px]
+max-w-[400px] text-center text-body-md text-text-tertiary leading-body-md
+max-w-[560px]
+max-w-80 max-h-[60vh] overflow-y-auto whitespace-pre-wrap break-all
+max-w-xs
+mb-1 flex items-center gap-2
+mb-1 text-[12px] leading-[18px] text-text-secondary
+mb-1.5 last:mb-0
+mb-2
+mb-4
+mb-4 w-6 h-6 text-status-error
+mb-6 text-center text-text-default
+mcp-btn-content
+mcp-item-status__icon-box-default
+mcp-item-status__icon-con
+mcp-item-status__icon-status disabled
+mcp-item-status__icon-status error
+mcp-item-status__icon-status loading
+mcp-item-status__icon-status success
+mcp-item-status-wrap
+mcp-status-box__icon-con
+mcp-status-box__icon-status
+mcp-status-box__icon-status alert
+mcp-status-box__icon-status disabled
+mcp-status-box__icon-status error
+mcp-status-box__icon-status loading
+mcp-status-box__icon-status success
+mcp-status-box-wrap
+memory-markdown-code-block
+memory-reference-card
+memory-reference-card-body memory-reference-card-list
+memory-reference-card-button memory-reference-card-header-action
+memory-reference-card-button memory-reference-card-item-action
+memory-reference-card-header
+memory-reference-card-header-icon
+memory-reference-card-header-title
+memory-reference-card-item
+memory-reference-popover
+memory-settings-alert
+memory-settings-alert-close
+memory-settings-alert-icon
+memory-settings-alert-text
+memory-settings-container
+memory-settings-content
+memory-settings-item-actions
+memory-settings-item-icon
+memory-settings-panel
+memory-settings-tabs
+memory-settings-title-info
+memory-settings-title-right
+memory-settings-title-tag
+memory-settings-tooltip-content
+memory-settings-tooltip-extra
+memory-settings-tooltip-model
+memory-settings-tooltip-model-bullet
+memory-settings-tooltip-model-icon
+memory-settings-tooltip-model-item
+memory-settings-tooltip-model-list
+memory-settings-tooltip-model-name
+memory-settings-tooltip-model-title
+mention-autocomplete-popup-container
+mention-autocomplete-popup-divider
+mention-autocomplete-popup-external-item
+mention-autocomplete-popup-group-title
+mention-autocomplete-popup-inner
+mention-autocomplete-popup-item__loading
+mention-autocomplete-popup-item-content
+mention-autocomplete-popup-item-desc
+mention-autocomplete-popup-item-description
+mention-autocomplete-popup-item-icon
+mention-autocomplete-popup-item-suffix
+mention-autocomplete-popup-tips
+mention-autocomplete-popup-title
+mention-autocomplete-popup-worktree
+mention-autocomplete-popup-worktree-icon
+mention-autocomplete-popup-worktree-text
+mention-popup-docset-datetime
+mention-popup-title-skeleton
+mention-search-placeholder-text
+mention-symbol file-mention-symbol show-file-icons
+mention-symbol-icon
+mention-symbol-icon problem-file-icon
+mention-symbol-icon problem-severity-icon
+mention-symbol-wrap
+menu-list
+menu-list-item
+menu-list-item copy
+mermaid-actions
+min-h-0 field-sizing-content
+min-h-0 flex-1 overflow-hidden rounded-[4px] border border-border-neutral-l1 bg-bg-overlay-l1
+min-w-0 flex-1
+min-w-24
+min-w-24 border border-border-neutral-l1 rounded-radius-6 bg-bg-menu p-1.5
+min-w-24 overflow-visible
+ml-auto
+ml-auto flex items-center gap-2
+ml-auto h-4 w-4
+modal-description
+modal-header
+modal-header-title
+model-action-item
+model-action-item disabled
+model-action-item icon-action
+model-actions
+model-icon
+model-list-container
+model-management-button
+model-management-container
+model-multi-select-extra-action
+model-multi-select-extra-action-icon
+model-multi-select-extra-action-icon add-id-icon
+model-multi-select-extra-actions
+model-multi-select-extra-divider
+model-multi-select-extra-label
+model-name-content
+model-select-v2-logo-holder
+model-select-v2-red-circle
+mr-2 max-h-[140px] overflow-y-auto border-t border-border-neutral-l1 py-2 pl-3 pr-1
+mt-1
+mt-1 text-body-base text-text-default leading-body-base
+mt-2 flex gap-2
+mt-2 text-sm text-text-tertiary
+mt-3
+name
+name-input
+no-login-welcome__button
+no-login-welcome__title
+object-cover w-full h-full
+open-terminal-button
+open-terminal-button-wrapper
+operation
+original-err-container
+original-err-content icube-scrollbar
+original-err-tips
+overflow-hidden text-ellipsis text-[12px] leading-[18px] text-text-tertiary
+overflow-hidden text-sm transition-all data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down
+overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]
+overflow-y-auto flex-1 px-4 py-0 min-h-0
+p-2 text-[10px] rounded bg-bg-base-tertiary text-text-default overflow-hidden text-ellipsis max-h-[60px]
+p-3 text-sm rounded border bg-status-error-surface-l1 text-status-error border-status-error-surface-l2
+panel-description
+panel-description-container
+panel-header
+panel-title
+placeholder
+pointer-events-auto max-h-[240px] max-w-[320px] overflow-y-auto whitespace-pre-wrap break-words rounded-radius-6 border border-border-neutral-l2 bg-bg-tooltip px-3 py-2 text-[12px] leading-[18px] text-text-default
+pointer-events-auto relative w-[360px] overflow-visible rounded-radius-6 border border-border-neutral-l2 bg-bg-tooltip p-0 shadow-none text-text-default
+pointer-events-none absolute right-[-5px] top-1/2 h-[10px] w-[10px] -translate-y-1/2 rotate-45 border-r border-t border-border-neutral-l2 bg-bg-tooltip
+pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-body-sm text-text-tertiary
+popconfirm-cancel
+popconfirm-info
+popconfirm-wraning
+popup-button-container
+popup-detail
+popup-item
+popup-item delete
+popup-overlay-close-icon
+popup-title
+pr-16
+prefix
+prefix-input-icon
+preparing-dot dot-1
+preparing-dot dot-2
+progress-bit
+progress-wrapper
+provider-config-form
+provider-config-form-actions
+provider-config-form-field
+provider-config-form-label
+provider-content
+RadioGroupIndicator
+RadioGroupItem
+RadioGroupItemContainer
+RadioGroupRoot
+ras-portal-container
+reference-entry-container
+reference-entry-icon
+reference-entry-label
+reference-error-message search-reference-info
+reference-list-container
+relative
+relative flex flex-col py-4 gap-6
+relative flex-1
+relative flex-1 rounded-full bg-border
+relative h-2 w-full grow overflow-hidden rounded-full bg-secondary
+relative h-full overflow-hidden rounded-[10px] border border-border-neutral-l1 bg-bg-base-secondary
+relative px-3 py-2
+relative w-full h-full rounded-radius-4 bg-[#8b5cf629] flex items-center justify-center
+remote-settings-panel-refresh-icon-wrapper
+remote-settings-panel-title-right
+remove-mention-icon
+required-mark
+retry
+revert-failed-toast-wrapper
+revert-success-toast-wrapper
+rotate
+rounded-[10px] border border-border-neutral-l1 bg-bg-base-default p-4 shadow-[0px_1px_2px_0px_rgba(0,0,0,0.06),0px_2px_4px_0px_rgba(0,0,0,0.08)]
+rounded-radius-6 border border-border-neutral-l1 bg-bg-overlay-l1 overflow-hidden
+rounded-radius-6 border border-border-neutral-l2 p-3 mb-3
+row
+rule-attached-divider
+rule-attached-group
+rule-attached-group-items
+rule-attached-group-label
+rule-attached-info-popover
+rule-attached-info-popover-locator
+rule-attached-item
+rule-attached-manage-button
+rule-attached-manage-button-label
+rule-icon-container
+rule-metadata-form
+rule-metadata-form-label
+rule-metadata-wrapper
+rules-panel
+rules-panel-refresh-icon-wrapper
+rules-panel-title-right
+run-command-inline
+run-command-inline-content
+run-command-inline-content__inner
+run-command-inline-header__action-btn
+run-command-inline-header__action-btn run-command-inline-header__action-btn--background
+run-command-inline-header__actions
+run-command-inline-header__actions-loading
+run-command-inline-header__command
+run-command-inline-header__expand-icon codicon codicon-chevron-right
+run-command-inline-header__left-icon
+run-command-inline-header__loading
+run-command-inline-header__more-actions
+run-command-inline-header__more-actions-panel
+run-command-inline-header__status-label
+run-command-inline-header__tags
+run-command-inline-header__terminal-icon
+run-command-inline-output
+run-command-inline-output__background-placeholder
+run-command-inline-output__command
+run-command-inline-output__command-prefix
+run-command-inline-output__command-text
+run-command-inline-output__terminal
+run-sql-card__markdown-content
+schema
+schemas
+scroll-text-container
+scroll-text-current
+scroll-text-next
+search-container
+search-input
+search-reference-index
+section-container
+selected-agent-express-badge
+send-button
+separator
+server-tool-description
+server-tool-description-content
+server-tool-name
+setting-button
+settings-container ai-setting-container
+shell-exec-mode-settings-module__shell-exec-mode-settings__body___Il8It
+shell-exec-mode-settings-module__shell-exec-mode-settings__left-content___QCB1e
+shell-exec-mode-settings-module__shell-exec-mode-settings__main-tips___PqMPu
+shell-exec-mode-settings-module__shell-exec-mode-settings__main-title___BrLhP
+shell-exec-mode-settings-module__shell-exec-mode-settings__right-switch___y1pa4
+shell-exec-mode-settings-module__shell-exec-mode-settings__switch-con___qU5fP
+shell-open-preference-wrapper
+show-file-icons
+show-file-icons icube-chat-request-context icube-chat-request-file-context
+show-file-icons icube-chat-request-context icube-chat-request-folder-context
+shrink-0
+shrink-0 text-xs leading-[18px] text-text-secondary
+simple-ai-logo
+size-3.5
+size-4
+size-4 animate-spin
+size-4 text-icon-secondary
+size-4 text-status-warning
+size-5
+size-5 animate-spin text-icon-secondary
+size-5 text-accent-blue
+size-5 text-icon-secondary
+skeleton-icon
+skeleton-text
+skill-install-confirm
+skill-install-confirm-actions
+skill-install-confirm-btn install
+skill-install-confirm-btn skip
+skill-install-confirm-card
+skill-install-confirm-desc
+skill-install-confirm-detail-link
+skill-install-confirm-header
+skill-install-confirm-icon
+skill-install-confirm-icon-img
+skill-install-confirm-icon-svg
+skill-install-confirm-icon-text
+skill-install-confirm-info
+skill-install-confirm-name
+skill-install-confirm-source
+skill-recommend-card
+skill-recommend-status
+skills-panel
+skills-panel-refresh-icon-wrapper
+skills-panel-title-right
+slash-command-name
+slash-command-placeholder-text
+slash-popup-container
+slash-popup-group-header
+slash-popup-item-desc
+slash-popup-item-icon
+slash-popup-item-name
+slash-popup-matched-text
+slash-symbol-container
+slash-symbol-text
+smart-create-agent-buttons
+smart-create-agent-checkbox-wrapper
+smart-create-agent-close-btn
+smart-create-agent-content
+smart-create-agent-footer
+smart-create-agent-header
+smart-create-agent-input-section
+smart-create-agent-modal
+smart-create-agent-textarea
+smart-create-agent-title
+solo-agent-name-wrap
+solo-cn-check-icon
+solo-theme flex w-full max-w-[480px] flex-col items-center gap-[60px] text-center
+sound-wave-container
+space-y-2
+special-cost
+sr-only
+statics
+statics-time
+status
+status icube-ai
+status-icon
+status-label-icon disabled
+status-label-icon warning
+status-label-text
+status-text
+stopped-by-hooks-label
+stopped-by-hooks-tooltip-content
+stopped-by-hooks-tooltip-event-name
+stopped-by-hooks-tooltip-header
+stopped-by-hooks-tooltip-message icube-scrollbar
+stopped-by-hooks-tooltip-settings
+StorageInput-module__fieldFooter___NikyB
+StorageInput-module__icon16ErrorCircleFil___jkCre
+StorageInput-module__message___zEBpw
+StorageInput-module__storage-input-wrapper___OSPw9
+style-module__codeblock-toolbar-action__inner-label-text___MnrQL
+styles-module__actions___mZ2hr
+styles-module__agentImport__bottomWrapper___moUWa
+styles-module__agentImport__getBtn___GMyFd
+styles-module__agentImport__name___Gj5qU
+styles-module__agentImport__safeTip___OK39O
+styles-module__agentImport__wrapper___OjWDI
+styles-module__dismissButton___dFa3b
+styles-module__settingsIcon___b30hD
+styles-module__statusIcon___KOeom
+styles-module__summary___rb28L
+styles-module__text___mCmnn
+sub-agent-card
+sub-agent-card-avatar
+sub-agent-card-content
+sub-agent-card-desc
+sub-agent-card-desc-connector
+sub-agent-card-desc-text
+sub-agent-card-header
+sub-agent-card-title
+submenu-container
+submit-success-icon
+success
+suffix
+suggestions-list
+switch-enable
+tag
+tag-inner
+tags
+task-artifact-code
+task-artifact-code-added-lines
+task-artifact-code-added-stat
+task-artifact-code-deleted-lines
+task-artifact-code-deleted-stat
+task-artifact-code-file-details
+task-artifact-code-file-info
+task-artifact-code-file-item
+task-artifact-code-file-list
+task-artifact-code-file-list-container
+task-artifact-code-file-name
+task-artifact-code-file-path
+task-artifact-code-file-path-warp
+task-artifact-code-file-stats
+task-artifact-code-files-text
+task-artifact-code-header
+task-artifact-code-header-icon
+task-artifact-code-header-left
+task-artifact-code-header-right
+task-artifact-code-open-diff-btn
+task-artifact-code-stats-container
+task-artifact-code-toggle-icon
+task-artifact-container
+task-artifact-content
+task-artifact-doc-item
+task-artifact-doc-item-arrow
+task-artifact-doc-item-icon
+task-artifact-doc-item-name
+task-artifact-docs
+task-artifact-preview
+task-artifact-preview-item
+task-artifact-preview-item-arrow
+task-artifact-preview-item-icon
+task-artifact-preview-item-name
+task-artifact-preview-item-url
+task-artifact-skill-item
+task-artifact-skill-item-applied
+task-artifact-skill-item-apply-btn
+task-artifact-skill-item-description
+task-artifact-skill-item-description-text
+task-artifact-skill-item-icon
+task-artifact-skill-item-info
+task-artifact-skill-item-name
+task-artifact-skill-item-path
+task-artifact-skill-item-path-wrapper
+task-artifact-skill-item-wrapper
+task-artifact-skills
+task-artifact-title
+terminal-command-prefix
+terminal-deleted-tip
+terminal-mention-symbol-icon mention-symbol-icon
+terminal-mirror-history
+terminal-mirror-history-placeholder
+terminal-mirror-history-wrapper
+terminal-xterm-mirror-wrapper
+text
+text-[10px]
+text-[11px] leading-4 text-text-secondary
+text-[11px] text-text-tertiary truncate leading-4
+text-[12px] font-medium leading-[18px] text-text-default px-1
+text-[12px] font-medium leading-6 text-text-default
+text-[12px] leading-[18px] text-text-secondary mt-1 text-center max-w-[400px]
+text-[12px] text-text-tertiary pr-2 border-r border-border-neutral-l2
+text-[13px] font-medium leading-5 text-text-default
+text-[13px] font-medium text-status-error hover:bg-status-error-surface-l1
+text-[13px] font-medium text-text-default
+text-[13px] font-medium text-text-default mb-2
+text-[13px] leading-5 text-text-default font-medium text-center
+text-[13px] text-text-default truncate leading-5
+text-body-md leading-body-md text-text-default
+text-body-md leading-body-md text-text-secondary
+text-body-md text-text-secondary text-center
+text-body-sm font-medium text-text-default
+text-body-sm leading-body-sm text-text-default
+text-body-sm text-text-secondary
+text-brand-default underline
+text-center text-heading-md leading-heading-md font-semibold text-text-default-active tracking-[0.1px]
+text-content
+text-lg font-semibold text-text-default
+text-sm
+text-sm font-medium text-text-default
+text-sm font-medium text-text-default cursor-pointer hover:text-text-primary hover:underline
+text-sm text-text-tertiary
+text-status-error
+text-status-error mr-0.5
+text-status-warning
+text-text-default
+text-text-link underline
+text-text-secondary cursor-pointer
+text-xs font-normal text-text-default
+thinking-markdown-code-block
+thinking-markdown-h1
+thinking-markdown-h2
+thinking-markdown-h3
+thinking-markdown-h4
+thinking-markdown-h5
+thinking-markdown-h6
+thinking-markdown-inline-code inline-code-start inline-code-end
+thinking-markdown-link
+thinking-markdown-ol
+thinking-markdown-p
+thinking-markdown-table
+thinking-markdown-table-outer-wrapper
+thinking-markdown-tbody
+thinking-markdown-td
+thinking-markdown-tfoot
+thinking-markdown-th
+thinking-markdown-thead
+thinking-markdown-tr
+thinking-markdown-ul
+thinking-scroll-container
+thinking-stream-content-md
+tip
+tip-description
+tip-icon
+tip-item
+tip-link
+tip-text
+tips-container
+title
+title-content
+title-text
+todoListBar-module__todo-list-bar___ZZPYq
+todoListBar-module__todo-list-bar_body___merU8
+todoListBar-module__todo-list-bar_body-count___pb_hD
+todoListBar-module__todo-list-bar_body-info___CEFBV
+todoListBar-module__todo-list-bar_body-left___ePiuk
+todoListBar-module__todo-list-bar_body-right___QsIjQ
+todoListBar-module__todo-list-bar_body-text___a0suY
+todoListBar-module__todo-list-bar_item___n7AIZ
+todoListBar-module__todo-list-bar_item-add-diff___FT9Uy
+todoListBar-module__todo-list-bar_item-arrow___DdxVH
+todoListBar-module__todo-list-bar_item-icon___pIrJa
+todoListBar-module__todo-list-bar_item-left___RLuZh
+todoListBar-module__todo-list-bar_item-name___r4l1z
+todoListBar-module__todo-list-bar_item-path___plGEL
+todoListBar-module__todo-list-bar_item-remove-diff___vyERb
+todoListBar-module__todo-list-bar_item-right___aVbFU
+toggle-button
+toggle-icon
+toggle-word-wrap-button
+toggle-word-wrap-button-wrapper
+tool-call-actions
+tool-call-body
+tool-call-crop-tip
+tool-call-crop-tip-content
+tool-call-footer
+tool-call-header
+tool-call-header-content
+tool-call-icon
+tool-call-section
+tool-call-section-btn tool-call-section-btn-cancel
+tool-call-section-btn tool-call-section-btn-run
+tool-call-section-content
+tool-call-section-content tool-call-section-scrollbar-text
+tool-call-section-scrollbar-text
+tool-call-section-title
+tool-call-status
+tool-call-status-error-text-wrapper
+tool-call-status-text-success
+tool-container
+tool-container-content
+tool-item
+tool-name
+tools icube-scrollbar
+top-notification-list
+tpc-portal-container
+truncate
+truncate text-[13px] leading-5 font-semibold text-text-default
+truncate text-body-base-strong text-text-default
+truncate text-body-base-strong text-text-default cursor-pointer hover:text-text-primary hover:underline
+truncate whitespace-nowrap text-body-md text-text-secondary
+unlink-icon
+unlink-text
+unsaved-banner-content
+unsaved-banner-icon
+unsaved-banner-icon-wrap
+unsaved-banner-left
+unsaved-banner-save-btn
+unsaved-banner-text
+upload-entry-container
+upload-image-label
+user-chat-bubble
+user-chat-bubble-request
+user-chat-bubble-request__content-wrapper
+user-chat-bubble-request-group
+user-chat-line
+user-chat-timestamp
+user-chat-turn-content-bubble-wrapper
+user-query__more-action
+vercel-id-text
+vercel-id-text-tooltip-wrapper
+visual-editor-changes-mention-node-icon
+visual-editor-changes-tooltip-arrow
+visual-editor-changes-tooltip-container
+visual-editor-changes-tooltip-content
+visual-editor-changes-tooltip-item
+visual-editor-changes-tooltip-new-value
+visual-editor-changes-tooltip-old-value
+visual-editor-changes-tooltip-property
+visual-editor-changes-tooltip-selector
+visual-editor-changes-tooltip-values
+visual-editor-popover-arrow
+visual-editor-popover-body
+visual-editor-popover-header
+visual-editor-popover-item
+visual-editor-popover-new-value
+visual-editor-popover-old-value
+visual-editor-popover-property
+visual-editor-popover-property dom-order
+visual-editor-popover-selector
+visual-editor-popover-title
+visual-editor-popover-values
+visual-editor-popover-wrapper
+w-[268px] !max-w-[268px] rounded-[8px] border-border-neutral-l1 bg-bg-tooltip px-3 py-3
+w-[400px]
+w-[560px] max-w-[560px] max-h-[min(540px,calc(100vh-48px))] p-0 overflow-hidden flex flex-col
+w-20
+w-3 h-3
+w-3 h-3 text-accent-teal
+w-3.5 h-3.5
+w-3.5 h-3.5 animate-spin
+w-32 agent-settings-root bg-bg-menu border-border-neutral-l2 text-text-default
+w-4 flex-shrink-0 border-l border-border-neutral-l2
+w-4 h-4
+w-4 h-4 shrink-0
+w-4 h-4 text-icon-default
+w-4 h-4 text-icon-default-active
+w-4 h-4 text-icon-secondary
+w-4 h-4 text-status-error
+w-4 h-4 text-status-warning
+w-4 h-4 text-text-secondary
+w-5 h-5 animate-spin text-text-tertiary
+w-5 h-5 text-icon-secondary mb-2
+w-6 h-6
+w-6 h-6 animate-spin
+w-6 h-6 animate-spin text-text-tertiary
+w-6 h-6 flex items-center justify-center text-text-secondary
+w-6 h-6 text-text-secondary
+w-6 min-w-6 h-6
+w-8 h-8 opacity-50
+w-full h-full rounded-radius-4 bg-status-primary-surface-l1 flex items-center justify-center
+w-full h-full rounded-radius-4 flex items-center justify-center
+warn-icon
+warning-icon
+web-element-mention-node-icon
+webpage-btn unlink
+webpage-symbol-action-popover-wrap
+webview-mention-symbol-icon mention-symbol-icon
+welcome-area
+welcome-suffix-container
+welcome-suffix-container-wrapper
+welcome-title
+wrapper
+xterm-maxheight-container

@@ -100,8 +100,8 @@ const newOpenAICompatibleSDK = async ({ settingsOfProvider, providerName, includ
 			baseURL: 'https://openrouter.ai/api/v1',
 			apiKey: thisConfig.apiKey,
 			defaultHeaders: {
-				'HTTP-Referer': 'https://voideditor.com', // Optional, for including your app on openrouter.ai rankings.
-				'X-Title': 'Void', // Optional. Shows in rankings on openrouter.ai.
+				'HTTP-Referer': 'https://v3code.dev', // Optional, for including your app on openrouter.ai rankings.
+				'X-Title': 'V3Code', // Optional. Shows in rankings on openrouter.ai.
 			},
 			...commonPayloadOpts,
 		})
@@ -372,7 +372,7 @@ const _sendOpenAICompatibleChat = async ({ messages, onText, onFinalMessage, onE
 			}
 			// on final
 			if (!fullTextSoFar && !fullReasoningSoFar && !toolName) {
-				onError({ message: 'Void: Response from model was empty.', fullError: null })
+				onError({ message: 'V3Code: Response from model was empty.', fullError: null })
 			}
 			else {
 				const toolCall = rawToolCallObjOfParamsStr(toolName, toolParamsStr, toolId)
@@ -817,7 +817,7 @@ const sendGeminiChat = async ({
 
 			// on final
 			if (!fullTextSoFar && !fullReasoningSoFar && !toolName) {
-				onError({ message: 'Void: Response from model was empty.', fullError: null })
+				onError({ message: 'V3Code: Response from model was empty.', fullError: null })
 			} else {
 				if (!toolId) toolId = generateUuid() // ids are empty, but other providers might expect an id
 				const toolCall = rawToolCallObjOfParamsStr(toolName, toolParamsStr, toolId)

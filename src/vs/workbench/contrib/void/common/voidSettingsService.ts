@@ -360,9 +360,13 @@ class VoidSettingsService extends Disposable implements IVoidSettingsService {
 
 
 	private async _storeState() {
-		const state = this.state
-		const encryptedState = await this._encryptionService.encrypt(JSON.stringify(state))
-		this._storageService.store(VOID_SETTINGS_STORAGE_KEY, encryptedState, StorageScope.APPLICATION, StorageTarget.USER);
+		try {
+			const state = this.state
+			const encryptedState = await this._encryptionService.encrypt(JSON.stringify(state))
+			this._storageService.store(VOID_SETTINGS_STORAGE_KEY, encryptedState, StorageScope.APPLICATION, StorageTarget.USER);
+		} catch (err) {
+			console.error('[V3Code] _storeState failed (in-memory state still updated):', err);
+		}
 	}
 
 	setSettingOfProvider: SetSettingOfProviderFn = async (providerName, settingName, newVal) => {

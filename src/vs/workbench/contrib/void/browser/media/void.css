@@ -24,31 +24,35 @@
 }
 
 
-/* Renamed from void-watermark-button to void-openfolder-button */
+/* V3Code brand: primary CTA uses amethyst, the intelligence color.
+   Fallback to the original blue if --v3-amethyst isn't loaded (workbench surfaces
+   that lack the React stylesheet). See V3CODE-BRANDING.md. */
 .void-openfolder-button {
     padding: 8px 20px;
-    background-color: #306dce;
+    background-color: var(--v3-amethyst, #8B5CF6);
     color: white;
     border: none;
     border-radius: 4px;
     outline: none !important;
 	box-shadow: none !important;
 	cursor: pointer;
-	transition: background-color 0.2s ease;
+	transition: background-color 0.2s ease, box-shadow 0.2s ease;
 }
 .void-openfolder-button:hover {
-    background-color: #2563eb;
+    background-color: var(--v3-amethyst-glow, #A78BFA);
+	box-shadow: 0 0 12px var(--v3-amethyst-focus, rgba(139, 92, 246, 0.5));
 }
 .void-openfolder-button:active {
-    background-color: #2563eb;
+    background-color: var(--v3-amethyst-deep, #6D28D9);
 }
 
-/* Added for Open SSH button with slightly darker color */
+/* SSH button stays neutral — secondary action shouldn't compete with the
+   primary amethyst CTA. Slightly warmer grey to fit the layered-black aesthetic. */
 .void-openssh-button {
     padding: 8px 20px;
-    background-color: #656565; /* Slightly darker than the #5a5a5a in the TS file */
-    color: white;
-    border: none;
+    background-color: var(--v3-slate, #161820);
+    color: var(--v3-text-primary, #E4E4ED);
+    border: 1px solid var(--v3-ash, #1C1E27);
     border-radius: 4px;
     outline: none !important;
 	box-shadow: none !important;
@@ -56,10 +60,10 @@
     transition: background-color 0.2s ease;
 }
 .void-openssh-button:hover {
-    background-color: #474747; /* Darker on hover */
+    background-color: var(--v3-ash, #1C1E27);
 }
 .void-openssh-button:active {
-    background-color: #474747;
+    background-color: var(--v3-smoke, #252730);
 }
 
 
@@ -85,13 +89,14 @@
 }
 
 .void-link {
-	color: #3b82f6;
+	color: var(--v3-amethyst-glow, #A78BFA);
 	cursor: pointer;
 	transition: all 0.2s ease;
 }
 
 .void-link:hover {
-	opacity: 80%;
+	color: var(--v3-amethyst, #8B5CF6);
+	opacity: 100%;
 }
 
 /* styles for all containers used by void */
@@ -201,4 +206,383 @@
 .void-scrollable-element::-webkit-scrollbar-corner,
 .void-scrollable-element *::-webkit-scrollbar-corner {
 	background-color: var(--void-bg-3) !important;
+}
+
+
+/* ============================================================================
+   V3Code workbench chrome glow — matches onboarding aesthetic.
+   Subtle amethyst gradient washes over the sidebar, panels, and status bar
+   so the editor feels like a continuation of the onboarding terminal vibe
+   instead of flat blacks. Only activates under the V3Code Dark theme.
+   ============================================================================ */
+.monaco-workbench .part.sidebar,
+.monaco-workbench .part.sidebar {
+background-image:
+radial-gradient(ellipse 80% 60% at 50% 0%, rgba(139, 92, 246, 0.10), transparent 70%),
+radial-gradient(ellipse 100% 40% at 50% 100%, rgba(124, 58, 237, 0.06), transparent 70%);
+}
+
+.monaco-workbench .part.auxiliarybar,
+.monaco-workbench .part.auxiliarybar {
+background-image:
+radial-gradient(ellipse 90% 70% at 50% 50%, rgba(139, 92, 246, 0.08), transparent 75%);
+}
+
+.monaco-workbench .part.panel,
+.monaco-workbench .part.panel {
+background-image:
+radial-gradient(ellipse 70% 100% at 50% 0%, rgba(139, 92, 246, 0.08), transparent 80%);
+}
+
+.monaco-workbench .part.titlebar,
+.monaco-workbench .part.titlebar {
+background-image: linear-gradient(180deg, rgba(139, 92, 246, 0.18), rgba(139, 92, 246, 0.04));
+border-bottom: 1px solid rgba(139, 92, 246, 0.5) !important;
+box-shadow: 0 1px 12px rgba(139, 92, 246, 0.25);
+}
+
+.monaco-workbench .part.statusbar,
+.monaco-workbench .part.statusbar {
+background-image: linear-gradient(0deg, rgba(139, 92, 246, 0.22), rgba(139, 92, 246, 0.08));
+border-top: 1px solid rgba(139, 92, 246, 0.5) !important;
+box-shadow: 0 -1px 12px rgba(139, 92, 246, 0.25);
+}
+
+.monaco-workbench .part.activitybar,
+.monaco-workbench .part.activitybar {
+background-image: linear-gradient(180deg, rgba(139, 92, 246, 0.10), rgba(124, 58, 237, 0.04));
+border-right: 1px solid rgba(139, 92, 246, 0.35);
+}
+
+/* Active tab — make it pop with an amethyst underglow */
+.monaco-workbench .tab.active,
+.monaco-workbench .tab.active {
+box-shadow: inset 0 -2px 8px rgba(159, 255, 61, 0.15), 0 0 12px rgba(139, 92, 246, 0.2);
+}
+
+/* Activity bar active item — amethyst halo */
+.monaco-workbench .activitybar .action-item.checked .action-label,
+.monaco-workbench .activitybar .action-item.checked .action-label {
+filter: drop-shadow(0 0 6px rgba(167, 139, 250, 0.6));
+}
+
+/* Editor area — subtle vignette so the deep amethyst-tinted bg has depth */
+.monaco-workbench .part.editor .editor-container,
+.monaco-workbench .part.editor .editor-container {
+background-image: radial-gradient(ellipse 120% 80% at 50% 50%, transparent 50%, rgba(139, 92, 246, 0.05));
+}
+
+/* ============================================================================
+   V3Code AESTHETIC PASS 2 — match the onboarding's energy.
+   Animated ambient glow, deeper gradients, glowing seams, venom accents.
+   Everything below scoped to V3Code Dark theme only.
+   ============================================================================ */
+
+@keyframes v3-ambient-pulse {
+0%, 100% { opacity: 0.55; }
+50%      { opacity: 1; }
+}
+
+@keyframes v3-sheen {
+0%   { background-position: -200% 0; }
+100% { background-position: 200% 0; }
+}
+
+@keyframes v3-scan {
+0%   { transform: translateY(-100%); }
+100% { transform: translateY(100vh); }
+}
+
+/* Activity bar — animated gradient + glowing right edge */
+.monaco-workbench .part.activitybar {
+background-image:
+linear-gradient(180deg, rgba(167, 139, 250, 0.14), rgba(91, 33, 182, 0.10) 50%, rgba(139, 92, 246, 0.14)) !important;
+box-shadow: inset -1px 0 0 rgba(139, 92, 246, 0.45), 2px 0 18px -8px rgba(139, 92, 246, 0.55);
+}
+
+/* Active activity item — green accent bar AND amethyst halo (replaces VSCode's blue stripe) */
+.monaco-workbench .activitybar .action-item.checked::before {
+content: '';
+position: absolute;
+left: 0;
+top: 8px;
+bottom: 8px;
+width: 2px;
+background: linear-gradient(180deg, transparent, #9FFF3D, transparent);
+box-shadow: 0 0 8px #9FFF3D, 0 0 16px rgba(159, 255, 61, 0.5);
+animation: v3-ambient-pulse 3s ease-in-out infinite;
+}
+.monaco-workbench .activitybar .action-item.checked .action-label {
+filter: drop-shadow(0 0 8px rgba(167, 139, 250, 0.8)) drop-shadow(0 0 2px rgba(159, 255, 61, 0.4)) !important;
+}
+
+/* Title bar — subtle horizontal amethyst sheen sliding very slowly */
+.monaco-workbench .part.titlebar {
+background-image:
+linear-gradient(90deg, transparent 0%, rgba(167, 139, 250, 0.12) 50%, transparent 100%),
+linear-gradient(180deg, rgba(26, 14, 51, 0.6), rgba(10, 4, 24, 0.9)) !important;
+background-size: 200% 100%, 100% 100%;
+animation: v3-sheen 18s linear infinite;
+box-shadow: inset 0 -1px 0 rgba(139, 92, 246, 0.4);
+}
+
+/* Sidebar — internal depth gradient + glowing inner border */
+.monaco-workbench .part.sidebar {
+background-image:
+radial-gradient(ellipse 100% 70% at 50% 0%, rgba(167, 139, 250, 0.16), transparent 65%),
+radial-gradient(ellipse 120% 50% at 50% 100%, rgba(91, 33, 182, 0.10), transparent 70%) !important;
+box-shadow: inset 1px 0 0 rgba(139, 92, 246, 0.25);
+}
+
+/* Aux bar (chat) — soft amethyst glow from top with green hint at bottom */
+.monaco-workbench .part.auxiliarybar {
+background-image:
+radial-gradient(ellipse 110% 50% at 50% 0%, rgba(167, 139, 250, 0.16), transparent 60%),
+radial-gradient(ellipse 80% 20% at 50% 100%, rgba(159, 255, 61, 0.04), transparent 70%) !important;
+box-shadow: inset -1px 0 0 rgba(139, 92, 246, 0.25);
+}
+
+/* Status bar — venom underline that breathes */
+.monaco-workbench .part.statusbar {
+background-image: linear-gradient(0deg, rgba(139, 92, 246, 0.30), rgba(91, 33, 182, 0.10)) !important;
+border-top: 1px solid rgba(139, 92, 246, 0.6) !important;
+box-shadow: 0 -1px 16px rgba(139, 92, 246, 0.4), inset 0 1px 0 rgba(159, 255, 61, 0.15);
+}
+
+/* Tab strip — active tab gets a strong venom-green top accent + amethyst body glow */
+.monaco-workbench .tab.active {
+background-image: linear-gradient(180deg, rgba(159, 255, 61, 0.08), transparent 30%, rgba(139, 92, 246, 0.12)) !important;
+box-shadow:
+inset 0 2px 0 #9FFF3D,
+inset 0 -1px 0 rgba(139, 92, 246, 0.6),
+0 0 18px rgba(159, 255, 61, 0.18) !important;
+}
+.monaco-workbench .tab:not(.active):hover {
+background-image: linear-gradient(180deg, rgba(167, 139, 250, 0.10), transparent 80%) !important;
+box-shadow: inset 0 -1px 0 rgba(139, 92, 246, 0.3);
+}
+
+/* Editor — deep amethyst vignette + faint grid texture (terminal/cyberpunk feel) */
+.monaco-workbench .part.editor > .content {
+background-image:
+radial-gradient(ellipse 140% 90% at 50% 50%, transparent 40%, rgba(91, 33, 182, 0.18)),
+linear-gradient(rgba(139, 92, 246, 0.025) 1px, transparent 1px),
+linear-gradient(90deg, rgba(139, 92, 246, 0.025) 1px, transparent 1px) !important;
+background-size: 100% 100%, 48px 48px, 48px 48px;
+}
+
+/* Panel (terminal/output) — subtle amethyst frame */
+.monaco-workbench .part.panel {
+background-image: radial-gradient(ellipse 100% 60% at 50% 0%, rgba(139, 92, 246, 0.10), transparent 70%) !important;
+box-shadow: inset 0 1px 0 rgba(139, 92, 246, 0.4);
+}
+
+/* All inputs / buttons in the workbench get a subtle amethyst focus ring */
+.monaco-workbench input:focus,
+.monaco-workbench textarea:focus,
+.monaco-workbench .monaco-inputbox.synthetic-focus {
+box-shadow: 0 0 0 1px rgba(139, 92, 246, 0.6), 0 0 12px rgba(167, 139, 250, 0.35) !important;
+border-color: rgba(139, 92, 246, 0.6) !important;
+}
+
+/* Section headers (Explorer "OPEN EDITORS", "SSH TARGETS", etc.) — venom uppercase glow */
+.monaco-workbench .pane-header .title {
+color: #A78BFA !important;
+text-shadow: 0 0 8px rgba(167, 139, 250, 0.3);
+letter-spacing: 1px;
+}
+
+/* Chat panel header */
+.monaco-workbench .part.auxiliarybar .composite.title h2,
+.monaco-workbench .part.auxiliarybar .title-label {
+color: #9FFF3D !important;
+text-shadow: 0 0 10px rgba(159, 255, 61, 0.4);
+letter-spacing: 2px;
+}
+
+/* ============================================================================
+   V3Code shader-feel background — ONLY on the empty editor (V3 logo screen).
+   Auto-hides when files open because `.editor-group-container:not(.empty)` is
+   the existing VSCode hide trigger for the watermark.
+   ============================================================================ */
+@keyframes v3-shader-drift {
+0%   { transform: rotate(0deg) scale(1); }
+50%  { transform: rotate(180deg) scale(1.15); }
+100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes v3-shader-pulse {
+0%, 100% { opacity: 0.6; }
+50%      { opacity: 1; }
+}
+
+.monaco-workbench .part.editor > .content .editor-group-container.empty {
+position: relative;
+overflow: hidden;
+}
+
+.monaco-workbench .part.editor > .content .editor-group-container.empty::before {
+content: '';
+position: absolute;
+inset: -25%;
+pointer-events: none;
+z-index: 0;
+background-image:
+radial-gradient(circle at 30% 30%, rgba(167, 139, 250, 0.35), transparent 45%),
+radial-gradient(circle at 70% 60%, rgba(139, 92, 246, 0.30), transparent 50%),
+radial-gradient(circle at 50% 80%, rgba(159, 255, 61, 0.10), transparent 40%),
+conic-gradient(from 0deg at 50% 50%, rgba(91, 33, 182, 0.15), rgba(139, 92, 246, 0.25), rgba(91, 33, 182, 0.15));
+filter: blur(60px);
+animation: v3-shader-drift 40s linear infinite, v3-shader-pulse 8s ease-in-out infinite;
+}
+
+.monaco-workbench .part.editor > .content .editor-group-container.empty::after {
+content: '';
+position: absolute;
+inset: 0;
+pointer-events: none;
+z-index: 0;
+background-image:
+linear-gradient(rgba(139, 92, 246, 0.04) 1px, transparent 1px),
+linear-gradient(90deg, rgba(139, 92, 246, 0.04) 1px, transparent 1px);
+background-size: 32px 32px;
+mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, black 30%, transparent 80%);
+-webkit-mask-image: radial-gradient(ellipse 60% 60% at 50% 50%, black 30%, transparent 80%);
+}
+
+.monaco-workbench .part.editor > .content .editor-group-container.empty > .editor-group-watermark {
+position: relative;
+z-index: 1;
+}
+
+/* ============================================================================
+   Chat panel polish — Copilot-like glow + accent colors
+   ============================================================================ */
+
+/* Chat input box — amethyst focus glow that says "you're talking to AI" */
+.monaco-workbench .part.auxiliarybar .void-scope textarea,
+.monaco-workbench .part.auxiliarybar .void-scope input[type="text"] {
+border: 1px solid rgba(139, 92, 246, 0.35) !important;
+border-radius: 8px !important;
+transition: border-color 0.2s ease, box-shadow 0.2s ease;
+}
+.monaco-workbench .part.auxiliarybar .void-scope textarea:focus,
+.monaco-workbench .part.auxiliarybar .void-scope input[type="text"]:focus {
+border-color: rgba(167, 139, 250, 0.8) !important;
+box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.4), 0 0 20px rgba(139, 92, 246, 0.25) !important;
+}
+
+/* Send button + primary buttons — venom-green accent for "GO" feel */
+.monaco-workbench .part.auxiliarybar button[aria-label*="end"],
+.monaco-workbench .part.auxiliarybar button[aria-label*="ubmit"],
+.monaco-workbench .part.auxiliarybar .void-scope button.bg-blue-500,
+.monaco-workbench .part.auxiliarybar .void-scope button[type="submit"] {
+background-color: #9FFF3D !important;
+color: #0A0418 !important;
+box-shadow: 0 0 12px rgba(159, 255, 61, 0.45) !important;
+transition: all 0.2s ease;
+}
+.monaco-workbench .part.auxiliarybar .void-scope button[type="submit"]:hover {
+background-color: #B8FF66 !important;
+box-shadow: 0 0 18px rgba(159, 255, 61, 0.7) !important;
+}
+
+/* Code blocks in chat — amethyst left border (like Copilot's code citations) */
+.monaco-workbench .part.auxiliarybar .void-scope pre,
+.monaco-workbench .part.auxiliarybar .void-scope code {
+border-left: 2px solid rgba(139, 92, 246, 0.6);
+background-color: rgba(26, 14, 51, 0.6) !important;
+border-radius: 4px;
+}
+
+/* Tool/command execution blocks (the "Executed command in terminal" cards) */
+.monaco-workbench .part.auxiliarybar .void-scope [class*="tool"],
+.monaco-workbench .part.auxiliarybar .void-scope [class*="Tool"] {
+border: 1px solid rgba(139, 92, 246, 0.25);
+border-radius: 6px;
+background: linear-gradient(180deg, rgba(26, 14, 51, 0.5), rgba(15, 8, 30, 0.3));
+}
+
+/* Chat panel outer glow — Copilot-style ambient halo at the seam */
+.monaco-workbench .part.auxiliarybar {
+box-shadow:
+inset 1px 0 0 rgba(139, 92, 246, 0.4),
+inset 0 1px 0 rgba(139, 92, 246, 0.2),
+-4px 0 20px -10px rgba(139, 92, 246, 0.6) !important;
+}
+
+/* Agent / model selector pills — amethyst tint */
+.monaco-workbench .part.auxiliarybar .void-scope select,
+.monaco-workbench .part.auxiliarybar .void-scope [role="combobox"] {
+background: rgba(26, 14, 51, 0.8) !important;
+border: 1px solid rgba(139, 92, 246, 0.35) !important;
+border-radius: 6px !important;
+}
+
+/* ============================================================================
+   Chat checkpoints + tool-result boxes — pretty up the conversation flow
+   ============================================================================ */
+
+/* "Checkpoint" dividers between user turns — turn them into amethyst rails */
+.monaco-workbench .part.auxiliarybar .void-scope :is(div, span):where(:not(:empty)):has(> :only-child):where([class*="checkpoint" i]),
+.monaco-workbench .part.auxiliarybar .void-scope [class*="Checkpoint"],
+.monaco-workbench .part.auxiliarybar .void-scope [class*="checkpoint"] {
+position: relative;
+color: rgba(167, 139, 250, 0.7) !important;
+font-size: 0.7rem !important;
+letter-spacing: 2px !important;
+text-transform: uppercase !important;
+text-align: center;
+padding: 6px 0 !important;
+margin: 10px 0 !important;
+}
+.monaco-workbench .part.auxiliarybar .void-scope [class*="Checkpoint"]::before,
+.monaco-workbench .part.auxiliarybar .void-scope [class*="Checkpoint"]::after,
+.monaco-workbench .part.auxiliarybar .void-scope [class*="checkpoint"]::before,
+.monaco-workbench .part.auxiliarybar .void-scope [class*="checkpoint"]::after {
+content: '';
+position: absolute;
+top: 50%;
+width: 28%;
+height: 1px;
+background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.5), transparent);
+}
+.monaco-workbench .part.auxiliarybar .void-scope [class*="Checkpoint"]::before,
+.monaco-workbench .part.auxiliarybar .void-scope [class*="checkpoint"]::before { left: 6%; }
+.monaco-workbench .part.auxiliarybar .void-scope [class*="Checkpoint"]::after,
+.monaco-workbench .part.auxiliarybar .void-scope [class*="checkpoint"]::after { right: 6%; }
+
+/* "Read file" / tool result boxes — give them a real card look */
+.monaco-workbench .part.auxiliarybar .void-scope button:has(> svg + *),
+.monaco-workbench .part.auxiliarybar .void-scope [class*="ToolCall"],
+.monaco-workbench .part.auxiliarybar .void-scope [class*="tool-call"],
+.monaco-workbench .part.auxiliarybar .void-scope [class*="ToolResult"],
+.monaco-workbench .part.auxiliarybar .void-scope [class*="tool-result"] {
+background: linear-gradient(180deg, rgba(31, 18, 58, 0.85), rgba(15, 8, 30, 0.75)) !important;
+border: 1px solid rgba(139, 92, 246, 0.35) !important;
+border-left: 3px solid #9FFF3D !important;
+border-radius: 6px !important;
+box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(167, 139, 250, 0.1) !important;
+padding: 8px 10px !important;
+transition: all 0.2s ease;
+}
+.monaco-workbench .part.auxiliarybar .void-scope button:has(> svg + *):hover,
+.monaco-workbench .part.auxiliarybar .void-scope [class*="ToolCall"]:hover,
+.monaco-workbench .part.auxiliarybar .void-scope [class*="tool-call"]:hover {
+border-color: rgba(167, 139, 250, 0.6) !important;
+box-shadow: 0 4px 16px -4px rgba(139, 92, 246, 0.4), inset 0 1px 0 rgba(167, 139, 250, 0.15) !important;
+}
+
+/* Filename / italic accent inside tool boxes — venom green */
+.monaco-workbench .part.auxiliarybar .void-scope [class*="ToolCall"] em,
+.monaco-workbench .part.auxiliarybar .void-scope [class*="tool-call"] em,
+.monaco-workbench .part.auxiliarybar .void-scope button:has(> svg + *) em,
+.monaco-workbench .part.auxiliarybar .void-scope button:has(> svg + *) i {
+color: #9FFF3D !important;
+font-style: italic;
+}
+
+/* Error chips inside tool boxes — keep them readable */
+.monaco-workbench .part.auxiliarybar .void-scope [class*="rror"] {
+color: #FF6B9D !important;
 }

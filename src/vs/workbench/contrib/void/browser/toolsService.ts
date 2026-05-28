@@ -19,6 +19,25 @@ import { RawToolParamsObj } from '../common/sendLLMMessageTypes.js'
 import { MAX_CHILDREN_URIs_PAGE, MAX_FILE_CHARS_PAGE, MAX_TERMINAL_BG_COMMAND_TIME, MAX_TERMINAL_INACTIVE_TIME } from '../common/prompt/prompts.js'
 import { IVoidSettingsService } from '../common/voidSettingsService.js'
 import { generateUuid } from '../../../../base/common/uuid.js'
+import { IContextBridgeService } from '../common/contextBridge/contextBridgeService.js'
+import { ISemanticIndexService } from '../common/semanticIndex/semanticIndexTypes.js'
+import { ILspBridgeAdapter } from './contextBridge/lspBridgeAdapter.js'
+import { PackContextTask } from '../common/contextBridge/contextBridgeTypes.js'
+import { ILogService } from '../../../../platform/log/common/log.js'
+import {
+	runGetFileContext,
+	runGetFileDependencies,
+	runGetSymbolContext,
+	runGetCallGraph,
+	runPackContext,
+	runGetProjectBriefing,
+	stringifyFileContext,
+	stringifyFileDependencies,
+	stringifySymbolContext,
+	stringifyCallGraph,
+	stringifyPackContext,
+	stringifyProjectBriefing,
+} from './contextBridge/contextBridgeTools.js'
 
 
 // tool use for AI
@@ -153,6 +172,10 @@ export class ToolsService implements IToolsService {
 		@IDirectoryStrService private readonly directoryStrService: IDirectoryStrService,
 		@IMarkerService private readonly markerService: IMarkerService,
 		@IVoidSettingsService private readonly voidSettingsService: IVoidSettingsService,
+		@IContextBridgeService private readonly contextBridgeService: IContextBridgeService,
+		@ISemanticIndexService private readonly semanticIndexService: ISemanticIndexService,
+		@ILspBridgeAdapter private readonly lspBridgeAdapter: ILspBridgeAdapter,
+		@ILogService private readonly logService: ILogService,
 	) {
 		const queryBuilder = instantiationService.createInstance(QueryBuilder);
 
@@ -290,8 +313,112 @@ export class ToolsService implements IToolsService {
 				return { persistentTerminalId };
 			},
 
+			// --- Context Bridge ---
+			remember: (params: RawToolParamsObj) => {
+				const { file_path: filePathUnknown, symbol_name: symbolUnknown, note: noteUnknown } = params
+				const filePath = validateStr('file_path', filePathUnknown)
+				const symbolName = validateStr('symbol_name', symbolUnknown)
+				const note = validateStr('note', noteUnknown)
+				return { filePath, symbolName, note }
+			},
+			forget: (params: RawToolParamsObj) => {
+				const { note_id: noteIdUnknown } = params
+				const noteId = validateStr('note_id', noteIdUnknown)
+				return { noteId }
+			},
+			list_notes: (params: RawToolParamsObj) => {
+				const { file_path: filePathUnknown } = params
+				const filePath = validateOptionalStr('file_path', filePathUnknown)
+				return { filePath }
+			},
+			find_text: (params: RawToolParamsObj) => {
+				const { query: queryUnknown, is_regex: isRegexUnknown, include_pattern: includeUnknown, page_number: pageNumberUnknown } = params
+				const query = validateStr('query', queryUnknown)
+				const isRegex = validateBoolean(isRegexUnknown, { default: false })
+				const includePattern = validateOptionalStr('include_pattern', includeUnknown)
+				const pageNumber = validatePageNum(pageNumberUnknown)
+				return { query, isRegex, includePattern, pageNumber }
+			},
+			semantic_search: (params: RawToolParamsObj) => {
+				const { query: queryUnknown, top_k: topKUnknown, include_file: includeFileUnknown, include_files: includeFilesUnknown } = params
+				const query = validateStr('query', queryUnknown)
+				const topKRaw = typeof topKUnknown === 'number' ? topKUnknown
+					: typeof topKUnknown === 'string' && topKUnknown ? Number(topKUnknown)
+					: null
+				const topK = topKRaw === null || Number.isNaN(topKRaw) ? null : Math.max(1, Math.min(50, Math.floor(topKRaw)))
+				const includeFile = validateOptionalStr('include_file', includeFileUnknown)
+				// Accept both singular include_file and plural include_files.
+				const includeFilesArr: string[] = [];
+				if (includeFile) includeFilesArr.push(includeFile);
+				if (Array.isArray(includeFilesUnknown)) {
+					for (const f of includeFilesUnknown) {
+						if (typeof f === 'string' && f) includeFilesArr.push(f);
+					}
+				}
+				const includeFiles = includeFilesArr.length > 0 ? includeFilesArr : null;
+				return { query, topK, includeFile, includeFiles }
+			},
+			get_file_context: (params: RawToolParamsObj) => {
+				const filePath = validateStr('file_path', params.file_path)
+				return { filePath }
+			},
+			get_file_dependencies: (params: RawToolParamsObj) => {
+				const filePath = validateStr('file_path', params.file_path)
+				return { filePath }
+			},
+			get_symbol_context: (params: RawToolParamsObj) => {
+				const filePath = validateStr('file_path', params.file_path)
+				const symbolName = validateStr('symbol_name', params.symbol_name)
+				return { filePath, symbolName }
+			},
+			get_call_graph: (params: RawToolParamsObj) => {
+				const filePath = validateStr('file_path', params.file_path)
+				const symbolName = validateStr('symbol_name', params.symbol_name)
+				const rawDir = typeof params.direction === 'string' ? params.direction : 'incoming'
+				const direction: 'incoming' | 'outgoing' = rawDir === 'outgoing' ? 'outgoing' : 'incoming'
+				const rawDepth = validateNumber(params.depth, { default: 2 }) ?? 2
+				const depth = Math.min(Math.max(1, Math.floor(rawDepth)), 4)
+				return { filePath, symbolName, direction, depth }
+			},
+			pack_context: (params: RawToolParamsObj) => {
+				const filePath = validateStr('file_path', params.file_path)
+				const symbolName = validateStr('symbol_name', params.symbol_name)
+				const rawTask = typeof params.task === 'string' ? params.task : 'understand'
+				const task: PackContextTask =
+					rawTask === 'refactor' ? 'refactor'
+					: rawTask === 'debug' ? 'debug'
+					: rawTask === 'extend' ? 'extend'
+					: 'understand'
+				const maxTokens = validateNumber(params.max_tokens, { default: 3000 }) ?? 3000
+				return { filePath, symbolName, task, maxTokens }
+			},
+			get_project_briefing: (params: RawToolParamsObj) => {
+				const includeNotes = validateBoolean(params.include_notes, { default: true })
+				return { includeNotes }
+			},
+
 		}
 
+
+		// Lightweight telemetry wrapper for Context Bridge tools — emits one
+		// structured log line per invocation with duration + outcome. No params
+		// or result content (PII-safe). Logs `info` on success, `warn` on failure;
+		// failure re-throws so the upstream tool-call error path is unchanged.
+		const log = this.logService
+		const cbTrace = <T>(name: string, run: () => Promise<T>): Promise<T> => {
+			const t0 = performance.now()
+			return run().then(
+				result => {
+					log.info(`[cb-tool] tool=${name} duration_ms=${Math.round(performance.now() - t0)} ok=true`)
+					return result
+				},
+				err => {
+					const cls = err instanceof Error ? err.constructor.name : 'unknown'
+					log.warn(`[cb-tool] tool=${name} duration_ms=${Math.round(performance.now() - t0)} ok=false err=${cls}`)
+					throw err
+				},
+			)
+		}
 
 		this.callTool = {
 			read_file: async ({ uri, startLine, endLine, pageNumber }) => {
@@ -461,6 +588,86 @@ export class ToolsService implements IToolsService {
 				await this.terminalToolService.killPersistentTerminal(persistentTerminalId)
 				return { result: {} }
 			},
+
+			// --- Context Bridge ---
+			remember: async ({ filePath, symbolName, note }) => cbTrace('remember', async () => {
+				const saved = await this.contextBridgeService.addNote(filePath, symbolName, note)
+				return { result: { note: saved } }
+			}),
+			forget: async ({ noteId }) => cbTrace('forget', async () => {
+				const deleted = await this.contextBridgeService.deleteNote(noteId)
+				return { result: { deleted } }
+			}),
+			list_notes: async ({ filePath }) => cbTrace('list_notes', async () => {
+				const notes = await this.contextBridgeService.listNotes(filePath ?? undefined)
+				return { result: { notes } }
+			}),
+			find_text: async ({ query: queryStr, isRegex, includePattern, pageNumber }) => cbTrace('find_text', async () => {
+				const searchFolders = workspaceContextService.getWorkspace().folders.map(f => f.uri)
+				const tQuery = queryBuilder.text({
+					pattern: queryStr,
+					isRegExp: isRegex,
+				}, searchFolders, {
+					includePattern: includePattern ?? undefined,
+					previewOptions: { matchLines: 1, charsPerLine: 250 },
+				})
+				const data = await searchService.textSearch(tQuery, CancellationToken.None)
+
+				// Flatten per-file matches into per-line hits.
+				const flat: Array<{ uri: URI, lineNumber: number, previewText: string }> = []
+				for (const fm of data.results) {
+					for (const r of (fm.results ?? [])) {
+						const match = r as { rangeLocations?: Array<{ source: { startLineNumber: number } }>, previewText?: string }
+						if (!match.rangeLocations || !match.previewText) continue
+						for (const loc of match.rangeLocations) {
+							flat.push({
+								uri: fm.resource,
+								lineNumber: loc.source.startLineNumber + 1,
+								previewText: match.previewText,
+							})
+						}
+					}
+				}
+
+				const pageSize = MAX_CHILDREN_URIs_PAGE
+				const fromIdx = pageSize * (pageNumber - 1)
+				const toIdx = pageSize * pageNumber - 1
+				const matches = flat.slice(fromIdx, toIdx + 1)
+				const hasNextPage = (flat.length - 1) - toIdx >= 1
+				return { result: { matches, hasNextPage } }
+			}),
+			semantic_search: async ({ query, topK, includeFile, includeFiles }) => cbTrace('semantic_search', async () => {
+				const opts: { topK?: number; files?: string[] } = {}
+				if (topK !== null) opts.topK = topK
+				if (includeFiles) opts.files = includeFiles
+				const hits = await this.semanticIndexService.retrieve(query, opts)
+				const indexState = this.semanticIndexService.getStatus().state
+				return { result: { hits, indexState } }
+			}),
+			get_file_context: async (params) => cbTrace('get_file_context', async () => {
+				const result = await runGetFileContext(this.lspBridgeAdapter, fileService, params)
+				return { result }
+			}),
+			get_file_dependencies: async (params) => cbTrace('get_file_dependencies', async () => {
+				const result = await runGetFileDependencies(this.lspBridgeAdapter, fileService, workspaceContextService, params)
+				return { result }
+			}),
+			get_symbol_context: async (params) => cbTrace('get_symbol_context', async () => {
+				const result = await runGetSymbolContext(this.lspBridgeAdapter, this.contextBridgeService, params)
+				return { result }
+			}),
+			get_call_graph: async (params) => cbTrace('get_call_graph', async () => {
+				const result = await runGetCallGraph(this.lspBridgeAdapter, params)
+				return { result }
+			}),
+			pack_context: async (params) => cbTrace('pack_context', async () => {
+				const result = await runPackContext(this.lspBridgeAdapter, this.contextBridgeService, params)
+				return { result }
+			}),
+			get_project_briefing: async (params) => cbTrace('get_project_briefing', async () => {
+				const result = await runGetProjectBriefing(this.lspBridgeAdapter, fileService, workspaceContextService, this.contextBridgeService, params)
+				return { result }
+			}),
 		}
 
 
@@ -538,7 +745,7 @@ export class ToolsService implements IToolsService {
 				}
 				// normal command
 				if (resolveReason.type === 'timeout') {
-					return `${result_}\nTerminal command ran, but was automatically killed by Void after ${MAX_TERMINAL_INACTIVE_TIME}s of inactivity and did not finish successfully. To try with more time, open a persistent terminal and run the command there.`
+					return `${result_}\nTerminal command ran, but was automatically killed by V3Code after ${MAX_TERMINAL_INACTIVE_TIME}s of inactivity and did not finish successfully. To try with more time, open a persistent terminal and run the command there.`
 				}
 				throw new Error(`Unexpected internal error: Terminal command did not resolve with a valid reason.`)
 			},
@@ -564,6 +771,73 @@ export class ToolsService implements IToolsService {
 			kill_persistent_terminal: (params, _result) => {
 				return `Successfully closed terminal "${params.persistentTerminalId}".`;
 			},
+
+			// --- Context Bridge ---
+			remember: (_params, result) => {
+				const n = result.note
+				return `Saved note ${n.id} for symbol "${n.symbolName}" in ${n.filePath}.`
+			},
+			forget: (params, result) => {
+				return result.deleted
+					? `Deleted note ${params.noteId}.`
+					: `No note found with id ${params.noteId}.`
+			},
+			list_notes: (params, result) => {
+				if (result.notes.length === 0) {
+					return params.filePath
+						? `No notes found for ${params.filePath}.`
+						: `No notes saved in this workspace.`
+				}
+				return result.notes
+					.map(n => `- [${n.id}] ${n.filePath} :: ${n.symbolName}\n  ${n.note}`)
+					.join('\n')
+			},
+			find_text: (params, result) => {
+				if (result.matches.length === 0) {
+					return `No matches for "${params.query}".`
+				}
+				const lines = result.matches.map(m => `${m.uri.fsPath}:${m.lineNumber}: ${m.previewText.trim()}`).join('\n')
+				return lines + nextPageStr(result.hasNextPage)
+			},
+			semantic_search: (params, result) => {
+				if (result.hits.length === 0) {
+					// Help the LLM (and through it, the user) understand WHY there were no hits.
+					if (result.indexState === 'uninitialized') {
+						return `The semantic index hasn't been initialized yet. Ask the user to run the "V3Code: Rebuild Codebase Index" command from the command palette (Ctrl/Cmd+Shift+P). After it finishes, retry semantic_search.`
+					}
+					if (result.indexState === 'walking' || result.indexState === 'chunking' || result.indexState === 'embedding') {
+						return `The semantic index is still being built (state: ${result.indexState}). Wait for it to finish, then retry. Check the status bar for progress.`
+					}
+					if (result.indexState === 'error') {
+						return `The semantic index is in an error state. Ask the user to check the V3Code logs and re-run "V3Code: Rebuild Codebase Index".`
+					}
+					if (result.indexState === 'idle' || result.indexState === 'ready') {
+						return `No semantic matches for "${params.query}". The index is ${result.indexState} but returned 0 hits — either the corpus is empty (run "V3Code: Rebuild Codebase Index") or the query is genuinely unrelated to anything indexed. Try \`find_text\` or rephrase the query.`
+					}
+					return `No semantic matches for "${params.query}". (index state: ${result.indexState})`
+				}
+				const header = `Top ${result.hits.length} semantic matches (index: ${result.indexState}):\n`
+				const body = result.hits.map((h, i) => {
+					const c = h.chunk
+					const signals = [
+						h.signals.vec !== undefined ? `vec=${h.signals.vec.toFixed(2)}` : null,
+						h.signals.fts !== undefined ? `fts=${h.signals.fts.toFixed(2)}` : null,
+						h.signals.hyde !== undefined ? `hyde=${h.signals.hyde.toFixed(2)}` : null,
+						h.signals.terms !== undefined ? `terms=${h.signals.terms.toFixed(2)}` : null,
+					].filter(Boolean).join(' ')
+					const loc = `${c.file}:${c.startLine}-${c.endLine}`
+					const head = `${i + 1}. [${c.kind}] ${c.name || '<anon>'} — ${loc} (score=${h.score.toFixed(3)} ${signals})`
+					const content = h.content.length > 800 ? h.content.slice(0, 800) + '\n…' : h.content
+					return `${head}\n\`\`\`${c.language || ''}\n${content}\n\`\`\``
+				}).join('\n\n')
+				return header + body
+			},
+			get_file_context: (_params, result) => stringifyFileContext(result),
+			get_file_dependencies: (_params, result) => stringifyFileDependencies(result),
+			get_symbol_context: (_params, result) => stringifySymbolContext(result),
+			get_call_graph: (_params, result) => stringifyCallGraph(result),
+			pack_context: (_params, result) => stringifyPackContext(result),
+			get_project_briefing: (_params, result) => stringifyProjectBriefing(result),
 		}
 
 

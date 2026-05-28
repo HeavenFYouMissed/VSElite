@@ -543,34 +543,77 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 		@IMCPService private readonly mcpService: IMCPService,
 	) {
 		super()
+		// Eagerly load workspace instruction files (AGENTS.md, copilot-instructions, CLAUDE.md, .voidrules)
+		// so they're cached before the first chat. Re-warmup whenever workspace folders change.
+		void this._ensureInstructionWarmup();
+		this._register(this.workspaceContextService.onDidChangeWorkspaceFolders(() => {
+			this._instructionWarmup = null;
+			void this._ensureInstructionWarmup();
+		}));
 	}
 
-	// Read .voidrules files from workspace folders
-	private _getVoidRulesFileContents(): string {
-		try {
-			const workspaceFolders = this.workspaceContextService.getWorkspace().folders;
-			let voidRules = '';
-			for (const folder of workspaceFolders) {
-				const uri = URI.joinPath(folder.uri, '.voidrules')
-				const { model } = this.voidModelService.getModel(uri)
-				if (!model) continue
-				voidRules += model.getValue(EndOfLinePreference.LF) + '\n\n';
+	// Workspace instruction files that V3Code auto-injects into every chat.
+	// Matches the convention used by GitHub Copilot, Cursor, Claude Code, and Void.
+	// Loaded async via voidModelService.getModelSafe (no need for the user to open them).
+	private static readonly WORKSPACE_INSTRUCTION_PATHS: ReadonlyArray<string> = [
+		'AGENTS.md',
+		'.github/copilot-instructions.md',
+		'CLAUDE.md',
+		'.voidrules',
+	];
+
+	// Per-instruction-file hard cap (chars) — total cap enforced in chat_systemMessage via prepareMessages budgeting.
+	private static readonly MAX_INSTRUCTION_FILE_CHARS = 16_000;
+
+	private _instructionWarmup: Promise<void> | null = null;
+
+	private async _warmupWorkspaceInstructionModels(): Promise<void> {
+		const folders = this.workspaceContextService.getWorkspace().folders;
+		const tasks: Promise<void>[] = [];
+		for (const folder of folders) {
+			for (const rel of ConvertToLLMMessageService.WORKSPACE_INSTRUCTION_PATHS) {
+				const uri = URI.joinPath(folder.uri, ...rel.split('/'));
+				tasks.push(this.voidModelService.initializeModel(uri).catch(() => { /* file may not exist */ }));
 			}
-			return voidRules.trim();
 		}
-		catch (e) {
-			return ''
-		}
+		await Promise.all(tasks);
 	}
 
-	// Get combined AI instructions from settings and .voidrules files
+	private _ensureInstructionWarmup(): Promise<void> {
+		if (!this._instructionWarmup) {
+			this._instructionWarmup = this._warmupWorkspaceInstructionModels();
+		}
+		return this._instructionWarmup;
+	}
+
+	// Read instruction files from already-loaded text models (auto-update on disk change).
+	private _readWorkspaceInstructions(): string {
+		const folders = this.workspaceContextService.getWorkspace().folders;
+		const sections: string[] = [];
+		for (const folder of folders) {
+			for (const rel of ConvertToLLMMessageService.WORKSPACE_INSTRUCTION_PATHS) {
+				const uri = URI.joinPath(folder.uri, ...rel.split('/'));
+				const { model } = this.voidModelService.getModel(uri);
+				if (!model) continue;
+				let value = model.getValue(EndOfLinePreference.LF);
+				if (!value.trim()) continue;
+				if (value.length > ConvertToLLMMessageService.MAX_INSTRUCTION_FILE_CHARS) {
+					value = value.slice(0, ConvertToLLMMessageService.MAX_INSTRUCTION_FILE_CHARS) + '\n\n[...truncated]';
+				}
+				sections.push(`<!-- ${rel} (${folder.name}) -->\n${value}`);
+			}
+		}
+		return sections.join('\n\n').trim();
+	}
+
+	// Get combined AI instructions: workspace files (AGENTS.md, copilot-instructions, CLAUDE.md, .voidrules) + global setting
 	private _getCombinedAIInstructions(): string {
 		const globalAIInstructions = this.voidSettingsService.state.globalSettings.aiInstructions;
-		const voidRulesFileContent = this._getVoidRulesFileContents();
+		const workspaceInstructions = this._readWorkspaceInstructions();
 
 		const ans: string[] = []
 		if (globalAIInstructions) ans.push(globalAIInstructions)
-		if (voidRulesFileContent) ans.push(voidRulesFileContent)
+		if (workspaceInstructions) ans.push(workspaceInstructions)
 		return ans.join('\n\n')
 	}
 
@@ -685,6 +728,8 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 
 		const modelSelectionOptions = this.voidSettingsService.state.optionsOfModelSelection['Chat'][modelSelection.providerName]?.[modelSelection.modelName]
 
+		// Make sure AGENTS.md / copilot-instructions / CLAUDE.md / .voidrules have been loaded before reading them.
+		await this._ensureInstructionWarmup();
 		// Get combined AI instructions
 		const aiInstructions = this._getCombinedAIInstructions();
 		const isReasoningEnabled = getIsReasoningEnabledState('Chat', providerName, modelName, modelSelectionOptions, overridesOfModel)

@@ -39,7 +39,7 @@ export enum ThemeSettings {
 }
 
 export enum ThemeSettingDefaults {
-	COLOR_THEME_DARK = 'Default Dark+', // Void changed this from 'Default Dark Modern'
+	COLOR_THEME_DARK = 'V3Code Dark', // V3Code changed this from 'Default Dark+' (Void had changed from 'Default Dark Modern')
 	COLOR_THEME_LIGHT = 'Default Light Modern',
 	COLOR_THEME_HC_DARK = 'Default High Contrast',
 	COLOR_THEME_HC_LIGHT = 'Default High Contrast Light',

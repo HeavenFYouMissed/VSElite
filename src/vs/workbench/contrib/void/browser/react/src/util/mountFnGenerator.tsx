@@ -10,13 +10,23 @@ import { _registerServices } from './services.js';
 
 import { ServicesAccessor } from '../../../../../../../editor/browser/editorExtensions.js';
 
+let _servicesRegistered = false
+let _globalDisposables: Array<{ dispose(): void }> = []
+
 export const mountFnGenerator = (Component: (params: any) => React.ReactNode) => (rootElement: HTMLElement, accessor: ServicesAccessor, props?: any) => {
 	if (typeof document === 'undefined') {
 		console.error('index.tsx error: document was undefined')
 		return
 	}
 
-	const disposables = _registerServices(accessor)
+	// Only register shared services once. The agent panel (VoidChatEditorPane)
+	// creates a second mount point which would otherwise call _registerServices
+	// again, adding duplicate event listeners that fire on stale/unmounted
+	// React components.
+	if (!_servicesRegistered) {
+		_servicesRegistered = true
+		_globalDisposables = _registerServices(accessor)
+	}
 
 	const root = ReactDOM.createRoot(rootElement)
 
@@ -24,8 +34,9 @@ export const mountFnGenerator = (Component: (params: any) => React.ReactNode) =>
 		root.render(<Component {...props} />); // tailwind dark theme indicator
 	}
 	const dispose = () => {
-		root.unmount();
-		disposables.forEach(d => d.dispose());
+		root.unmount()
+		// Do NOT dispose global service listeners — they're shared across
+		// all mount points. Only the React root is scoped to this mount.
 	}
 
 	rerender(props)

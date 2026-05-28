@@ -38,7 +38,7 @@ import { mountSidebar } from './react/out/sidebar-tsx/index.js';
 import { Codicon } from '../../../../base/common/codicons.js';
 import { Orientation } from '../../../../base/browser/ui/sash/sash.js';
 // import { IDisposable } from '../../../../base/common/lifecycle.js';
-import { toDisposable } from '../../../../base/common/lifecycle.js';
+import { toDisposable, Disposable } from '../../../../base/common/lifecycle.js';
 import { Action2, registerAction2 } from '../../../../platform/actions/common/actions.js';
 import { ServicesAccessor } from '../../../../editor/browser/editorExtensions.js';
 import { IViewsService } from '../../../services/views/common/viewsService.js';
@@ -76,11 +76,20 @@ class SidebarViewPane extends ViewPane {
 		super.renderBody(parent);
 		// parent.style.overflow = 'auto'
 		parent.style.userSelect = 'text'
+		parent.style.display = 'flex'
+		parent.style.flexDirection = 'column'
+
+		// React chat mounts into a child so we can append a footer below it.
+		const chatHost = document.createElement('div')
+		chatHost.style.flex = '1 1 auto'
+		chatHost.style.minHeight = '0'
+		chatHost.style.position = 'relative'
+		parent.appendChild(chatHost)
 
 		// gets set immediately
 		this.instantiationService.invokeFunction(accessor => {
 			// mount react
-			const disposeFn: (() => void) | undefined = mountSidebar(parent, accessor)?.dispose;
+			const disposeFn: (() => void) | undefined = mountSidebar(chatHost, accessor)?.dispose;
 			this._register(toDisposable(() => disposeFn?.()))
 		});
 	}
@@ -154,7 +163,7 @@ registerAction2(class extends Action2 {
 	constructor() {
 		super({
 			id: VOID_OPEN_SIDEBAR_ACTION_ID,
-			title: 'Open Void Sidebar',
+			title: 'Open V3Code Sidebar',
 		})
 	}
 	run(accessor: ServicesAccessor): void {
@@ -172,3 +181,36 @@ export class SidebarStartContribution implements IWorkbenchContribution {
 	}
 }
 registerWorkbenchContribution2(SidebarStartContribution.ID, SidebarStartContribution, WorkbenchPhase.AfterRestored);
+
+
+// ---------- Agent panel <-> aux-bar sync ----------
+// When the user toggles agent mode, hide the aux-bar chat container so we don't show the
+// chat surface twice. When they toggle back to chat mode, re-open the container ONLY if it
+// was visible before entering agent mode — never forcibly open something the user closed.
+import { IAgentPanelService } from './agentPanelService.js';
+
+class AgentPanelSyncContribution extends Disposable implements IWorkbenchContribution {
+	static readonly ID = 'workbench.contrib.v3codeAgentPanelSync';
+
+	private _wasAuxBarVisible = true; // default true — SidebarStartContribution opens it
+
+	constructor(
+		@IAgentPanelService agentPanelService: IAgentPanelService,
+		@IViewsService viewsService: IViewsService,
+	) {
+		super();
+
+		// Snapshot aux-bar visibility before each mode change.
+		this._register(agentPanelService.onDidChangeMode(mode => {
+			if (mode === 'agent') {
+				this._wasAuxBarVisible = viewsService.isViewContainerVisible(VOID_VIEW_CONTAINER_ID);
+				viewsService.closeViewContainer(VOID_VIEW_CONTAINER_ID);
+			} else {
+				if (this._wasAuxBarVisible) {
+					viewsService.openViewContainer(VOID_VIEW_CONTAINER_ID);
+				}
+			}
+		}));
+	}
+}
+registerWorkbenchContribution2(AgentPanelSyncContribution.ID, AgentPanelSyncContribution, WorkbenchPhase.AfterRestored);

@@ -74,6 +74,39 @@ module.exports = {
 				'void-ring-color': 'var(--void-ring-color)',
 				'void-link-color': 'var(--void-link-color)',
 
+				// V3Code brand palette — see V3CODE-BRANDING.md.
+				// Use these when a component needs an explicit brand color
+				// (amethyst on AI messages, venom for memory indicators).
+				// Most surfaces auto-inherit the brand via the --void-* overrides
+				// in styles.css and don't need to reference v3- tokens directly.
+				'v3-abyss': 'var(--v3-abyss)',
+				'v3-void': 'var(--v3-void-bg)',
+				'v3-obsidian': 'var(--v3-obsidian)',
+				'v3-slate': 'var(--v3-slate)',
+				'v3-ash': 'var(--v3-ash)',
+				'v3-smoke': 'var(--v3-smoke)',
+
+				'v3-amethyst': 'var(--v3-amethyst)',
+				'v3-amethyst-glow': 'var(--v3-amethyst-glow)',
+				'v3-amethyst-deep': 'var(--v3-amethyst-deep)',
+				'v3-amethyst-muted': 'var(--v3-amethyst-muted)',
+				'v3-amethyst-wash': 'var(--v3-amethyst-wash)',
+
+				'v3-venom': 'var(--v3-venom)',
+				'v3-venom-bright': 'var(--v3-venom-bright)',
+				'v3-venom-muted': 'var(--v3-venom-muted)',
+				'v3-venom-deep': 'var(--v3-venom-deep)',
+
+				'v3-error': 'var(--v3-error)',
+				'v3-warning': 'var(--v3-warning)',
+				'v3-info': 'var(--v3-info)',
+				'v3-success': 'var(--v3-success)',
+
+				'v3-text-primary': 'var(--v3-text-primary)',
+				'v3-text-secondary': 'var(--v3-text-secondary)',
+				'v3-text-tertiary': 'var(--v3-text-tertiary)',
+				'v3-text-bright': 'var(--v3-text-bright)',
+
 				vscode: {
 					// see: https://code.visualstudio.com/api/extension-guides/webview#theming-webview-content
 
