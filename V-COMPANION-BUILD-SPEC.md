@@ -40,6 +40,35 @@ locations:
 
 V will register in **Panel** (default) and **Sidebar** (his "big" home).
 
+### 0.1 Build approach — native, not a forked terminal agent (DECISION)
+
+**Decision: build V as a native React panel + a thin DeepSeek-Flash orchestrator
+that reuses V3Code's existing agent stack. Do NOT fork a terminal coding agent
+(Claude Code / OpenCode / Aider). Give him the *terminal feel*, not a terminal
+implementation. His face is his own.**
+
+Rationale (specific to this codebase):
+- **Forking Claude Code isn't possible** — it's closed source. The Claude Agent
+  SDK would chain V to Anthropic auth/models, against V's DeepSeek-via-gateway
+  economics. The real forkable options (OpenCode, Aider) are still wrong here.
+- **The agent already exists and is Context-Bridge-aware.** `chatThreadService`
+  + `toolsService` + `sendLLMMessageService` (13 providers, DeepSeek) + MCP +
+  `rollbackService` are done. Forking a second agent means a parallel, CB-blind
+  stack — discarding the moat to re-implement it. V *uses* this stack; he
+  doesn't replace it.
+- **A real TTY (`xterm.js`) can't render V** — sprite, ambient animation,
+  clickable choices, inline diffs, dashboards, guard prompts are all GUI. The
+  CRT *aesthetic* comes from a monospace React theme, not a subprocess.
+- **V is a light overseer, not a heavy coder.** His loop is: gather context →
+  one Flash call → JSON response → call a CB tool or hand off to the agent.
+  Forking a full autonomous coding agent over-builds for that role.
+- **"V anywhere" (§6) wants a service + thin client**, not an embedded CLI
+  subprocess that can't travel to a phone.
+
+What we *do* borrow from Claude Code: **UX patterns only** — scrolling REPL,
+typewriter streaming, slash menu, compact transcript — realized via `ChatCore`
+(§1). Inspiration, not a fork.
+
 ---
 
 ## 1. The driving constraint: panel shape
