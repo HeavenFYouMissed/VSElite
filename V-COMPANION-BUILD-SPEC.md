@@ -1,8 +1,10 @@
 # V — Companion Build Spec (mapped to VSElite)
 
-> Design-only spec. No IDE code changed. This maps the "V" concept from
-> `VBUILDDOCUMENT.md` onto the **actual** VSElite/Void codebase so it can be
-> built (or handed to an agent) later.
+> Design-only spec. No IDE code changed. This maps the "V" concept onto the
+> **actual** VSElite/Void codebase so it can be built (or handed to an agent)
+> later. **Self-contained:** §8 has build/verify steps + gotchas, §9 inlines the
+> persona, response contract, and memory schemas — a fresh agent needs only this
+> file + the repo.
 >
 > Core idea confirmed with product owner:
 > - **V is relocatable & growable** — default home is the bottom panel (a wide,
@@ -543,3 +545,120 @@ this water (push from server → device); full portable chat is the destination.
 
 *V is the soul of V3Code. This spec wires that soul into the body you've
 already built.*
+
+---
+
+## 8. Handoff notes — build, verify, house rules (READ FIRST if new)
+
+A fresh agent cloning `vselite` cold needs these or it will waste a session:
+
+**Build + run (from `PROGRESS.md`, learned the hard way):**
+1. `npm run buildreact` — compiles React TSX → `react/out/*/index.js` (~8s).
+   Internally: scope-tailwind `src → src2`, then tsup `src2 → out`.
+2. `npx gulp compile-client` — **must run AFTER `buildreact`** (~2.5 min). Gulp
+   copies `react/out/` into the VS Code output tree at compile time. **`npx gulp
+   compile` is broken** (crashes on a CSS fixture) — use `compile-client`.
+3. Launch the built Electron binary (e.g. `.\scripts\code.bat` on Windows).
+4. Known flake: gulp sometimes fails with `ENOENT markerService.test.js` —
+   workaround is a stub at `out/vs/platform/markers/test/common/markerService.test.js`.
+
+> ⚠️ This environment (cloud container) generally **cannot launch the Electron
+> GUI**, so V can be *written* here but should be *built + visually verified* on
+> a desktop dev machine.
+
+**React ↔ services DI gotcha (critical):** V3Code's React layer uses a
+**whitelist**, not raw VS Code DI. Any service V's React reads (`IVCompanionService`,
+`IVCompanionLayoutService`, etc.) MUST be:
+- added to `getReactAccessor()` in `react/src/util/services.tsx`, **and**
+- retrieved by **string key**: `accessor.get('IVCompanionService')`.
+Passing the decorator object silently returns `undefined`. Import the decorator
+as `type` only to avoid bundle bloat.
+
+**Process layering:** `browser/` is the renderer — **no `fs` / `child_process`**.
+V's memory file IO uses `IFileService` (renderer-safe), which is fine. Anything
+needing raw Node goes in `electron-main/` behind a `common/` service interface.
+
+**House rules:** **No emoji** in UI — glyphs are SVG via `V3Icons.tsx`;
+typographic status chars (`○ ◉ ✓ ✗`) are allowed. Don't rebuild working
+components — compose existing ones (`ChatCore`, markdown). No placeholder
+buttons that don't work. (The 👽/emoji in this spec's mockups are illustrative
+only — ship SVG.)
+
+**Companion doc:** the original product vision is `VBUILDDOCUMENT.md` (provided
+by owner; may not be committed). §9 below inlines everything from it that the
+build actually needs, so this spec is self-contained without it.
+
+---
+
+## 9. Self-contained reference (inlined from VBUILDDOCUMENT.md)
+
+### 9.1 V's persona / system prompt (for `vPrompts.ts`)
+
+```
+You are V, an autonomous coding companion inside V3Code — a friendly green
+pixel alien who helps developers write better code. You are NOT the coding
+agent; you support and oversee it.
+
+Personality: casual, direct, no corporate speak. Helpful but never annoying —
+speak only when you have something useful. Short messages. Show code when
+relevant. Humor sparingly.
+
+Rules:
+- Never be annoying. If the user says dismiss, dismiss.
+- Work silently in the background. Only surface alerts for real issues.
+- Keep messages under ~100 words unless showing code or a plan.
+- Always offer a dismiss/skip option.
+- Learn the user's preferences and adapt.
+- Never suggest the user take a break or sleep.
+```
+
+### 9.2 V's response contract (what `vCompanionService` parses)
+
+V's brain returns JSON; the React panel renders from it:
+```ts
+type VResponse = {
+  message: string;                 // what V says (streamed typewriter)
+  selections?: VSelection[];       // radio (single) / checkbox (multi) list
+  actions?: VAction[];             // quick-action buttons → command handlers
+  state: VState;                   // sprite animation (drives VSprite.setState)
+  dashboard?: VDashboardData;      // optional health/stats payload
+};
+type VState = 'idle' | 'thinking' | 'excited' | 'sleeping' | 'alert'
+  | 'working' | 'celebrating' | 'worried' | 'reading' | 'waving' | 'walking';
+```
+
+### 9.3 Memory schemas (files written via `IFileService`)
+
+Project — `.v3code/v-memory.json`:
+```json
+{
+  "project_id": "string",
+  "created": "ISO date",
+  "user_patterns": { "auth": "…", "orm": "…", "testing": "…", "style": "…" },
+  "known_issues": [{ "type": "recurring", "pattern": "…", "occurrences": 3, "auto_rule_added": true }],
+  "agent_preferences": ["…"],
+  "active_plan": null,
+  "health_baseline": { "test_count": 0, "coverage": 0, "circular_deps": 0, "dead_code_functions": 0 },
+  "session_log": []
+}
+```
+Global — `~/.v3code/v-global-memory.json`:
+```json
+{
+  "user_id": "string",
+  "projects_known": ["…"],
+  "cross_project_patterns": [{ "pattern": "…", "learned_from": "…", "applicable_to": ["…"], "code_ref": "…" }],
+  "lifetime_stats": { "bugs_caught": 0, "prompts_enhanced": 0, "skills_installed": 0, "tokens_saved": 0 },
+  "personality_learned": { "communication_style": "…", "preferences": "…" }
+}
+```
+
+### 9.4 Full ability list (from VBUILDDOCUMENT.md — for roadmap context)
+
+Prompt enhancement · blast-radius safety filter · scope-drift detection ·
+project-manager plans · build-pipeline monitor · codebase-health monitor ·
+pattern learning · cross-project intelligence · agent inbox (AI↔AI) · skills
+marketplace **+ skill authoring** · background worker · mobile notifications ·
+real-time dashboard · chat compaction. (Mapped to phases in §5; the support
+surface in §3.1 adds: slash palette, IDE governor, egress guard,
+destructive-action guard, reasoning-aware nudges.)
