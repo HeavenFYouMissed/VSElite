@@ -756,7 +756,7 @@ export const VoidInputBox2 = forwardRef<HTMLTextAreaElement, InputBox2Props>(fun
 			// V3Code: flat surface — no nested inputBackground; inherits the
 			// VoidChatArea container's background so the input reads as a single
 			// modern card instead of a box-within-a-box.
-			className={`w-full resize-none max-h-[500px] overflow-y-auto bg-transparent text-void-fg-1 placeholder:text-void-fg-3 py-1 outline-none focus:outline-none ${className}`}
+			className={`w-full resize-none max-h-[500px] overflow-y-auto bg-transparent text-void-fg-1 placeholder:text-void-fg-3 py-1 border-none outline-none ring-0 shadow-none focus:outline-none focus:ring-0 focus:border-none focus:shadow-none ${className}`}
 			style={{
 				color: asCssVariable(inputForeground)
 			}}

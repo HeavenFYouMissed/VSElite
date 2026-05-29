@@ -120,30 +120,19 @@ export const IconWarning = ({ size, className = '' }: { size: number, className?
 
 
 export const IconLoading = ({ className = '' }: { className?: string }) => {
-
-	const [loadingText, setLoadingText] = useState('.');
-
-	useEffect(() => {
-		let intervalId;
-
-		// Function to handle the animation
-		const toggleLoadingText = () => {
-			if (loadingText === '...') {
-				setLoadingText('.');
-			} else {
-				setLoadingText(loadingText + '.');
-			}
-		};
-
-		// Start the animation loop
-		intervalId = setInterval(toggleLoadingText, 300);
-
-		// Cleanup function to clear the interval when component unmounts
-		return () => clearInterval(intervalId);
-	}, [loadingText, setLoadingText]);
-
-	return <div className={`${className}`}>{loadingText}</div>;
-
+	// Clean rotating ring spinner (inherits currentColor), replacing the old "..." text.
+	return (
+		<span
+			className={`inline-flex items-center justify-center align-middle ${className}`}
+			style={{ width: '1em', height: '1em' }}
+			aria-label="Loading"
+		>
+			<svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" className="animate-spin" style={{ animationDuration: '0.7s' }}>
+				<circle cx="12" cy="12" r="9" stroke="currentColor" strokeWidth="2.5" strokeOpacity="0.25" />
+				<path d="M21 12a9 9 0 0 0-9-9" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+			</svg>
+		</span>
+	);
 }
 
 
@@ -341,14 +330,13 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
 			ref={divRef}
 			className={`
 				gap-x-1
-                flex flex-col p-2.5 relative input text-left shrink-0
-                rounded-xl
+                flex flex-col px-3 py-2.5 relative text-left shrink-0
+                rounded-2xl
                 bg-void-bg-2
-				border border-void-border-3
-				shadow-[0_2px_10px_rgba(0,0,0,0.22)]
-				transition-all duration-150 ease-out
-				focus-within:border-[var(--vscode-focusBorder)]
-				focus-within:shadow-[0_0_0_1px_var(--vscode-focusBorder),0_6px_20px_rgba(0,0,0,0.32)]
+				border border-void-border-3/60
+				shadow-[0_1px_3px_rgba(0,0,0,0.18)]
+				transition-colors duration-150 ease-out
+				hover:border-void-border-2/70
 				${className}
             `}
 			onClick={(e) => {
@@ -382,14 +370,14 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
 			</div>
 
 			{/* Bottom row */}
-			<div className='flex flex-row justify-between items-end gap-1'>
+			<div className='flex flex-row justify-between items-end gap-1 mt-2'>
 				{showModelDropdown && (
-					<div className='flex flex-col gap-y-1'>
+					<div className='flex flex-col gap-y-1.5'>
 						<ReasoningOptionSlider featureName={featureName} />
 
-						<div className='flex items-center flex-wrap gap-x-2 gap-y-1 text-nowrap '>
-							{featureName === 'Chat' && <ChatModeDropdown className='text-xs text-void-fg-3 bg-void-bg-1 border border-void-border-2 rounded py-0.5 px-1' />}
-							<ModelDropdown featureName={featureName} className='text-xs text-void-fg-3 bg-void-bg-1 rounded' />
+						<div className='flex items-center flex-wrap gap-x-1.5 gap-y-1 text-nowrap'>
+							{featureName === 'Chat' && <ChatModeDropdown className='text-xs text-void-fg-2 bg-void-bg-1/80 border border-void-border-3/50 rounded-lg py-1 px-2 transition-colors duration-150 hover:bg-void-bg-1 hover:border-void-border-2' />}
+							<ModelDropdown featureName={featureName} className='text-xs text-void-fg-2 bg-void-bg-1/80 border border-void-border-3/50 rounded-lg py-1 px-2 transition-colors duration-150 hover:bg-void-bg-1 hover:border-void-border-2' />
 						</div>
 					</div>
 				)}
@@ -825,9 +813,9 @@ const ToolHeaderWrapper = ({
 	>{desc1}</span>
 
 	return (<div className=''>
-		<div className={`w-full border border-void-border-3 rounded px-2 py-1 bg-void-bg-3 overflow-hidden ${className}`}>
+		<div className={`w-full border border-void-border-3/50 rounded-lg px-2.5 py-1.5 bg-void-bg-3/60 overflow-hidden transition-colors duration-150 hover:border-void-border-3 ${className}`}>
 			{/* header */}
-			<div className={`select-none flex items-center min-h-[24px]`}>
+			<div className={`select-none flex items-center min-h-[26px]`}>
 				<div className={`flex items-center w-full gap-x-2 overflow-hidden justify-between ${isRejected ? 'line-through' : ''}`}>
 					{/* left */}
 					<div // container for if desc1 is clickable
@@ -1192,9 +1180,9 @@ const UserMessageComponent = ({ chatMessage, messageIdx, isCheckpointGhost, curr
 		<div
 			// style chatbubble according to role
 			className={`
-            text-left rounded-lg max-w-full
+            text-left rounded-2xl max-w-full
             ${mode === 'edit' ? ''
-					: mode === 'display' ? 'p-2 flex flex-col bg-void-bg-1 text-void-fg-1 overflow-x-auto cursor-pointer' : ''
+					: mode === 'display' ? 'px-3 py-2 flex flex-col bg-void-bg-1 border border-void-border-3/40 text-void-fg-1 overflow-x-auto cursor-pointer transition-colors duration-150 hover:border-void-border-3/70' : ''
 				}
         `}
 			onClick={() => { if (mode === 'display') { onOpenEdit() } }}
@@ -1289,6 +1277,10 @@ prose-code:after:content-none
 prose-pre:text-[12px]
 prose-pre:p-2
 prose-pre:my-2
+prose-pre:rounded-lg
+prose-pre:border
+prose-pre:border-void-border-3/40
+prose-pre:bg-void-bg-3
 
 prose-table:text-[13px]
 '>
@@ -1304,21 +1296,43 @@ prose-sm
 break-words
 prose-p:block
 prose-hr:my-4
-prose-pre:my-2
+prose-hr:border-void-border-3/50
 marker:text-inherit
 prose-ol:list-outside
 prose-ol:list-decimal
 prose-ul:list-outside
 prose-ul:list-disc
-prose-li:my-0
+prose-li:my-0.5
 prose-code:before:content-none
 prose-code:after:content-none
 prose-headings:prose-sm
-prose-headings:font-bold
+prose-headings:font-semibold
+prose-headings:mt-4
+prose-headings:mb-2
 
-prose-p:leading-normal
-prose-ol:leading-normal
-prose-ul:leading-normal
+prose-p:leading-relaxed
+prose-p:my-2
+prose-ol:leading-relaxed
+prose-ul:leading-relaxed
+
+prose-pre:my-2.5
+prose-pre:rounded-lg
+prose-pre:border
+prose-pre:border-void-border-3/40
+prose-pre:bg-void-bg-3
+
+prose-a:text-[var(--vscode-textLink-foreground)]
+prose-a:no-underline
+hover:prose-a:underline
+
+prose-strong:text-void-fg-1
+prose-strong:font-semibold
+
+prose-blockquote:border-l-2
+prose-blockquote:border-void-border-2
+prose-blockquote:pl-3
+prose-blockquote:text-void-fg-3
+prose-blockquote:not-italic
 
 max-w-none
 '
@@ -3181,7 +3195,7 @@ export const SidebarChat = () => {
 	const isLandingPage = previousMessages.length === 0
 
 
-	const initiallySuggestedPromptsHTML = <div className='flex flex-col gap-2 w-full text-nowrap text-void-fg-3 select-none'>
+	const initiallySuggestedPromptsHTML = <div className='flex flex-col gap-1.5 w-full text-nowrap select-none'>
 		{[
 			'Summarize my codebase',
 			'How do types work in Rust?',
@@ -3189,9 +3203,13 @@ export const SidebarChat = () => {
 		].map((text, index) => (
 			<div
 				key={index}
-				className='py-1 px-2 rounded text-sm bg-zinc-700/5 hover:bg-zinc-700/10 dark:bg-zinc-300/5 dark:hover:bg-zinc-300/10 cursor-pointer opacity-80 hover:opacity-100'
+				className='group flex items-center gap-2 py-2 px-3 rounded-lg text-sm text-void-fg-3
+					bg-void-bg-2/40 border border-void-border-3/40
+					cursor-pointer transition-all duration-150
+					hover:bg-void-bg-2 hover:border-void-border-2 hover:text-void-fg-1'
 				onClick={() => onSubmit(text)}
 			>
+				<span className='text-void-fg-4 group-hover:text-void-fg-2 transition-colors'>{'\u203A'}</span>
 				{text}
 			</div>
 		))}
@@ -3225,9 +3243,9 @@ export const SidebarChat = () => {
 		{Object.keys(chatThreadsState.allThreads).length > 1 ? // show if there are threads
 			<ErrorBoundary>
 				<div className='pt-8 mb-2 flex items-center justify-between'>
-					<span className='text-void-fg-3 text-root select-none pointer-events-none'>Previous Threads</span>
+					<span className='text-void-fg-4 text-[11px] font-semibold uppercase tracking-wider select-none pointer-events-none'>Previous Threads</span>
 					<button
-						className='text-void-fg-3 hover:text-void-fg-1 cursor-pointer p-1 rounded hover:bg-void-bg-1'
+						className='text-void-fg-3 hover:text-void-fg-1 cursor-pointer p-1 rounded-md transition-colors duration-150 hover:bg-void-bg-1'
 						onClick={() => chatThreadsService.openNewThread()}
 						title='New chat'
 					>
@@ -3238,7 +3256,7 @@ export const SidebarChat = () => {
 			</ErrorBoundary>
 			:
 			<ErrorBoundary>
-				<div className='pt-8 mb-2 text-void-fg-3 text-root select-none pointer-events-none'>Suggestions</div>
+				<div className='pt-8 mb-2 text-void-fg-4 text-[11px] font-semibold uppercase tracking-wider select-none pointer-events-none'>Suggestions</div>
 				{initiallySuggestedPromptsHTML}
 			</ErrorBoundary>
 		}
