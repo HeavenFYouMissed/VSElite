@@ -8,7 +8,130 @@ html, body, #root {
 }
 
 body {
-	background: #160a2b;
-	color: #c7d2dd;
+	background: #0a0612;
 	overflow: hidden;
 }
+
+/* ---- terminal shell ---- */
+.term {
+	height: 100%;
+	display: flex;
+	flex-direction: column;
+	background: #0a0612;
+	color: #c8bbe0;
+	font-family: "DM Mono", "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+	font-size: 12.5px;
+	line-height: 1.55;
+	position: relative;
+}
+/* faint CRT scanlines for the terminal feel */
+.term::after {
+	content: "";
+	position: absolute;
+	inset: 0;
+	pointer-events: none;
+	background: repeating-linear-gradient(0deg, rgba(0, 0, 0, 0.16) 0 2px, transparent 2px 4px);
+	opacity: 0.3;
+	z-index: 5;
+}
+
+.statusline {
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	padding: 4px 11px;
+	font-size: 11px;
+	letter-spacing: 0.04em;
+	color: #7a6c9a;
+	border-bottom: 1px solid rgba(139, 92, 246, 0.12);
+	flex: 0 0 auto;
+}
+.statusline .dot { color: #5fd35f; font-size: 9px; vertical-align: middle; }
+.statusline .muted { color: #5d5278; }
+
+.transcript {
+	flex: 1 1 auto;
+	min-height: 0;
+	overflow-y: auto;
+	overflow-x: hidden;
+	padding: 10px 12px;
+}
+.line { white-space: pre-wrap; word-break: break-word; margin: 2px 0; }
+.pfx { user-select: none; }
+.pfx-v { color: #5fd35f; }
+.pfx-you { color: #8b9bd6; }
+.pfx-sys { color: #4f4570; }
+.msg-v { color: #cdc0e6; }
+.msg-you { color: #9fb0d8; }
+.msg-sys { color: #4f4570; font-style: italic; }
+
+/* choice chips (the multi-selects V offers) */
+.choices { display: flex; flex-wrap: wrap; gap: 7px; margin: 8px 0 2px; }
+.choice {
+	cursor: pointer;
+	font-family: inherit;
+	font-size: 12px;
+	color: #c8bbe0;
+	background: rgba(139, 92, 246, 0.07);
+	border: 1px solid rgba(139, 92, 246, 0.22);
+	border-radius: 2px;
+	padding: 3px 10px 3px 8px;
+	transition: 0.12s;
+}
+.choice:hover { background: rgba(95, 211, 95, 0.12); border-color: #5fd35f; color: #fff; }
+.choice .k { color: #5fd35f; margin-right: 7px; opacity: 0.85; }
+
+/* V's roaming floor */
+.vstage {
+	position: relative;
+	flex: 0 0 auto;
+	height: 64px;
+	overflow: hidden;
+	border-top: 1px solid rgba(139, 92, 246, 0.09);
+	border-bottom: 1px solid rgba(139, 92, 246, 0.09);
+	background: linear-gradient(180deg, rgba(139, 92, 246, 0.04), transparent);
+}
+.vstage-ground {
+	position: absolute;
+	left: 0; right: 0; bottom: 12px;
+	white-space: nowrap;
+	overflow: hidden;
+	color: #2a2142;
+	font-size: 12px;
+	user-select: none;
+	pointer-events: none;
+}
+.vstage-actor {
+	position: absolute;
+	bottom: 14px;
+	transform: translateX(-50%);
+	transition: left 0.05s linear;
+}
+
+/* terminal prompt */
+.prompt {
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	padding: 8px 12px;
+	border-top: 1px solid rgba(139, 92, 246, 0.14);
+	flex: 0 0 auto;
+}
+.prompt .car { color: #5fd35f; user-select: none; }
+.prompt input {
+	flex: 1 1 auto;
+	background: transparent;
+	border: none;
+	outline: none;
+	color: #e8e0f6;
+	font-family: inherit;
+	font-size: 12.5px;
+}
+.prompt input::placeholder { color: #4f4570; }
+.cursor { color: #5fd35f; animation: vblink 1.1s step-end infinite; user-select: none; }
+@keyframes vblink { 50% { opacity: 0; } }
+
+/* scrollbar */
+.transcript::-webkit-scrollbar { width: 8px; }
+.transcript::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.18); border-radius: 4px; }
+.transcript::-webkit-scrollbar-track { background: transparent; }

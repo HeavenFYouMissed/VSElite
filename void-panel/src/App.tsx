@@ -1,53 +1,91 @@
-import { useMemo } from 'react'
-import { VSprite } from './components/VSprite'
+import { useEffect, useRef, useState } from 'react'
+import { VStage } from './components/VStage'
 import { useProjectBriefing } from './hooks/useVoidBridge'
+
+type Role = 'v' | 'you' | 'sys'
+type Msg = { role: Role; text: string }
+type Choice = { label: string }
+
+const PFX: Record<Role, string> = { v: 'v', you: 'you', sys: '··' }
 
 export function App() {
 	const { briefing, connected } = useProjectBriefing()
+	const [messages, setMessages] = useState<Msg[]>([
+		{ role: 'sys', text: 'V companion · boot' },
+		{ role: 'sys', text: 'context-bridge · linking…' },
+	])
+	const [choices, setChoices] = useState<Choice[]>([])
+	const [input, setInput] = useState('')
+	const scrollRef = useRef<HTMLDivElement>(null)
+	const greeted = useRef(false)
 
-	const greeting = useMemo(() => {
-		if (!connected) return "Booting up… (standalone preview — no workbench host yet)"
-		if (!briefing) return "Hey — I'm V. Reading your codebase…"
-		const root = briefing.workspaceRoot?.split(/[\\/]/).pop() || 'this workspace'
-		const commits = briefing.recentCommits?.length ?? 0
-		return `Hey — I'm V, your V3Code companion. I'm watching ${root}` +
-			(commits ? ` (${commits} recent commits).` : '.') +
-			' Ask me anything, or I\'ll nudge the agent when it needs me.'
-	}, [briefing, connected])
+	useEffect(() => {
+		if (!connected || greeted.current) return
+		greeted.current = true
+		const root = briefing?.workspaceRoot?.split(/[\\/]/).filter(Boolean).pop() || 'this workspace'
+		setMessages(m => [
+			...m.filter(x => !(x.role === 'sys' && x.text.includes('linking'))),
+			{ role: 'sys', text: 'context-bridge · online' },
+			{ role: 'v', text: `hey — i'm V. i'm watching ${root}. i'll keep an eye on the agent and ping you when something's worth a skill, a fix, or a heads-up.` },
+		])
+		setChoices([{ label: 'watch the agent' }, { label: 'suggest a skill' }, { label: 'just chat' }])
+	}, [connected, briefing])
+
+	useEffect(() => {
+		const el = scrollRef.current
+		if (el) el.scrollTop = el.scrollHeight
+	}, [messages, choices])
+
+	const send = (text: string) => {
+		const t = text.trim()
+		if (!t) return
+		setMessages(m => [...m, { role: 'you', text: t }])
+		setInput('')
+		setChoices([])
+		// Phase 1: V's brain isn't wired yet — acknowledge so the loop feels alive.
+		window.setTimeout(() => {
+			setMessages(m => [...m, { role: 'v', text: 'on it — though my brain isn\'t plugged in yet (that\'s next). i\'m listening.' }])
+		}, 280)
+	}
 
 	return (
-		<div className="h-full w-full flex flex-col font-mono">
-			{/* sky */}
-			<div className="relative shrink-0 h-28 flex items-end justify-center overflow-hidden"
-				style={{ background: 'linear-gradient(180deg, #160a2b 0%, #2a1257 55%, #1d0f3d 100%)', borderBottom: '1px solid rgba(139,92,246,0.18)' }}>
-				<div className="absolute inset-0 opacity-[0.08]" style={{
-					backgroundImage: 'radial-gradient(1px 1px at 20% 30%, #fff 1px, transparent 0), radial-gradient(1px 1px at 70% 55%, #fff 1px, transparent 0), radial-gradient(1px 1px at 45% 80%, #fff 1px, transparent 0), radial-gradient(1px 1px at 85% 25%, #fff 1px, transparent 0)',
-				}} />
-				<div className="flex items-end gap-8 pb-3">
-					<div style={{ opacity: 0.14 }}><VSprite cell={3} mode="static" /></div>
-					<VSprite cell={5} mode={connected ? 'idle' : 'walk'} />
-					<div style={{ opacity: 0.14 }}><VSprite cell={3} mode="static" /></div>
-				</div>
+		<div className="term">
+			<div className="statusline">
+				<span><span className="dot">●</span> V</span>
+				<span className="muted">{connected ? 'context-bridge online' : 'standalone'}</span>
 			</div>
 
-			{/* transcript area (Phase-1 placeholder) */}
-			<div className="flex-1 overflow-auto px-4 py-4">
-				<div className="max-w-[680px] mx-auto">
-					<div className="flex items-start gap-3">
-						<div className="shrink-0 mt-1"><VSprite cell={2} mode="static" /></div>
-						<div className="text-[13px] leading-relaxed text-[#c7d2dd]">{greeting}</div>
+			<div className="transcript" ref={scrollRef}>
+				{messages.map((m, i) => (
+					<div key={i} className="line">
+						<span className={`pfx pfx-${m.role}`}>{PFX[m.role]}{m.role === 'sys' ? ' ' : '>'} </span>
+						<span className={`msg msg-${m.role}`}>{m.text}</span>
 					</div>
-				</div>
+				))}
+
+				{choices.length > 0 && (
+					<div className="choices">
+						{choices.map((c, i) => (
+							<button key={i} className="choice" onClick={() => send(c.label)}>
+								<span className="k">{i + 1}</span>{c.label}
+							</button>
+						))}
+					</div>
+				)}
 			</div>
 
-			{/* status bar */}
-			<div className="shrink-0 px-3 py-1.5 text-[11px] flex items-center justify-between border-t"
-				style={{ borderColor: 'rgba(139,92,246,0.15)', background: '#2a1f47' }}>
-				<span className="flex items-center gap-1.5">
-					<span className="inline-block w-1.5 h-1.5 rounded-full" style={{ background: connected ? '#4ea03b' : '#d6392c' }} />
-					{connected ? 'Context Bridge connected' : 'standalone'}
-				</span>
-				<span className="text-[#5d6b7a]">V · deepseek-v4-flash</span>
+			<VStage busy={false} />
+
+			<div className="prompt">
+				<span className="car">{'>'}</span>
+				<input
+					value={input}
+					onChange={e => setInput(e.target.value)}
+					onKeyDown={e => { if (e.key === 'Enter') send(input) }}
+					placeholder="talk to V…"
+					autoFocus
+				/>
+				<span className="cursor">▋</span>
 			</div>
 		</div>
 	)

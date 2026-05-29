@@ -42,13 +42,15 @@ import { Action2, registerAction2 } from '../../../../platform/actions/common/ac
 import { ServicesAccessor } from '../../../../editor/browser/editorExtensions.js';
 import { IViewsService } from '../../../services/views/common/viewsService.js';
 import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../../common/contributions.js';
-import { Dimension, getWindow } from '../../../../base/browser/dom.js';
+import { Dimension, getWindow, findParentWithClass } from '../../../../base/browser/dom.js';
 import { URI } from '../../../../base/common/uri.js';
 import { IEnvironmentService, INativeEnvironmentService } from '../../../../platform/environment/common/environment.js';
 import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
 import { IWebviewService, IOverlayWebview, WebviewContentPurpose } from '../../webview/browser/webview.js';
 import { asWebviewUri, webviewGenericCspSource } from '../../webview/common/webview.js';
 import { IToolsService } from './toolsService.js';
+
+declare const ResizeObserver: any;
 
 export const V_VIEW_CONTAINER_ID = 'workbench.view.vCompanion';
 export const V_VIEW_ID = 'workbench.view.vCompanion.view';
@@ -62,6 +64,9 @@ class VCompanionViewPane extends ViewPane {
 	private readonly _webview = this._register(new MutableDisposable<IOverlayWebview>());
 	private readonly _webviewDisposables = this._register(new DisposableStore());
 	private _container?: HTMLElement;
+	private _rootContainer?: HTMLElement;
+	private _resizeObserver?: any;
+	private _repositionTimeout?: any;
 	private _activated = false;
 
 	constructor(
@@ -97,7 +102,18 @@ class VCompanionViewPane extends ViewPane {
 	protected override renderBody(container: HTMLElement): void {
 		super.renderBody(container);
 		this._container = container;
-		container.style.background = '#160a2b';
+		this._rootContainer = undefined;
+		container.style.background = '#0a0612';
+
+		// The webview is absolutely-positioned over this container. Without a ResizeObserver the
+		// overlay keeps its initial (often 0/short) size until the user manually resizes the panel,
+		// which is exactly the "rendered to the bottom until I made it bigger" bug. Relayout on resize.
+		if (!this._resizeObserver) {
+			this._resizeObserver = new ResizeObserver(() => setTimeout(() => this._layoutWebview(), 0));
+			this._register(toDisposable(() => this._resizeObserver?.disconnect()));
+			this._resizeObserver.observe(container);
+		}
+
 		if (this.isBodyVisible()) {
 			this._activate();
 			this._webview.value?.claim(this, getWindow(this.element), undefined);
@@ -233,9 +249,19 @@ class VCompanionViewPane extends ViewPane {
 	}
 
 	private _layoutWebview(dimension?: Dimension): void {
-		if (this._container && this._webview.value) {
-			this._webview.value.layoutWebviewOverElement(this._container, dimension);
+		if (!this._container || !this._webview.value) { return; }
+		if (!this._rootContainer || !this._rootContainer.isConnected) {
+			this._rootContainer = findParentWithClass(this._container, 'monaco-scrollable-element') ?? undefined;
 		}
+		this._webview.value.layoutWebviewOverElement(this._container, dimension, this._rootContainer);
+		// The panel open/resize has a ~200ms animation; reposition once it settles so the
+		// webview doesn't get stuck at a stale size.
+		clearTimeout(this._repositionTimeout);
+		this._repositionTimeout = setTimeout(() => {
+			if (this._container && this._webview.value) {
+				this._webview.value.layoutWebviewOverElement(this._container, dimension, this._rootContainer);
+			}
+		}, 200);
 	}
 }
 

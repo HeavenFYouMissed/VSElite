@@ -20,9 +20,20 @@ Touching existing `void/` services + the chat UI + broad `src/vs` areas.
 > post-merge panel/webview pattern. Locate integration points by pattern, not
 > line number.
 
-**Claude (this agent):** designed the **V companion** + produced its build plan.
-Currently **planning/docs only — NOT writing V3Code code.** Cursor will build V
-from the plan.
+**Claude (this agent):** architect/docs — produced the build plan + the verified
+**host-implementation reference (`V-HOST-PATTERNS.md`)**. **Docs only — NOT
+writing V3Code code.** The V-builder builds the host.
+
+**V-builder (in V3Code/Cursor):** built `void-panel/` (V's UI — Vite + React,
+committed `cc0a9ed`); now building the **host** (`vCompanionPane.ts`) on the
+current 1.99.3 base, to be re-synced after the VS Code merge.
+
+> **Heads-up for the builder (the one real gotcha — see `V-HOST-PATTERNS.md §3`):**
+> the default webview CSP is `frame-src 'self'`, which **blocks `localhost:5173`**.
+> The relay HTML must override CSP with `frame-src http://localhost:5173
+> ws://localhost:5173` in dev. `contentOptions.portMapping` does NOT work for
+> iframes — override CSP instead. Use `IWebviewService.createWebviewOverlay`,
+> `IEnvironmentService.isBuilt` for dev/prod, `asWebviewUri` for the prod dist.
 
 ---
 
@@ -30,8 +41,10 @@ from the plan.
 
 - `vselite/V4CLAUDE.md` (this file)
 - `vselite/V-SOURCE-OF-TRUTH.md` (the V plan + structure + status + build checklist)
+- `vselite/V-CURSOR-DIRECTIVE.md` (the build brief for the builder)
+- `vselite/V-HOST-PATTERNS.md` (verified host-implementation reference, current 1.99.3 base)
 
-That's it. **Claude has NOT modified anything under `src/`.**
+That's it — **docs only. Claude has NOT modified anything under `src/`.**
 
 ---
 
