@@ -4,13 +4,14 @@ export type BuildStep = { label: string; state: 'done' | 'active' | 'todo' }
 
 // A dedicated "level" of V's UI — shown when something major (a build) is happening.
 // V works in the foreground while steps + an ASCII progress bar stream; then we return home.
-export function BuildingView({ title, steps, pct }: { title: string; steps: BuildStep[]; pct: number }) {
+export function BuildingView({ title, steps, pct, onBack }: { title: string; steps: BuildStep[]; pct: number; onBack?: () => void }) {
 	const filled = Math.max(0, Math.min(10, Math.round(pct / 10)))
 	const bar = '█'.repeat(filled) + '░'.repeat(10 - filled)
 	return (
 		<div className="scene scene-build">
 			<div className="build-head">
-				▰ V is building <span className="build-title">{title}</span>
+				<span>▰ V is building <span className="build-title">{title}</span></span>
+				{onBack && <button className="scene-back" onClick={onBack}>esc · back to V</button>}
 			</div>
 			<div className="build-body">
 				<div className="build-actor">

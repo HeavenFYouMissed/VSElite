@@ -3,7 +3,7 @@ import { VStage, type Choice } from './components/VStage'
 import { VSidePanel, type Activity, type Skill } from './components/VSidePanel'
 import { BuildingView, type BuildStep } from './components/BuildingView'
 import { useProjectBriefing } from './hooks/useVoidBridge'
-import { bridge } from './lib/messagePort'
+import { bridge, type AgentEvent } from './lib/messagePort'
 
 type Role = 'v' | 'you' | 'sys'
 type Msg = { role: Role; text: string }
@@ -11,6 +11,19 @@ type VView = 'home' | 'building'
 type BuildState = { title: string; steps: BuildStep[]; pct: number }
 
 const PFX: Record<Role, string> = { v: 'v', you: 'you', sys: '··' }
+
+// tools that count as "building" (V shifts into the building scene); others are just activity
+const BUILD_TOOLS = new Set(['create_file_or_folder', 'delete_file_or_folder', 'rewrite_file', 'edit_file', 'run_command', 'run_persistent_command', 'git_commit'])
+const humanizeTool = (name: string): string => {
+	const map: Record<string, string> = {
+		edit_file: 'editing a file', rewrite_file: 'rewriting a file', create_file_or_folder: 'creating files',
+		delete_file_or_folder: 'deleting files', run_command: 'running a command', run_persistent_command: 'running a command',
+		read_file: 'reading a file', ls_dir: 'listing files', get_dir_tree: 'mapping the tree',
+		search_for_files: 'searching', search_pathnames_only: 'searching', search_in_file: 'searching a file',
+		git_commit: 'committing', read_lint_errors: 'checking lint',
+	}
+	return map[name] || name.replace(/_/g, ' ')
+}
 
 export function App() {
 	const { briefing, connected } = useProjectBriefing()
@@ -28,6 +41,10 @@ export function App() {
 	const [build, setBuild] = useState<BuildState | null>(null)
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const greeted = useRef(false)
+	const streamingRef = useRef(false)
+	useEffect(() => { streamingRef.current = streaming }, [streaming])
+
+	const goHome = () => { setView('home'); setBuild(null) }
 
 	useEffect(() => {
 		if (!connected || greeted.current) return
@@ -54,6 +71,37 @@ export function App() {
 		const el = scrollRef.current
 		if (el) el.scrollTop = el.scrollHeight
 	}, [messages])
+
+	// Agent-watching: react to what the coding agent is doing (recent activity + scene shift).
+	useEffect(() => {
+		bridge.onAgentEvent((e: AgentEvent) => {
+			if (e.kind === 'idle') {
+				// finish any building scene and return home (unless the user is mid-chat with V)
+				setBuild(b => (b ? { ...b, steps: b.steps.map(s => ({ ...s, state: 'done' })), pct: 100 } : b))
+				window.setTimeout(() => { if (!streamingRef.current) { setView(v => (v === 'building' ? 'home' : v)); setBuild(null) } }, 1300)
+				return
+			}
+			if (e.kind === 'tool') {
+				const label = humanizeTool(e.detail || '')
+				setRecent(r => [{ when: 'now', what: `agent · ${label}` }, ...r].slice(0, 6))
+				if (BUILD_TOOLS.has(e.detail || '') && !streamingRef.current) {
+					setView('building')
+					setBuild(b => {
+						const prev = (b?.steps ?? []).map((s): BuildStep => ({ ...s, state: 'done' }))
+						prev.push({ label, state: 'active' })
+						return { title: 'the agent', steps: prev, pct: Math.min(92, prev.length * 16) }
+					})
+				}
+			}
+		})
+	}, [])
+
+	// Esc returns to the home scene (without losing the conversation)
+	useEffect(() => {
+		const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && view !== 'home') goHome() }
+		window.addEventListener('keydown', onKey)
+		return () => window.removeEventListener('keydown', onKey)
+	}, [view])
 
 	const replaceLastV = (m: Msg[], text: string): Msg[] => {
 		const copy = m.slice()
@@ -121,7 +169,7 @@ export function App() {
 			</div>
 
 			{view === 'building' && build ? (
-				<BuildingView title={build.title} steps={build.steps} pct={build.pct} />
+				<BuildingView title={build.title} steps={build.steps} pct={build.pct} onBack={goHome} />
 			) : (
 			<div className="main">
 				<div className="col-left">

@@ -55,6 +55,8 @@ import { ILLMMessageService } from '../common/sendLLMMessageService.js';
 import { IConvertToLLMMessageService } from './convertToLLMMessageService.js';
 import { IVoidSettingsService } from '../common/voidSettingsService.js';
 import { ModelSelection } from '../common/voidSettingsTypes.js';
+import { IChatThreadService } from './chatThreadService.js';
+import { ICodeEditorService } from '../../../../editor/browser/services/codeEditorService.js';
 
 declare const ResizeObserver: any;
 
@@ -95,8 +97,22 @@ class VCompanionViewPane extends ViewPane {
 		@ILLMMessageService private readonly llmMessageService: ILLMMessageService,
 		@IConvertToLLMMessageService private readonly convertService: IConvertToLLMMessageService,
 		@IVoidSettingsService private readonly settingsService: IVoidSettingsService,
+		@IChatThreadService private readonly chatThreadService: IChatThreadService,
+		@ICodeEditorService private readonly codeEditorService: ICodeEditorService,
 	) {
 		super(options, keybindingService, contextMenuService, configurationService, contextKeyService, viewDescriptorService, instantiationService, openerService, themeService, hoverService);
+
+		// Agent-watching: translate the coding agent's stream state into events V's UI reacts to.
+		this._register(this.chatThreadService.onDidChangeStreamState(({ threadId }) => {
+			const ss: any = this.chatThreadService.streamState[threadId];
+			const running = ss?.isRunning;
+			let kind: 'idle' | 'thinking' | 'tool' | 'awaiting' = 'idle';
+			let detail = '';
+			if (running === 'LLM') { kind = 'thinking'; }
+			else if (running === 'tool') { kind = 'tool'; detail = ss?.toolInfo?.toolName ?? ''; }
+			else if (running === 'awaiting_user') { kind = 'awaiting'; }
+			this._post({ type: 'agentEvent', kind, detail });
+		}));
 
 		this._register(this.onDidChangeBodyVisibility(() => {
 			if (this.isBodyVisible()) {
@@ -263,6 +279,33 @@ class VCompanionViewPane extends ViewPane {
 		return { modelSelection, modelSelectionOptions };
 	}
 
+	// V's eyes — a snapshot of what's on screen, so he can actually see what we're doing.
+	private _vContextBlock(): string {
+		const lines: string[] = [];
+		const folders = this.workspaceContextService.getWorkspace().folders;
+		lines.push(`workspace: ${folders[0]?.name ?? '(no folder open)'}`);
+
+		const editor = this.codeEditorService.getFocusedCodeEditor() ?? this.codeEditorService.listCodeEditors()[0];
+		const model = editor?.getModel();
+		if (model && model.uri.scheme === 'file') {
+			lines.push(`active file: ${model.uri.fsPath}`);
+			let content = model.getValue();
+			if (content.length > 6000) { content = content.slice(0, 6000) + '\n…(truncated)'; }
+			lines.push('```');
+			lines.push(content);
+			lines.push('```');
+		}
+
+		const open = Array.from(new Set(
+			this.codeEditorService.listCodeEditors()
+				.map(e => e.getModel())
+				.filter(m => m && m.uri.scheme === 'file')
+				.map(m => m!.uri.fsPath)
+		));
+		if (open.length) { lines.push(`open editors: ${open.join(', ')}`); }
+		return lines.join('\n');
+	}
+
 	private _vChat(streamId: string, params: any): void {
 		const text = String(params?.text ?? '').trim();
 		if (!text) { return; }
@@ -274,9 +317,10 @@ class VCompanionViewPane extends ViewPane {
 			return;
 		}
 
+		const systemMessage = `${V_SYSTEM_PROMPT}\n\n# what V can see right now\n${this._vContextBlock()}`;
 		const { messages, separateSystemMessage } = this.convertService.prepareLLMSimpleMessages({
 			simpleMessages: this._vMessages as any,
-			systemMessage: V_SYSTEM_PROMPT,
+			systemMessage,
 			modelSelection,
 			featureName: 'Chat',
 		});
@@ -446,6 +490,10 @@ const V_SYSTEM_PROMPT = `You are V — the companion that lives inside the V3Cod
 You are NOT the coding agent. You are a sharp, friendly overseer who helps the developer:
 you watch the coding agent work, suggest skills, flag risky or destructive steps, and offer
 quick routes forward. Think "JARVIS for the editor."
+
+You CAN see the workspace: the section "what V can see right now" below is injected live every
+turn — the open workspace, the active file and its contents, and which files are open. Use it.
+Never tell the user to "paste in" code you can already see; just look and respond.
 
 Voice: short, lowercase, terminal-style, warm and a little playful. No corporate filler.
 When it helps, offer 2–3 quick options the user can pick from, phrased as a short list.

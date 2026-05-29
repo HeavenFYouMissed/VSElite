@@ -182,7 +182,13 @@ body {
 @keyframes scene-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 
 .scene-build { padding: 14px 16px; }
-.build-head { color: #b6a9d2; font-size: 13px; margin-bottom: 14px; }
+.build-head { color: #b6a9d2; font-size: 13px; margin-bottom: 14px; display: flex; justify-content: space-between; align-items: center; }
+.scene-back {
+	font-family: inherit; font-size: 11px; cursor: pointer;
+	color: #6b5d8a; background: transparent; border: 1px solid rgba(139, 92, 246, 0.22);
+	border-radius: 3px; padding: 2px 8px; transition: 0.12s;
+}
+.scene-back:hover { color: #cdc0e6; border-color: #5fd35f; }
 .build-head .build-title { color: #5fd35f; }
 .build-body { display: flex; gap: 20px; align-items: center; flex: 1 1 auto; min-height: 0; }
 .build-actor { flex: 0 0 auto; opacity: 0.95; }

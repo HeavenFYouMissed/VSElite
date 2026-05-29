@@ -234,6 +234,24 @@ These were locked while building the chat UI; they extend §2/§7.
 
 ---
 
+## 7c. Build progress + backlog (live)
+
+**Done:** housing ([v] panel + webview host), terminal UI, V walking, choices on his
+floor, `.v/` workspace (skills/memory/files + seed skill), V's brain (deepseek-flash via
+`vChat` RPC, model never surfaced), scene system (home + building, fade transitions),
+**V's eyes** (active-file + open-editors context injected each turn), **agent-watching**
+(`onDidChangeStreamState` → recent activity + auto building scene; returns home on idle),
+scene-back (esc / "back to V") with conversation preserved across scenes.
+
+**Backlog (requested, not yet built):**
+- **Image input to V** — paste images / "select files" so V can see them (vision path).
+- **See & refactor the agent composer** — V reads what you're typing into the *coding-agent*
+  chat before send, and can refactor it into a deep prompt written back into that composer
+  (not auto-sent). Needs a shared draft seam between SidebarChat and V.
+- **Prompt library** — refactor pro prompts (Claude Code / high-end agents) into V's system
+  prompt; make `V_SYSTEM_PROMPT` swappable.
+- **More scenes** — watching/reviewing/thinking levels; richer building visuals.
+
 ## 8. Note: major VS Code merge in progress
 
 A major refactor pulling newer VS Code into the fork is underway. This is *why*

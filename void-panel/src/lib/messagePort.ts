@@ -24,12 +24,15 @@ type StreamHandlers = {
 	onAbort?: () => void
 }
 
+export type AgentEvent = { kind: 'idle' | 'thinking' | 'tool' | 'awaiting'; detail?: string }
+
 class VBridge {
 	private seq = 0
 	private pending = new Map<string, { resolve: (v: unknown) => void; reject: (e: unknown) => void }>()
 	private streams = new Map<string, StreamHandlers>()
 	private ready = false
 	private onInitCbs: Array<(workspaceName?: string) => void> = []
+	private agentCbs: Array<(e: AgentEvent) => void> = []
 
 	constructor() {
 		window.addEventListener('message', (e: MessageEvent) => {
@@ -39,6 +42,10 @@ class VBridge {
 			if (msg.type === 'init') {
 				this.ready = true
 				this.onInitCbs.forEach(cb => cb(msg.workspaceName))
+				return
+			}
+			if ((msg as any).type === 'agentEvent') {
+				this.agentCbs.forEach(cb => cb(msg as unknown as AgentEvent))
 				return
 			}
 			if (msg.type === 'rpc-response') {
@@ -67,6 +74,8 @@ class VBridge {
 		if (this.ready) cb()
 		else this.onInitCbs.push(cb)
 	}
+
+	onAgentEvent(cb: (e: AgentEvent) => void) { this.agentCbs.push(cb) }
 
 	call<T = unknown>(method: RpcMethod, params: unknown): Promise<T> {
 		const id = `r${++this.seq}`
