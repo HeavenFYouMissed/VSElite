@@ -84,7 +84,9 @@
 
 	--void-border-1: var(--vscode-panel-border, var(--vscode-widget-border));
 	--void-border-2: var(--vscode-panel-border, var(--vscode-widget-border));
-	--void-border-3: var(--vscode-widget-border, var(--vscode-panel-border));
+	/* Muted, non-bright border for chat cards/dividers. The bright accent line is
+	   reserved for the composer (input box) only -- everything else stays subtle. */
+	--void-border-3: rgba(255, 255, 255, 0.08);
 	--void-border-4: var(--vscode-panel-border, var(--vscode-widget-border));
 
 	--void-ring-color: var(--v3-amethyst);

@@ -333,7 +333,10 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
                 flex flex-col px-3 py-2.5 relative text-left shrink-0
                 rounded-2xl
                 bg-void-bg-2
+				border border-[var(--v3-amethyst,#8b5cf6)]/60
 				shadow-[0_1px_3px_rgba(0,0,0,0.18)]
+				transition-colors duration-150
+				focus-within:border-[var(--v3-amethyst,#8b5cf6)]
 				${className}
             `}
 			onClick={(e) => {
@@ -1327,7 +1330,7 @@ prose-strong:text-void-fg-1
 prose-strong:font-semibold
 
 prose-blockquote:border-l-2
-prose-blockquote:border-void-border-2
+prose-blockquote:border-void-border-3
 prose-blockquote:pl-3
 prose-blockquote:text-void-fg-3
 prose-blockquote:not-italic
@@ -3223,7 +3226,7 @@ export const SidebarChat = () => {
 				className='group flex items-center gap-2 py-2 px-3 rounded-lg text-sm text-void-fg-3
 					bg-void-bg-2/40 border border-void-border-3/40
 					cursor-pointer transition-all duration-150
-					hover:bg-void-bg-2 hover:border-void-border-2 hover:text-void-fg-1'
+					hover:bg-void-bg-2 hover:border-void-border-3 hover:text-void-fg-1'
 				onClick={() => onSubmit(text)}
 			>
 				<span className='text-void-fg-4 group-hover:text-void-fg-2 transition-colors'>{'\u203A'}</span>
