@@ -49,6 +49,32 @@ body {
 .statusline .dot { color: #5fd35f; font-size: 9px; vertical-align: middle; }
 .statusline .muted { color: #5d5278; }
 
+/* split: ~70% transcript/stage on the left, info column on the right */
+.main {
+	flex: 1 1 auto;
+	min-height: 0;
+	display: flex;
+}
+.col-left {
+	flex: 1 1 70%;
+	min-width: 0;
+	display: flex;
+	flex-direction: column;
+	border-right: 1px dashed rgba(139, 92, 246, 0.16);
+}
+.col-right {
+	flex: 0 0 30%;
+	min-width: 200px;
+	max-width: 340px;
+	overflow-y: auto;
+	padding: 10px 12px;
+}
+/* on narrow panels, drop the info column so the transcript keeps room */
+@media (max-width: 620px) {
+	.col-right { display: none; }
+	.col-left { border-right: none; }
+}
+
 .transcript {
 	flex: 1 1 auto;
 	min-height: 0;
@@ -56,6 +82,27 @@ body {
 	overflow-x: hidden;
 	padding: 10px 12px;
 }
+
+/* ---- right info column (Claude-Code style dashed panels) ---- */
+.side { display: flex; flex-direction: column; gap: 14px; }
+.panel {
+	border: 1px dashed rgba(139, 92, 246, 0.22);
+	border-radius: 3px;
+	padding: 8px 10px 9px;
+}
+.panel-label {
+	color: #5fd35f;
+	font-size: 11px;
+	letter-spacing: 0.05em;
+	margin-bottom: 6px;
+}
+.panel-row { display: flex; gap: 10px; font-size: 11.5px; padding: 1px 0; }
+.panel-row .when { color: #6b5d8a; min-width: 34px; flex: 0 0 auto; }
+.panel-row .what { color: #b6a9d2; word-break: break-word; }
+.panel-row .skill-dot { color: #5fd35f; flex: 0 0 auto; }
+.panel-sub { color: #6b5d8a; font-size: 10.5px; letter-spacing: 0.06em; margin: 7px 0 3px; text-transform: uppercase; }
+.panel-empty { color: #4f4570; font-size: 11.5px; font-style: italic; }
+.panel-more { color: #4f4570; font-size: 11px; margin-top: 6px; }
 .line { white-space: pre-wrap; word-break: break-word; margin: 2px 0; }
 .pfx { user-select: none; }
 .pfx-v { color: #5fd35f; }
@@ -106,6 +153,17 @@ body {
 	bottom: 14px;
 	transform: translateX(-50%);
 	transition: left 0.05s linear;
+}
+/* choices pop up on V's floor (he steps left and idles) */
+.vstage-choices {
+	position: absolute;
+	left: 64px; right: 12px; top: 0; bottom: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	flex-wrap: wrap;
+	gap: 8px;
+	z-index: 2;
 }
 
 /* terminal prompt */

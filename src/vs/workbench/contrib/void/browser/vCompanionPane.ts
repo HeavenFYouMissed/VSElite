@@ -46,6 +46,8 @@ import { Dimension, getWindow, findParentWithClass } from '../../../../base/brow
 import { URI } from '../../../../base/common/uri.js';
 import { IEnvironmentService, INativeEnvironmentService } from '../../../../platform/environment/common/environment.js';
 import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
+import { IFileService } from '../../../../platform/files/common/files.js';
+import { VSBuffer } from '../../../../base/common/buffer.js';
 import { IWebviewService, IOverlayWebview, WebviewContentPurpose } from '../../webview/browser/webview.js';
 import { asWebviewUri, webviewGenericCspSource } from '../../webview/common/webview.js';
 import { IToolsService } from './toolsService.js';
@@ -85,6 +87,7 @@ class VCompanionViewPane extends ViewPane {
 		@IEnvironmentService private readonly environmentService: IEnvironmentService,
 		@IToolsService private readonly toolsService: IToolsService,
 		@IWorkspaceContextService private readonly workspaceContextService: IWorkspaceContextService,
+		@IFileService private readonly fileService: IFileService,
 	) {
 		super(options, keybindingService, contextMenuService, configurationService, contextKeyService, viewDescriptorService, instantiationService, openerService, themeService, hoverService);
 
@@ -243,9 +246,67 @@ class VCompanionViewPane extends ViewPane {
 				if (typeof fn !== 'function') { throw new Error('unknown tool: ' + toolName); }
 				return await fn(params?.params ?? {});
 			}
+			case 'vWorkspaceSummary':
+				return await this._vWorkspaceSummary();
 			default:
 				throw new Error('unknown method: ' + method);
 		}
+	}
+
+	// ----- V's own workspace ("the background"): .v/ with skills/, memory/, files/ -----
+
+	private _vHome(): URI | undefined {
+		const folder = this.workspaceContextService.getWorkspace().folders[0]?.uri;
+		return folder ? URI.joinPath(folder, '.v') : undefined;
+	}
+
+	private async _ensureVWorkspace(): Promise<URI | undefined> {
+		const home = this._vHome();
+		if (!home) { return undefined; }
+		const dirs = ['skills', 'memory', 'files'].map(d => URI.joinPath(home, d));
+		try {
+			if (!(await this.fileService.exists(home))) { await this.fileService.createFolder(home); }
+			for (const d of dirs) {
+				if (!(await this.fileService.exists(d))) { await this.fileService.createFolder(d); }
+			}
+			const readme = URI.joinPath(home, 'README.md');
+			if (!(await this.fileService.exists(readme))) {
+				await this.fileService.writeFile(readme, VSBuffer.fromString(V_README));
+			}
+			const seed = URI.joinPath(home, 'skills', 'watch-agent.md');
+			if (!(await this.fileService.exists(seed))) {
+				await this.fileService.writeFile(seed, VSBuffer.fromString(V_SEED_SKILL));
+			}
+		} catch {
+			// best-effort; V still works without his folder
+		}
+		return home;
+	}
+
+	private async _countFiles(dir: URI): Promise<number> {
+		try {
+			const stat = await this.fileService.resolve(dir);
+			let n = 0;
+			for (const c of stat.children ?? []) {
+				if (c.isDirectory) { n += await this._countFiles(c.resource); }
+				else { n++; }
+			}
+			return n;
+		} catch { return 0; }
+	}
+
+	private async _vWorkspaceSummary(): Promise<unknown> {
+		const home = await this._ensureVWorkspace();
+		if (!home) { return { available: false, fileCount: 0, skills: [] }; }
+		let skills: { name: string }[] = [];
+		try {
+			const stat = await this.fileService.resolve(URI.joinPath(home, 'skills'));
+			skills = (stat.children ?? [])
+				.filter(c => !c.isDirectory)
+				.map(c => ({ name: c.name.replace(/\.(md|json|txt)$/i, '') }));
+		} catch { /* no skills dir yet */ }
+		const fileCount = await this._countFiles(home);
+		return { available: true, fileCount, skills, home: home.fsPath };
 	}
 
 	private _layoutWebview(dimension?: Dimension): void {
@@ -302,6 +363,31 @@ registerAction2(class extends Action2 {
 		accessor.get(IViewsService).openView(V_VIEW_ID, true);
 	}
 });
+
+const V_README = `# V's workspace
+
+This is V's home inside your project. V is your V3Code companion — he watches the
+coding agent work and offers help (skills, nudges, quick yes/no choices).
+
+He keeps his stuff here:
+
+- skills/  — things V knows how to do (one file per skill; markdown or json)
+- memory/  — what V remembers about this project
+- files/   — scratch files V makes for you
+
+You can edit any of these. V reads them on the fly.
+`;
+
+const V_SEED_SKILL = `# skill: watch-agent
+
+When the coding agent is working, keep an eye on what it's doing and speak up when:
+
+- it's about to do something destructive or reach the network
+- a repeated pattern could become a reusable skill
+- there's a faster or cleaner route
+
+Offer a quick yes / no / just-do-it choice instead of a wall of text.
+`;
 
 class VCompanionStartContribution implements IWorkbenchContribution {
 	static readonly ID = 'workbench.contrib.startupVCompanion';

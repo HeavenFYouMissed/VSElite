@@ -31,6 +31,7 @@ export type PanelToHost = RpcRequest | { type: 'ready' }
 export type RpcMethod =
 	| 'callTool'                         // toolsService.callTool(toolName, params)
 	| 'getProjectBriefing'               // convenience: callTool('get_project_briefing', {...})
+	| 'vWorkspaceSummary'                // V's .v/ home: { available, fileCount, skills[], home }
 	| 'sendLLMMessage'                   // V's own Flash brain (streams)
 	| 'abort'
 	| 'addUserMessageAndStreamResponse'  // drive the coding agent (streams)
