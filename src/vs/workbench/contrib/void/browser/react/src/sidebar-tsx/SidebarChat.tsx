@@ -21,6 +21,7 @@ import { ChatMode, displayInfoOfProviderName, FeatureName, isFeatureNameDisabled
 import { ICommandService } from '../../../../../../../platform/commands/common/commands.js';
 import { WarningBox } from '../void-settings-tsx/WarningBox.js';
 import { getModelCapabilities, getIsReasoningEnabledState } from '../../../../common/modelCapabilities.js';
+import { computeTokenBudget } from '../../../../common/tokenBudget.js';
 import { AlertTriangle, File, Ban, Check, ChevronRight, Dot, FileIcon, Pencil, Undo, Undo2, X, Flag, Copy as CopyIcon, Info, CirclePlus, Ellipsis, CircleEllipsis, Folder, ALargeSmall, TypeOutline, Text, Paperclip } from 'lucide-react';
 import { ChatMessage, CheckpointEntry, ImageAttachment, StagingSelectionItem, ToolMessage } from '../../../../common/chatThreadServiceTypes.js';
 import { approvalTypeOfBuiltinToolName, BuiltinToolCallParams, BuiltinToolName, ToolName, LintErrorItem, ToolApprovalType, toolApprovalTypes } from '../../../../common/toolsServiceTypes.js';
@@ -1197,7 +1198,7 @@ const UserMessageComponent = ({ chatMessage, messageIdx, isCheckpointGhost, curr
 			className={`
             text-left rounded-2xl max-w-full
             ${mode === 'edit' ? ''
-					: mode === 'display' ? 'px-3 py-2 flex flex-col bg-void-bg-1 border border-void-border-3/40 text-void-fg-1 overflow-x-auto cursor-pointer transition-colors duration-150 hover:border-void-border-3/70' : ''
+					: mode === 'display' ? 'px-3 py-2 flex flex-col bg-[var(--v3-input-surface,#2a1f47)] border border-void-border-3/40 text-void-fg-1 overflow-x-auto cursor-pointer transition-colors duration-150 hover:border-void-border-3/70' : ''
 				}
         `}
 			onClick={() => { if (mode === 'display') { onOpenEdit() } }}
@@ -3168,6 +3169,38 @@ export const SidebarChat = () => {
 		}
 	}, [onSubmit, onAbort, isRunning])
 
+	// Context-fill indicator (like Cursor's marker): estimate tokens used in this thread
+	// vs the selected model's context window.
+	const _ctxModelSel = settingsState.modelSelectionOfFeature?.['Chat'] ?? null
+	const _ctxCaps = _ctxModelSel ? getModelCapabilities(_ctxModelSel.providerName, _ctxModelSel.modelName, settingsState.overridesOfModel) : null
+	const _ctxWindow = _ctxCaps?.contextWindow ?? 0
+	const _ctxUsedChars = previousMessages.reduce((sum: number, m: any) => {
+		let s = 0
+		if (typeof m?.content === 'string') s += m.content.length
+		if (typeof m?.displayContent === 'string') s += m.displayContent.length
+		if (typeof m?.reasoning === 'string') s += m.reasoning.length
+		return sum + s
+	}, 0)
+	const _ctxBudget = _ctxWindow > 0 ? computeTokenBudget(_ctxUsedChars, _ctxWindow) : null
+	const _ctxPct = _ctxBudget ? Math.min(100, Math.round(_ctxBudget.percentUsed * 100)) : 0
+
+	const contextBar = _ctxBudget ? (
+		<div
+			className='flex items-center gap-2 px-1 pb-2 select-none'
+			data-tooltip-id='void-tooltip'
+			data-tooltip-content={`Context: ${_ctxBudget.formattedUsed} / ${_ctxBudget.formattedMax} tokens (${_ctxPct}%)`}
+			data-tooltip-place='top'
+		>
+			<div className='flex-1 h-1 rounded-full bg-void-bg-1/70 overflow-hidden'>
+				<div
+					className={`h-full rounded-full transition-all duration-300 ${_ctxBudget.isCritical ? 'bg-red-500' : _ctxBudget.isWarning ? 'bg-amber-400' : 'bg-[var(--v3-amethyst,#8b5cf6)]'}`}
+					style={{ width: `${_ctxPct}%` }}
+				/>
+			</div>
+			<span className='text-[10px] text-void-fg-4 tabular-nums'>{_ctxBudget.formattedUsed}/{_ctxBudget.formattedMax}</span>
+		</div>
+	) : null
+
 	const inputChatArea = <VoidChatArea
 		featureName='Chat'
 		onSubmit={() => onSubmit()}
@@ -3181,6 +3214,7 @@ export const SidebarChat = () => {
 		onClickAnywhere={() => { textAreaRef.current?.focus() }}
 		onClickAttach={onClickAttachImage}
 	>
+		{contextBar}
 		{/* hidden native file picker for image attachments (paperclip target) */}
 		<input
 			ref={imageFileInputRef}
