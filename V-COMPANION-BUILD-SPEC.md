@@ -71,6 +71,48 @@ What we *do* borrow from Claude Code: **UX patterns only** — scrolling REPL,
 typewriter streaming, slash menu, compact transcript — realized via `ChatCore`
 (§1). Inspiration, not a fork.
 
+### 0.2 UI hosting — webview "housing" + iframe app, not direct React mount (DECISION)
+
+**Decision: render V's UI as a standalone web app inside a webview/iframe that is
+hosted by a thin *native* ViewPane. NOT a direct React-into-workbench mount
+(what the existing chat does), and NOT a full separate VSCode extension.**
+
+Why (this is the answer to the build-loop pain):
+- **The workbench-React pipeline has no hot reload.** `scope-tailwind → tsup →
+  gulp compile-client → relaunch Electron` is a ~2.5-min round trip per UI
+  change, plus `void-` prefix scoping friction. A webview can point at a **Vite
+  dev server (`localhost:5173`) in dev → instant HMR**; bundled static files in
+  prod. This removes the single biggest dev-experience tax.
+- **CSS isolation for free.** The iframe is its own document, so its styles can't
+  leak into the workbench — **no scope-tailwind / `void-` prefix needed.** Plain
+  Tailwind.
+- **A full extension is rejected** — extensions only get VSCode's *public* API
+  and **cannot** call internal `IContextBridgeService` / `chatThreadService` /
+  `toolsService` directly. That would force MCP-style round-trips and forfeit the
+  in-process moat (contradicts §0.1 and `CONTEXT-BRIDGE-NATIVE.md` §5). The
+  housing must be native to keep deep service access.
+
+How:
+- **Housing:** a native ViewPane (the `vCompanionPane.ts` from §2.3) whose
+  `renderBody()` creates a webview/iframe instead of `mountV`. Native side has
+  full in-process service access.
+- **App:** V's React UI as its own Vite project; loads in the iframe.
+- **Bridge:** a tiny `postMessage` RPC. UI posts `{ id, call, args }`; host runs
+  the real in-process function (`pack_context`, `get_call_graph`, the
+  `vCompanionService` brain, etc.) and posts `{ id, result }` back. Type the
+  protocol once in `common/`.
+
+**Strategic bonus:** that RPC seam **is** the "V anywhere" client/server seam
+(§6). Locally the host is the Electron process; remotely it's `@v3code/backend`.
+Same message protocol, swappable transport — so the iframe app is already a
+portable client. One decision buys better DX *and* the mobile/web path.
+
+Cost: webview calls are async `postMessage`, not direct calls — slightly more
+ceremony. Negligible for V (a light orchestrator, not a hot loop). This means
+§2.1's components live in a **separate Vite app**, and §2.2's tsup entry is
+replaced by that app's own build; §8's gulp gotchas only apply to the thin
+native housing, not the UI.
+
 ---
 
 ## 1. The driving constraint: panel shape
