@@ -11,6 +11,9 @@ import './editCodeService.js'
 import './sidebarActions.js'
 import './sidebarPane.js'
 
+// register V companion — the "[v]" bottom-panel tab (thin webview host -> void-panel/ Vite app)
+import './vCompanionPane.js'
+
 // Agent panel + VIBE mode disabled — see Sidebar.tsx for chat-only layout
 // import './voidChatEditorInput.js'
 // import './agentPanelService.js'

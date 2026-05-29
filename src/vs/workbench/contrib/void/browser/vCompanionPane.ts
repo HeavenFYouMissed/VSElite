@@ -1,0 +1,287 @@
+/*--------------------------------------------------------------------------------------
+ *  Copyright 2025 Glass Devtools, Inc. All rights reserved.
+ *  Licensed under the Apache License, Version 2.0. See LICENSE.txt for more information.
+ *--------------------------------------------------------------------------------------*/
+
+/**
+ * V companion — THIN webview host (the "[v]" bottom-panel tab).
+ *
+ * This file is intentionally tiny. ALL of V's UI lives in the standalone Vite + React app
+ * at `vselite/void-panel/` (never src/vs, never gulp). Here we only:
+ *   1. register a Panel view container + view (the `[v]` tab next to Ports),
+ *   2. create a VS Code overlay webview and inject a relay HTML that embeds an iframe to
+ *      the Vite app (localhost:5173 in dev for HMR; asWebviewUri(dist) in prod),
+ *   3. bridge postMessage <-> the in-process services (Phase 1: project briefing).
+ *
+ * See V-SOURCE-OF-TRUTH.md §3. The RPC contract is the stable seam across the VS Code merge.
+ */
+
+import { Registry } from '../../../../platform/registry/common/platform.js';
+import {
+	Extensions as ViewContainerExtensions, IViewContainersRegistry,
+	ViewContainerLocation, IViewsRegistry, Extensions as ViewExtensions,
+	IViewDescriptorService,
+} from '../../../common/views.js';
+import * as nls from '../../../../nls.js';
+import { ViewPaneContainer } from '../../../browser/parts/views/viewPaneContainer.js';
+import { SyncDescriptor } from '../../../../platform/instantiation/common/descriptors.js';
+import { IViewPaneOptions, ViewPane } from '../../../browser/parts/views/viewPane.js';
+import { IContextKeyService } from '../../../../platform/contextkey/common/contextkey.js';
+import { IInstantiationService } from '../../../../platform/instantiation/common/instantiation.js';
+import { IConfigurationService } from '../../../../platform/configuration/common/configuration.js';
+import { IThemeService } from '../../../../platform/theme/common/themeService.js';
+import { IContextMenuService } from '../../../../platform/contextview/browser/contextView.js';
+import { IKeybindingService } from '../../../../platform/keybinding/common/keybinding.js';
+import { IOpenerService } from '../../../../platform/opener/common/opener.js';
+import { ITelemetryService } from '../../../../platform/telemetry/common/telemetry.js';
+import { IHoverService } from '../../../../platform/hover/browser/hover.js';
+import { Codicon } from '../../../../base/common/codicons.js';
+import { Orientation } from '../../../../base/browser/ui/sash/sash.js';
+import { DisposableStore, MutableDisposable, toDisposable } from '../../../../base/common/lifecycle.js';
+import { Action2, registerAction2 } from '../../../../platform/actions/common/actions.js';
+import { ServicesAccessor } from '../../../../editor/browser/editorExtensions.js';
+import { IViewsService } from '../../../services/views/common/viewsService.js';
+import { IWorkbenchContribution, registerWorkbenchContribution2, WorkbenchPhase } from '../../../common/contributions.js';
+import { Dimension, getWindow } from '../../../../base/browser/dom.js';
+import { URI } from '../../../../base/common/uri.js';
+import { IEnvironmentService, INativeEnvironmentService } from '../../../../platform/environment/common/environment.js';
+import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
+import { IWebviewService, IOverlayWebview, WebviewContentPurpose } from '../../webview/browser/webview.js';
+import { asWebviewUri, webviewGenericCspSource } from '../../webview/common/webview.js';
+import { IToolsService } from './toolsService.js';
+
+export const V_VIEW_CONTAINER_ID = 'workbench.view.vCompanion';
+export const V_VIEW_ID = 'workbench.view.vCompanion.view';
+
+const DEV_URL = 'http://localhost:5173';
+
+// ---------- The thin webview-hosting pane ----------
+
+class VCompanionViewPane extends ViewPane {
+
+	private readonly _webview = this._register(new MutableDisposable<IOverlayWebview>());
+	private readonly _webviewDisposables = this._register(new DisposableStore());
+	private _container?: HTMLElement;
+	private _activated = false;
+
+	constructor(
+		options: IViewPaneOptions,
+		@IInstantiationService instantiationService: IInstantiationService,
+		@IViewDescriptorService viewDescriptorService: IViewDescriptorService,
+		@IConfigurationService configurationService: IConfigurationService,
+		@IContextKeyService contextKeyService: IContextKeyService,
+		@IThemeService themeService: IThemeService,
+		@IContextMenuService contextMenuService: IContextMenuService,
+		@IKeybindingService keybindingService: IKeybindingService,
+		@IOpenerService openerService: IOpenerService,
+		@ITelemetryService telemetryService: ITelemetryService,
+		@IHoverService hoverService: IHoverService,
+		@IWebviewService private readonly webviewService: IWebviewService,
+		@IEnvironmentService private readonly environmentService: IEnvironmentService,
+		@IToolsService private readonly toolsService: IToolsService,
+		@IWorkspaceContextService private readonly workspaceContextService: IWorkspaceContextService,
+	) {
+		super(options, keybindingService, contextMenuService, configurationService, contextKeyService, viewDescriptorService, instantiationService, openerService, themeService, hoverService);
+
+		this._register(this.onDidChangeBodyVisibility(() => {
+			if (this.isBodyVisible()) {
+				this._activate();
+				this._webview.value?.claim(this, getWindow(this.element), undefined);
+				this._layoutWebview();
+			} else {
+				this._webview.value?.release(this);
+			}
+		}));
+	}
+
+	protected override renderBody(container: HTMLElement): void {
+		super.renderBody(container);
+		this._container = container;
+		container.style.background = '#160a2b';
+		if (this.isBodyVisible()) {
+			this._activate();
+			this._webview.value?.claim(this, getWindow(this.element), undefined);
+			this._layoutWebview();
+		}
+	}
+
+	protected override layoutBody(height: number, width: number): void {
+		super.layoutBody(height, width);
+		this._layoutWebview(new Dimension(width, height));
+	}
+
+	override focus(): void {
+		super.focus();
+		this._webview.value?.focus();
+	}
+
+	private _activate(): void {
+		if (this._activated) { return; }
+		this._activated = true;
+
+		const webview = this.webviewService.createWebviewOverlay({
+			providedViewType: V_VIEW_ID,
+			title: 'V',
+			options: { purpose: WebviewContentPurpose.WebviewView, retainContextWhenHidden: true },
+			contentOptions: {
+				allowScripts: true,
+				localResourceRoots: this._localResourceRoots(),
+			},
+			extension: undefined,
+		});
+		this._webview.value = webview;
+
+		this._webviewDisposables.add(toDisposable(() => this._webview.value?.release(this)));
+		this._webviewDisposables.add(webview.onMessage(e => this._handleMessage(e.message)));
+
+		webview.setHtml(this._buildHtml());
+	}
+
+	private _isDev(): boolean { return !this.environmentService.isBuilt; }
+
+	private _distRoot(): URI {
+		// appRoot is native-only; the V3Code renderer always runs in Electron so this is safe.
+		const appRoot = (this.environmentService as INativeEnvironmentService).appRoot;
+		return URI.joinPath(URI.file(appRoot), 'void-panel', 'dist');
+	}
+
+	private _localResourceRoots(): URI[] {
+		return this._isDev() ? [] : [this._distRoot()];
+	}
+
+	private _frameSrc(): string {
+		if (this._isDev()) { return DEV_URL; }
+		return asWebviewUri(URI.joinPath(this._distRoot(), 'index.html')).toString();
+	}
+
+	private _buildHtml(): string {
+		const frameSrc = this._frameSrc();
+		const frameCsp = this._isDev() ? `${DEV_URL} ws://localhost:5173` : webviewGenericCspSource;
+		// Relay: forward panel-app messages -> host, and host messages -> panel-app iframe.
+		return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta http-equiv="Content-Security-Policy"
+	content="default-src 'none'; frame-src ${frameCsp}; script-src 'unsafe-inline'; style-src 'unsafe-inline';" />
+<style>
+	html, body { margin: 0; padding: 0; height: 100%; background: #160a2b; overflow: hidden; }
+	#vframe { width: 100%; height: 100%; border: 0; display: block; }
+</style>
+</head>
+<body>
+<iframe id="vframe" src="${frameSrc}" allow="clipboard-read; clipboard-write"></iframe>
+<script>
+	const vscode = acquireVsCodeApi();
+	const frame = document.getElementById('vframe');
+	window.addEventListener('message', function (e) {
+		if (frame.contentWindow && e.source === frame.contentWindow) {
+			// from the V panel app -> forward to the workbench host
+			vscode.postMessage(e.data);
+		} else {
+			// from the workbench host -> forward into the V panel app
+			if (frame.contentWindow) { frame.contentWindow.postMessage(e.data, '*'); }
+		}
+	});
+</script>
+</body>
+</html>`;
+	}
+
+	private _post(message: unknown): void {
+		this._webview.value?.postMessage(message);
+	}
+
+	private async _handleMessage(msg: any): Promise<void> {
+		if (!msg || typeof msg !== 'object') { return; }
+
+		if (msg.type === 'ready') {
+			const folders = this.workspaceContextService.getWorkspace().folders;
+			this._post({ type: 'init', workspaceName: folders[0]?.name });
+			return;
+		}
+
+		if (msg.type === 'rpc-request') {
+			try {
+				const result = await this._dispatch(msg.method, msg.params);
+				this._post({ type: 'rpc-response', id: msg.id, ok: true, result });
+			} catch (err: any) {
+				this._post({ type: 'rpc-response', id: msg.id, ok: false, error: String(err?.message ?? err) });
+			}
+		}
+	}
+
+	private async _dispatch(method: string, params: any): Promise<unknown> {
+		switch (method) {
+			case 'getProjectBriefing': {
+				const folders = this.workspaceContextService.getWorkspace().folders;
+				const r = await this.toolsService.callTool['get_project_briefing'](params ?? {});
+				return {
+					workspaceRoot: folders[0]?.uri.fsPath ?? null,
+					raw: (r as any)?.result,
+				};
+			}
+			case 'callTool': {
+				const toolName = params?.toolName as string;
+				const fn = (this.toolsService.callTool as any)[toolName];
+				if (typeof fn !== 'function') { throw new Error('unknown tool: ' + toolName); }
+				return await fn(params?.params ?? {});
+			}
+			default:
+				throw new Error('unknown method: ' + method);
+		}
+	}
+
+	private _layoutWebview(dimension?: Dimension): void {
+		if (this._container && this._webview.value) {
+			this._webview.value.layoutWebviewOverElement(this._container, dimension);
+		}
+	}
+}
+
+// ---------- Register the Panel container + view (the "[v]" tab) ----------
+
+const viewContainerRegistry = Registry.as<IViewContainersRegistry>(ViewContainerExtensions.ViewContainersRegistry);
+const vContainer = viewContainerRegistry.registerViewContainer({
+	id: V_VIEW_CONTAINER_ID,
+	title: nls.localize2('vCompanionContainer', 'V'),
+	ctorDescriptor: new SyncDescriptor(ViewPaneContainer, [V_VIEW_CONTAINER_ID, {
+		mergeViewWithContainerWhenSingleView: true,
+		orientation: Orientation.HORIZONTAL,
+	}]),
+	hideIfEmpty: false,
+	order: 100, // sit at the end of the panel tabs, after Ports
+	icon: Codicon.symbolMisc,
+}, ViewContainerLocation.Panel, { doNotRegisterOpenCommand: false });
+
+const viewsRegistry = Registry.as<IViewsRegistry>(ViewExtensions.ViewsRegistry);
+viewsRegistry.registerViews([{
+	id: V_VIEW_ID,
+	name: nls.localize2('vCompanionView', 'V'),
+	ctorDescriptor: new SyncDescriptor(VCompanionViewPane),
+	canToggleVisibility: false,
+	canMoveView: true,
+	weight: 100,
+	order: 1,
+}], vContainer);
+
+// ---------- Open command + show-first-on-startup ----------
+
+export const V_OPEN_PANEL_ACTION_ID = 'v.openCompanionPanel';
+registerAction2(class extends Action2 {
+	constructor() {
+		super({ id: V_OPEN_PANEL_ACTION_ID, title: nls.localize2('vOpenPanel', 'Open V Companion') });
+	}
+	run(accessor: ServicesAccessor): void {
+		accessor.get(IViewsService).openView(V_VIEW_ID, true);
+	}
+});
+
+class VCompanionStartContribution implements IWorkbenchContribution {
+	static readonly ID = 'workbench.contrib.startupVCompanion';
+	constructor(@IViewsService viewsService: IViewsService) {
+		// Show V first when the editor opens.
+		viewsService.openView(V_VIEW_ID, true);
+	}
+}
+registerWorkbenchContribution2(VCompanionStartContribution.ID, VCompanionStartContribution, WorkbenchPhase.AfterRestored);
