@@ -44,18 +44,30 @@ V will register in **Panel** (default) and **Sidebar** (his "big" home).
 
 ## 1. The driving constraint: panel shape
 
-The bottom panel is **wide and short** (~200–300px tall). The aux-bar chat is
-**tall and narrow**. These opposite shapes dictate V's two modes:
+The bottom panel is **wide and short** (~200–300px tall) — basically a terminal
+shape. The aux-bar chat is **tall and narrow**. This dictates V's two modes:
 
-- **Bottom panel → "bar mode":** glanceable. Sprite + one message + quick
-  action buttons + live status. Greets on open. Pulses for alerts. This is
-  V's default, always-present face.
-- **Left explorer takeover → "full mode":** tall surface for real conversation,
-  the agent inbox, plans, dashboard, memory browser. This is where V "gets
-  bigger."
+- **Bottom panel → "chat mode" (default):** a compact, Claude-Code-style chat
+  REPL. A **scrollable transcript** grows upward; an **input box is pinned at
+  the bottom** where you type to V. Input auto-grows; Enter sends, Shift+Enter
+  newlines. Transcript auto-sticks to the latest message unless the user has
+  scrolled up (then show a "jump to latest" affordance). V's reply streams in
+  (typewriter). Proactive nudges land **inline in the same transcript**, not a
+  separate bar — one continuous conversation. The sprite shrinks to a small
+  avatar (top-left or in the status line) so the chat gets full width, and it
+  animates on state changes. Greets on open.
+- **Left explorer takeover → "full mode":** the *same* chat with more vertical
+  room, plus tabs for the agent inbox, plans, dashboard, and memory browser.
+  This is where V "gets bigger."
 
 V's React app is **location-aware**: it detects which container it's mounted in
-and renders `bar` vs `full` automatically. A relocation toggle moves him.
+and renders `chat` vs `full` automatically. A relocation toggle moves him.
+
+> **Reuse, don't rebuild:** `react/src/ChatCore/` already provides
+> `ChatContainer` / `InputBox` / `MessageThread`, and `SidebarChat.tsx` is
+> exactly a scrollable-transcript + pinned-input chat. V's panel composes these
+> primitives with V's own brain/service wiring instead of a bespoke message
+> area.
 
 ---
 
@@ -66,15 +78,20 @@ and renders `bar` vs `full` automatically. A relocation toggle moves him.
 ```
 v-panel-tsx/
   index.tsx          // export mountV = mountFnGenerator(VApp)  (see util/mountFnGenerator.tsx)
-  VApp.tsx           // root; reads location prop → 'bar' | 'full'; mode switch
-  VSprite.tsx        // <img image-rendering:pixelated> + state class + glow filter
-  VMessageArea.tsx   // typewriter stream; reuse existing markdown renderer in react/src/markdown/
-  VChoices.tsx       // radio (single) / checkbox (multi) / quick-action buttons
-  VStatusBar.tsx     // ctx:LIVE · files · symbols · ♥notes  (live from contextBridgeService)
+  VApp.tsx           // root; reads location prop → 'chat' | 'full'; mode switch
+  VChat.tsx          // composes ChatCore (ChatContainer/MessageThread/InputBox);
+                     //   scrollable transcript + pinned auto-grow input, Enter/Shift+Enter,
+                     //   auto-stick-to-bottom + "jump to latest"
+  VSprite.tsx        // <img image-rendering:pixelated> + state class + glow filter (small avatar)
+  VChoices.tsx       // inline radio (single) / checkbox (multi) / quick-action buttons in transcript
+  VStatusBar.tsx     // thin line: ctx:LIVE · files · symbols · ♥notes  (live from contextBridgeService)
   VInbox.tsx         // full-mode only: V↔agent conversation log
   VPlan.tsx          // full-mode only: phased plan + progress bars
   VDashboard.tsx     // full-mode only: health/stats view
 ```
+
+Message rendering + typewriter stream + markdown reuse `react/src/markdown/`
+and the `ChatCore/` message components — don't author a new message area.
 
 - **Styling:** Tailwind with the `void-` prefix (enforced by scope-tailwind).
   Reuse design tokens already in the tree: `v3-amethyst` (intelligence) and
@@ -261,11 +278,13 @@ Persistence note: chat threads & settings already use
 
 ## 5. Recommended build phases
 
-**Phase 1 — Presence (the "V waves at me" moment)**
-1. `v-panel-tsx` entry + tsup line + `vCompanionPane.ts` → empty V tab by Terminal.
-2. `VSprite` (idle/waving/thinking) + `VStatusBar` wired to real Context Bridge counts.
-3. `vCompanionService.greet()` + one DeepSeek-Flash round-trip via
-   `sendLLMMessageService` → you can type to V and get `{message,actions,state}`.
+**Phase 1 — Presence + chat (the "V waves at me, and I can talk back" moment)**
+1. `v-panel-tsx` entry + tsup line + `vCompanionPane.ts` → V tab by Terminal.
+2. `VChat` composing `ChatCore` (scroll transcript + pinned input) + `VSprite`
+   (idle/waving/thinking) avatar + `VStatusBar` wired to real Context Bridge counts.
+3. `vCompanionService.greet()` + a DeepSeek-Flash round-trip via
+   `sendLLMMessageService` → you type to V in the panel and get a streaming
+   `{message,actions,state}` reply that scrolls in the transcript.
 
 **Phase 2 — Big home + memory**
 4. Left-explorer takeover (`v.expand` / `v.collapse`, Approach A).
