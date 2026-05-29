@@ -21,7 +21,7 @@ import { ChatMode, displayInfoOfProviderName, FeatureName, isFeatureNameDisabled
 import { ICommandService } from '../../../../../../../platform/commands/common/commands.js';
 import { WarningBox } from '../void-settings-tsx/WarningBox.js';
 import { getModelCapabilities, getIsReasoningEnabledState } from '../../../../common/modelCapabilities.js';
-import { AlertTriangle, File, Ban, Check, ChevronRight, Dot, FileIcon, Pencil, Undo, Undo2, X, Flag, Copy as CopyIcon, Info, CirclePlus, Ellipsis, CircleEllipsis, Folder, ALargeSmall, TypeOutline, Text } from 'lucide-react';
+import { AlertTriangle, File, Ban, Check, ChevronRight, Dot, FileIcon, Pencil, Undo, Undo2, X, Flag, Copy as CopyIcon, Info, CirclePlus, Ellipsis, CircleEllipsis, Folder, ALargeSmall, TypeOutline, Text, Paperclip } from 'lucide-react';
 import { ChatMessage, CheckpointEntry, ImageAttachment, StagingSelectionItem, ToolMessage } from '../../../../common/chatThreadServiceTypes.js';
 import { approvalTypeOfBuiltinToolName, BuiltinToolCallParams, BuiltinToolName, ToolName, LintErrorItem, ToolApprovalType, toolApprovalTypes } from '../../../../common/toolsServiceTypes.js';
 import { CopyButton, EditToolAcceptRejectButtonsHTML, IconShell1, JumpToFileButton, JumpToTerminalButton, StatusIndicator, StatusIndicatorForApplyButton, useApplyStreamState, useEditToolStreamState } from '../markdown/ApplyBlockHoverButtons.js';
@@ -303,6 +303,8 @@ interface VoidChatAreaProps {
 	onClickAnywhere?: () => void;
 	// Optional close button
 	onClose?: () => void;
+	// Optional paperclip -> attach images via native file picker
+	onClickAttach?: () => void;
 
 	featureName: FeatureName;
 }
@@ -324,6 +326,7 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
 	setSelections,
 	featureName,
 	loadingIcon,
+	onClickAttach,
 }) => {
 	return (
 		<div
@@ -332,7 +335,7 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
 				gap-x-1
                 flex flex-col px-3 py-2.5 relative text-left shrink-0
                 rounded-2xl
-                bg-void-bg-2
+                bg-[var(--v3-input-surface,#2a1f47)]
 				border border-void-border-3
 				shadow-[0_1px_3px_rgba(0,0,0,0.18)]
 				${className}
@@ -382,6 +385,19 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
 				)}
 
 				<div className="flex items-center gap-2">
+
+					{onClickAttach && (
+						<button
+							type='button'
+							onClick={onClickAttach}
+							className='flex items-center justify-center w-7 h-7 rounded-full text-void-fg-3 hover:text-void-fg-1 hover:bg-void-bg-1/60 transition-colors duration-150 cursor-pointer'
+							data-tooltip-id='void-tooltip'
+							data-tooltip-content='Attach image'
+							data-tooltip-place='top'
+						>
+							<Paperclip size={15} className='stroke-[2]' />
+						</button>
+					)}
 
 					{isStreaming && loadingIcon}
 
@@ -2955,39 +2971,42 @@ export const SidebarChat = () => {
 	const sidebarRef = useRef<HTMLDivElement>(null)
 	const scrollContainerRef = useRef<HTMLDivElement | null>(null)
 
-	// pending images attached to the next message (paste / drag-drop)
+	// pending images attached to the next message (paste / file-picker / drag-drop)
 	const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([])
+	const imageFileInputRef = useRef<HTMLInputElement | null>(null)
 
-	// Attach images from clipboard paste or drag-and-drop onto the chat textarea.
-	// VoidInputBox2 doesn't expose onPaste, so we listen on the underlying textarea.
-	useEffect(() => {
-		const el = textAreaRef.current
-		if (!el) return
+	const SUPPORTED_IMG: Record<string, ImageAttachment['mimeType']> = useMemo(() => ({
+		'image/png': 'image/png', 'image/jpeg': 'image/jpeg', 'image/jpg': 'image/jpeg' as ImageAttachment['mimeType'],
+		'image/gif': 'image/gif', 'image/webp': 'image/webp',
+	}), [])
 
-		const SUPPORTED: Record<string, ImageAttachment['mimeType']> = {
-			'image/png': 'image/png', 'image/jpeg': 'image/jpeg',
-			'image/gif': 'image/gif', 'image/webp': 'image/webp',
-		}
-
-		const fileToAttachment = (file: File): Promise<ImageAttachment | null> => new Promise((resolve) => {
-			const mimeType = SUPPORTED[file.type]
+	const addImageFiles = useCallback(async (files: File[]) => {
+		const toAttachment = (file: File): Promise<ImageAttachment | null> => new Promise((resolve) => {
+			const mimeType = SUPPORTED_IMG[file.type]
 			if (!mimeType) { resolve(null); return }
 			const reader = new FileReader()
 			reader.onload = () => {
 				const result = reader.result as string
 				const base64 = result.includes(',') ? result.split(',')[1] : result
-				resolve({ data: base64, mimeType, name: file.name || 'pasted-image' })
+				resolve({ data: base64, mimeType, name: file.name || 'image' })
 			}
 			reader.onerror = () => resolve(null)
 			reader.readAsDataURL(file)
 		})
+		const attachments = (await Promise.all(files.map(toAttachment))).filter((a): a is ImageAttachment => !!a)
+		if (attachments.length > 0) setPendingImages(prev => [...prev, ...attachments])
+	}, [SUPPORTED_IMG])
 
-		const addFiles = async (files: File[]) => {
-			const attachments = (await Promise.all(files.map(fileToAttachment))).filter((a): a is ImageAttachment => !!a)
-			if (attachments.length > 0) setPendingImages(prev => [...prev, ...attachments])
-		}
+	// Paperclip -> open native file picker for images (the reliable path in Electron).
+	const onClickAttachImage = useCallback(() => { imageFileInputRef.current?.click() }, [])
 
+	// Clipboard paste: listen at the document level in the CAPTURE phase so we catch the
+	// image before VS Code's own paste handling, and only when our chat textarea is focused.
+	// (Attaching directly to the textarea failed because the ref is null on first mount.)
+	useEffect(() => {
 		const onPaste = (e: ClipboardEvent) => {
+			const el = textAreaRef.current
+			if (!el || document.activeElement !== el) return
 			const items = e.clipboardData?.items
 			if (!items) return
 			const files: File[] = []
@@ -2997,25 +3016,11 @@ export const SidebarChat = () => {
 					if (f) files.push(f)
 				}
 			}
-			if (files.length > 0) { e.preventDefault(); void addFiles(files) }
+			if (files.length > 0) { e.preventDefault(); e.stopPropagation(); void addImageFiles(files) }
 		}
-		const onDrop = (e: DragEvent) => {
-			const files = Array.from(e.dataTransfer?.files ?? []).filter(f => f.type.startsWith('image/'))
-			if (files.length > 0) { e.preventDefault(); void addFiles(files) }
-		}
-		const onDragOver = (e: DragEvent) => {
-			if (Array.from(e.dataTransfer?.items ?? []).some(i => i.kind === 'file')) e.preventDefault()
-		}
-
-		el.addEventListener('paste', onPaste)
-		el.addEventListener('drop', onDrop)
-		el.addEventListener('dragover', onDragOver)
-		return () => {
-			el.removeEventListener('paste', onPaste)
-			el.removeEventListener('drop', onDrop)
-			el.removeEventListener('dragover', onDragOver)
-		}
-	}, [textAreaRef, setPendingImages])
+		document.addEventListener('paste', onPaste, true)
+		return () => document.removeEventListener('paste', onPaste, true)
+	}, [textAreaRef, addImageFiles])
 
 	const onSubmit = useCallback(async (_forceSubmit?: string) => {
 
@@ -3174,7 +3179,21 @@ export const SidebarChat = () => {
 		selections={selections}
 		setSelections={setSelections}
 		onClickAnywhere={() => { textAreaRef.current?.focus() }}
+		onClickAttach={onClickAttachImage}
 	>
+		{/* hidden native file picker for image attachments (paperclip target) */}
+		<input
+			ref={imageFileInputRef}
+			type='file'
+			accept='image/png,image/jpeg,image/jpg,image/gif,image/webp'
+			multiple
+			style={{ display: 'none' }}
+			onChange={(e) => {
+				const files = Array.from(e.target.files ?? [])
+				if (files.length > 0) void addImageFiles(files)
+				e.target.value = '' // allow re-selecting the same file
+			}}
+		/>
 		{pendingImages.length > 0 && (
 			<div className='flex flex-wrap gap-2 px-1 pb-2'>
 				{pendingImages.map((img, i) => (
@@ -3182,7 +3201,7 @@ export const SidebarChat = () => {
 						<img
 							src={`data:${img.mimeType};base64,${img.data}`}
 							alt={img.name ?? 'attached image'}
-							className='w-full h-full object-cover rounded border border-void-border-3'
+							className='w-full h-full object-cover rounded-lg border border-void-border-3'
 						/>
 						<button
 							onClick={() => setPendingImages(prev => prev.filter((_, j) => j !== i))}
@@ -3198,7 +3217,7 @@ export const SidebarChat = () => {
 		<VoidInputBox2
 			enableAtToMention
 			className={`min-h-[60px] px-0.5 py-0.5`}
-			placeholder={`Message V3Code — paste or drop an image to attach`}
+			placeholder={`Message V3Code — paste or attach an image`}
 			onChangeText={onChangeText}
 			onKeyDown={onKeyDown}
 			onFocus={() => { chatThreadsService.setCurrentlyFocusedMessageIdx(undefined) }}

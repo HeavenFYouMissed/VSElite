@@ -91,6 +91,11 @@
 
 	--void-ring-color: var(--v3-amethyst);
 	--void-link-color: var(--v3-amethyst-glow);
+
+	/* Composer + accepted-user-message surface: a lighter muted purple that lifts the
+	   input/user bubbles off the near-black chat background for depth (Cursor's "mocha"
+	   effect). Tune this single value to taste. */
+	--v3-input-surface: #2a1f47;
 }
 
 .select-child-restyle select {
