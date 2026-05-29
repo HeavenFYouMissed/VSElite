@@ -823,6 +823,13 @@ const ToolHeaderWrapper = ({
 	const [isOpen_, setIsOpen] = useState(defaultOpen ?? false);
 	const isExpanded = isOpen !== undefined ? isOpen : isOpen_
 
+	// Keep expanded when defaultOpen is set (e.g. tool transitions running_now → success on same index).
+	useEffect(() => {
+		if (defaultOpen && isOpen === undefined) {
+			setIsOpen(true);
+		}
+	}, [defaultOpen, isOpen]);
+
 	const isDropdown = children !== undefined // null ALLOWS dropdown
 	const isClickable = !!(isDropdown || onClick)
 
@@ -925,6 +932,16 @@ const ToolHeaderWrapper = ({
 
 
 
+/** Content for VoidDiffEditor — prefer validated params, fall back to raw LLM tool args while streaming. */
+const getEditToolContent = (toolMessage: Pick<ToolMessage<'edit_file' | 'rewrite_file'>, 'name' | 'params' | 'rawParams'>, content: string) => {
+	if (content) return content
+	const raw = toolMessage.rawParams ?? {}
+	if (toolMessage.name === 'edit_file') {
+		return String((toolMessage.params as BuiltinToolCallParams['edit_file'] | undefined)?.searchReplaceBlocks ?? raw.search_replace_blocks ?? '')
+	}
+	return String((toolMessage.params as BuiltinToolCallParams['rewrite_file'] | undefined)?.newContent ?? raw.new_content ?? '')
+}
+
 const EditTool = ({ toolMessage, threadId, messageIdx, content }: Parameters<ResultWrapper<'edit_file' | 'rewrite_file'>>[0] & { content: string }) => {
 	const accessor = useAccessor()
 	const isError = false
@@ -936,17 +953,18 @@ const EditTool = ({ toolMessage, threadId, messageIdx, content }: Parameters<Res
 	const icon = null
 
 	const { rawParams, params, name } = toolMessage
+	const code = getEditToolContent(toolMessage, content)
 	const desc1OnClick = () => voidOpenFileFn(params.uri, accessor)
 	// Show the diff expanded inline in the chat by default (Cursor-style), still collapsible.
 	const componentParams: ToolHeaderParams = { title, desc1, desc1OnClick, desc1Info, isError, icon, isRejected, defaultOpen: true, }
 
 
-	const editToolType = toolMessage.name === 'edit_file' ? 'diff' : 'rewrite'
+	const editToolType = toolMessage.name === 'edit_file' && code ? 'diff' : 'rewrite'
 	if (toolMessage.type === 'running_now' || toolMessage.type === 'tool_request') {
 		componentParams.children = <ToolChildrenWrapper className='bg-void-bg-3'>
 			<EditToolChildren
 				uri={params.uri}
-				code={content}
+				code={code}
 				type={editToolType}
 			/>
 		</ToolChildrenWrapper>
@@ -962,16 +980,17 @@ const EditTool = ({ toolMessage, threadId, messageIdx, content }: Parameters<Res
 		componentParams.desc2 = <EditToolHeaderButtons
 			applyBoxId={applyBoxId}
 			uri={params.uri}
-			codeStr={content}
+			codeStr={code}
 			toolName={name}
 			threadId={threadId}
+			messageIdx={messageIdx}
 		/>
 
 		// add children
 		componentParams.children = <ToolChildrenWrapper className='bg-void-bg-3'>
 			<EditToolChildren
 				uri={params.uri}
-				code={content}
+				code={code}
 				type={editToolType}
 			/>
 		</ToolChildrenWrapper>
@@ -1787,13 +1806,13 @@ const BottomChildren = ({ children, title }: { children: React.ReactNode, title:
 }
 
 
-const EditToolHeaderButtons = ({ applyBoxId, uri, codeStr, toolName, threadId }: { threadId: string, applyBoxId: string, uri: URI, codeStr: string, toolName: 'edit_file' | 'rewrite_file' }) => {
+const EditToolHeaderButtons = ({ applyBoxId, uri, codeStr, toolName, threadId, messageIdx }: { threadId: string, applyBoxId: string, uri: URI, codeStr: string, toolName: 'edit_file' | 'rewrite_file', messageIdx: number }) => {
 	const { streamState } = useEditToolStreamState({ applyBoxId, uri })
 	return <div className='flex items-center gap-1'>
 		{/* <StatusIndicatorForApplyButton applyBoxId={applyBoxId} uri={uri} /> */}
 		{/* <JumpToFileButton uri={uri} /> */}
 		{streamState === 'idle-no-changes' && <CopyButton codeStr={codeStr} toolTipName='Copy' />}
-		<EditToolAcceptRejectButtonsHTML type={toolName} codeStr={codeStr} applyBoxId={applyBoxId} uri={uri} threadId={threadId} />
+		<EditToolAcceptRejectButtonsHTML type={toolName} codeStr={codeStr} applyBoxId={applyBoxId} uri={uri} threadId={threadId} messageIdx={messageIdx} />
 	</div>
 }
 
@@ -2419,12 +2438,12 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]?: { resultWrapper: Re
 	},
 	'rewrite_file': {
 		resultWrapper: (params) => {
-			return <EditTool {...params} content={params.toolMessage.params.newContent} />
+			return <EditTool {...params} content={getEditToolContent(params.toolMessage, params.toolMessage.params?.newContent ?? '')} />
 		}
 	},
 	'edit_file': {
 		resultWrapper: (params) => {
-			return <EditTool {...params} content={params.toolMessage.params.searchReplaceBlocks} />
+			return <EditTool {...params} content={getEditToolContent(params.toolMessage, params.toolMessage.params?.searchReplaceBlocks ?? '')} />
 		}
 	},
 
@@ -2914,6 +2933,7 @@ const CommandBarInChat = () => {
 const EditToolSoFar = ({ toolCallSoFar, }: { toolCallSoFar: RawToolCallObj }) => {
 
 	if (!isABuiltinToolName(toolCallSoFar.name)) return null
+	if (toolCallSoFar.name !== 'edit_file' && toolCallSoFar.name !== 'rewrite_file') return null
 
 	const accessor = useAccessor()
 
@@ -2931,18 +2951,22 @@ const EditToolSoFar = ({ toolCallSoFar, }: { toolCallSoFar: RawToolCallObj }) =>
 
 	const desc1OnClick = () => { uri && voidOpenFileFn(uri, accessor) }
 
-	// If URI has not been specified
+	const code = String(toolCallSoFar.rawParams.search_replace_blocks ?? toolCallSoFar.rawParams.new_content ?? '')
+	const editToolType = toolCallSoFar.name === 'edit_file' && code ? 'diff' : 'rewrite'
+
 	return <ToolHeaderWrapper
 		title={title}
 		desc1={desc1}
 		desc1OnClick={desc1OnClick}
+		defaultOpen={true}
 	>
-		<EditToolChildren
-			uri={uri}
-			code={toolCallSoFar.rawParams.search_replace_blocks ?? toolCallSoFar.rawParams.new_content ?? ''}
-			type={'rewrite'} // as it streams, show in rewrite format, don't make a diff editor
-		/>
-		<IconLoading />
+		<ToolChildrenWrapper className='bg-void-bg-3'>
+			<EditToolChildren
+				uri={uri}
+				code={code}
+				type={editToolType}
+			/>
+		</ToolChildrenWrapper>
 	</ToolHeaderWrapper>
 
 }
@@ -3131,8 +3155,13 @@ export const SidebarChat = () => {
 		/> : null
 
 
-	// the tool currently being generated
-	const generatingTool = toolIsGenerating ?
+	// Streaming edit UI — skip if the thread already has a running tool row (avoid duplicate collapsed card).
+	const lastMsg = previousMessages[previousMessages.length - 1]
+	const lastIsRunningEditTool = lastMsg?.role === 'tool'
+		&& (lastMsg.name === 'edit_file' || lastMsg.name === 'rewrite_file')
+		&& (lastMsg.type === 'running_now' || lastMsg.type === 'tool_request')
+
+	const generatingTool = toolIsGenerating && !lastIsRunningEditTool ?
 		toolCallSoFar.name === 'edit_file' || toolCallSoFar.name === 'rewrite_file' ? <EditToolSoFar
 			key={'curr-streaming-tool'}
 			toolCallSoFar={toolCallSoFar}

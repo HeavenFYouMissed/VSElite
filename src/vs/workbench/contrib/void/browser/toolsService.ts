@@ -567,7 +567,7 @@ export class ToolsService implements IToolsService {
 					throw new Error(`Another LLM is currently making changes to this file. Please stop streaming for now and ask the user to resume later.`)
 				}
 				await editCodeService.callBeforeApplyOrEdit(uri)
-				editCodeService.instantlyRewriteFile({ uri, newContent })
+				editCodeService.instantlyRewriteFile({ uri, newContent, clearEditorDiffUI: true })
 				// at end, get lint errors
 				const lintErrorsPromise = Promise.resolve().then(async () => {
 					await timeout(2000)
@@ -583,7 +583,7 @@ export class ToolsService implements IToolsService {
 					throw new Error(`Another LLM is currently making changes to this file. Please stop streaming for now and ask the user to resume later.`)
 				}
 				await editCodeService.callBeforeApplyOrEdit(uri)
-				editCodeService.instantlyApplySearchReplaceBlocks({ uri, searchReplaceBlocks })
+				editCodeService.instantlyApplySearchReplaceBlocks({ uri, searchReplaceBlocks, clearEditorDiffUI: true })
 
 				// at end, get lint errors
 				const lintErrorsPromise = Promise.resolve().then(async () => {

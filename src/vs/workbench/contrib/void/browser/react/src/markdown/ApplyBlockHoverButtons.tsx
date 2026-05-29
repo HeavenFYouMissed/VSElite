@@ -450,6 +450,7 @@ export const EditToolAcceptRejectButtonsHTML = ({
 	uri,
 	type,
 	threadId,
+	messageIdx,
 }: {
 	codeStr: string,
 	applyBoxId: string,
@@ -457,11 +458,12 @@ export const EditToolAcceptRejectButtonsHTML = ({
 	uri: URI,
 	type: 'edit_file' | 'rewrite_file',
 	threadId: string,
+	messageIdx: number,
 })
 ) => {
 	const accessor = useAccessor()
 	const editCodeService = accessor.get('IEditCodeService')
-	const metricsService = accessor.get('IMetricsService')
+	const chatThreadsService = accessor.get('IChatThreadService')
 
 	const { streamState } = useEditToolStreamState({ applyBoxId, uri })
 	const settingsState = useSettingsState()
@@ -473,21 +475,22 @@ export const EditToolAcceptRejectButtonsHTML = ({
 
 	const onAccept = useCallback(() => {
 		editCodeService.acceptOrRejectAllDiffAreas({ uri, behavior: 'accept', removeCtrlKs: false })
-	}, [uri, applyBoxId, editCodeService])
+	}, [uri, editCodeService])
 
 	const onReject = useCallback(() => {
-		editCodeService.acceptOrRejectAllDiffAreas({ uri, behavior: 'reject', removeCtrlKs: false })
-	}, [uri, applyBoxId, editCodeService])
+		if (streamState === 'idle-has-changes') {
+			editCodeService.acceptOrRejectAllDiffAreas({ uri, behavior: 'reject', removeCtrlKs: false })
+		}
+		else {
+			// Agent edits clear editor diff UI; revert via the tool_edit checkpoint before this message.
+			chatThreadsService.jumpToCheckpointBeforeMessageIdx({ threadId, messageIdx, jumpToUserModified: false })
+		}
+	}, [uri, streamState, editCodeService, chatThreadsService, threadId, messageIdx])
 
 	if (isDisabled) return null
-
-	if (streamState === 'idle-no-changes') {
-		return null
-	}
+	if (isRunning === 'LLM' || isRunning === 'tool') return null
 
 	if (streamState === 'idle-has-changes') {
-		if (isRunning === 'LLM' || isRunning === 'tool') return null
-
 		return <>
 			<IconShell1
 				Icon={X}
@@ -501,6 +504,24 @@ export const EditToolAcceptRejectButtonsHTML = ({
 			/>
 		</>
 	}
+
+	if (streamState === 'idle-no-changes') {
+		// Inline chat review after agent apply (editor zones already accepted).
+		return <>
+			<IconShell1
+				Icon={X}
+				onClick={onReject}
+				{...tooltipPropsForApplyBlock({ tooltipName: 'Undo edit' })}
+			/>
+			<IconShell1
+				Icon={Check}
+				onClick={onAccept}
+				{...tooltipPropsForApplyBlock({ tooltipName: 'Keep' })}
+			/>
+		</>
+	}
+
+	return null
 
 }
 

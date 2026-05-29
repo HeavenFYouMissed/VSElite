@@ -1161,7 +1161,7 @@ class EditCodeService extends Disposable implements IEditCodeService {
 	}
 
 
-	public instantlyApplySearchReplaceBlocks({ uri, searchReplaceBlocks }: { uri: URI, searchReplaceBlocks: string }) {
+	public instantlyApplySearchReplaceBlocks({ uri, searchReplaceBlocks, clearEditorDiffUI }: { uri: URI, searchReplaceBlocks: string, clearEditorDiffUI?: boolean }) {
 		// start diffzone
 		const res = this._startStreamingDiffZone({
 			uri,
@@ -1180,8 +1180,8 @@ class EditCodeService extends Disposable implements IEditCodeService {
 			this._refreshStylesAndDiffsInURI(uri)
 			onFinishEdit()
 
-			// auto accept
-			if (this._settingsService.state.globalSettings.autoAcceptLLMChanges) {
+			// auto accept — agent chat edits clear editor diff UI so review stays inline in chat
+			if (clearEditorDiffUI || this._settingsService.state.globalSettings.autoAcceptLLMChanges) {
 				this.acceptOrRejectAllDiffAreas({ uri, removeCtrlKs: false, behavior: 'accept' })
 			}
 		}
@@ -1205,7 +1205,7 @@ class EditCodeService extends Disposable implements IEditCodeService {
 	}
 
 
-	public instantlyRewriteFile({ uri, newContent }: { uri: URI, newContent: string }) {
+	public instantlyRewriteFile({ uri, newContent, clearEditorDiffUI }: { uri: URI, newContent: string, clearEditorDiffUI?: boolean }) {
 		// start diffzone
 		const res = this._startStreamingDiffZone({
 			uri,
@@ -1224,8 +1224,8 @@ class EditCodeService extends Disposable implements IEditCodeService {
 			this._refreshStylesAndDiffsInURI(uri)
 			onFinishEdit()
 
-			// auto accept
-			if (this._settingsService.state.globalSettings.autoAcceptLLMChanges) {
+			// auto accept — agent chat edits clear editor diff UI so review stays inline in chat
+			if (clearEditorDiffUI || this._settingsService.state.globalSettings.autoAcceptLLMChanges) {
 				this.acceptOrRejectAllDiffAreas({ uri, removeCtrlKs: false, behavior: 'accept' })
 			}
 		}
