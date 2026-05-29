@@ -350,6 +350,49 @@ These are the concrete answers to "what does V *do for you*": he's not a chat
 box, he's a co-pilot that plans with you, guards what leaves your machine,
 keeps the agent honest, upgrades its skills, and keeps the IDE itself fast.
 
+### 3.2 V over Context Bridge (use **and** manage)
+
+Context Bridge is the core thing the project is built on, and it's **already
+native in this repo** — not an external dependency. V relates to it two ways:
+
+**V as consumer (already specced):** the 11 CB tools are native built-ins wired
+in `browser/toolsService.ts:615–689` — `remember`, `forget`, `list_notes`,
+`find_text`, `semantic_search`, `get_file_context`, `get_file_dependencies`,
+`get_symbol_context`, `get_call_graph`, `pack_context`, `get_project_briefing`.
+Direct in-process calls (no MCP round-trip). V calls these for blast-radius,
+enhancement, health, etc.
+
+**V as control plane + human face (the "manages over it" role).** CB is
+powerful but agent-facing and invisible. V owns it and surfaces it:
+
+- **Lifecycle / reconciliation.** Today there are effectively *two* CBs:
+  `browser/contextBridgeStartup.ts` auto-registers the **external MCP server**
+  into `mcp.json` and toggles it on each launch (`mcpService.toggleServerIsOn`),
+  *while* the native tools live in `toolsService.ts`. `CONTEXT-BRIDGE-NATIVE.md`
+  §5 says **do not round-trip through the MCP server**. V's job: detect the
+  duplication, prefer native, and offer to disable/deprecate the external
+  server. (Cleanup the project already wants.)
+- **Portability healing.** `contextBridgeStartup.ts:18-19` hardcodes
+  `C:\nvm4w\nodejs\node.exe` and a `C:\Users\heave\...` script path. That breaks
+  off-machine and **blocks the "V anywhere" north star (§6)**. V detects a
+  dead/misconfigured CB server and heals or routes to native.
+- **Memory curation (librarian).** CB notes persist to
+  `.context-bridge/notes.json` (`contextBridgeService.ts`, `STORE_DIR`). V
+  prunes stale notes, dedupes, promotes end-of-thread learnings into `remember`
+  calls, and resolves the brand drift (code uses `.context-bridge/`, `AGENTS.md`
+  wants `.v3code/`). V's own memory (§4) sits *on top of* CB notes.
+- **Indexer steward.** When the Phase-4 workspace indexer lands, V reports its
+  status, triggers re-index, and (via the §3.1 governor) offers to pause it when
+  the IDE is heavy.
+- **Visibility.** V's full-mode panel renders what CB is doing: what's indexed,
+  which notes exist, and — critically — **what CB is injecting into each
+  prompt** (the `<context-bridge>` preamble from `CONTEXT-BRIDGE-NATIVE.md` §4).
+  This is where the invisible never-forget layer finally becomes something the
+  user can see, trust, and edit.
+
+> Net: V doesn't replace Context Bridge — he's the steward and the face of it.
+> CB is the engine; V is the dashboard, the mechanic, and the driver's liaison.
+
 ---
 
 ## 4. Memory (his "remembers everything")
