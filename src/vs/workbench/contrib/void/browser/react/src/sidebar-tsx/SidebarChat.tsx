@@ -1675,7 +1675,7 @@ const ToolRequestAcceptRejectButtons = ({ toolName }: { toolName: ToolName }) =>
 }
 
 export const ToolChildrenWrapper = ({ children, className }: { children: React.ReactNode, className?: string }) => {
-	return <div className={`${className ? className : ''} cursor-default select-none`}>
+	return <div className={`${className ? className : ''} cursor-default select-none mt-1.5 pt-1.5 border-t border-void-border-3/30`}>
 		<div className='px-2 min-w-full overflow-hidden'>
 			{children}
 		</div>
