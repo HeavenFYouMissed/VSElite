@@ -1439,6 +1439,24 @@ const titleOfBuiltinToolName = {
 
 	'read_lint_errors': { done: `Read lint errors`, proposed: 'Read lint errors', running: loadingTitleWrapper('Reading lint errors') },
 	'search_in_file': { done: 'Searched in file', proposed: 'Search in file', running: loadingTitleWrapper('Searching in file') },
+
+	// Context Bridge (native) + semantic + web/git tools
+	'find_text': { done: 'Searched text', proposed: 'Search text', running: loadingTitleWrapper('Searching text') },
+	'semantic_search': { done: 'Semantic search', proposed: 'Semantic search', running: loadingTitleWrapper('Searching semantically') },
+	'remember': { done: 'Saved note', proposed: 'Save note', running: loadingTitleWrapper('Saving note') },
+	'forget': { done: 'Deleted note', proposed: 'Delete note', running: loadingTitleWrapper('Deleting note') },
+	'list_notes': { done: 'Listed notes', proposed: 'List notes', running: loadingTitleWrapper('Listing notes') },
+	'get_file_context': { done: 'Read file context', proposed: 'Read file context', running: loadingTitleWrapper('Reading file context') },
+	'get_file_dependencies': { done: 'Analyzed dependencies', proposed: 'Analyze dependencies', running: loadingTitleWrapper('Analyzing dependencies') },
+	'get_symbol_context': { done: 'Read symbol context', proposed: 'Read symbol context', running: loadingTitleWrapper('Reading symbol context') },
+	'get_call_graph': { done: 'Built call graph', proposed: 'Build call graph', running: loadingTitleWrapper('Building call graph') },
+	'pack_context': { done: 'Packed context', proposed: 'Pack context', running: loadingTitleWrapper('Packing context') },
+	'get_project_briefing': { done: 'Read project briefing', proposed: 'Read project briefing', running: loadingTitleWrapper('Reading project briefing') },
+	'web_search': { done: 'Searched the web', proposed: 'Search the web', running: loadingTitleWrapper('Searching the web') },
+	'git_status': { done: 'Read git status', proposed: 'Read git status', running: loadingTitleWrapper('Reading git status') },
+	'git_commit': { done: 'Committed', proposed: 'Commit', running: loadingTitleWrapper('Committing') },
+	'git_diff': { done: 'Read git diff', proposed: 'Read git diff', running: loadingTitleWrapper('Reading git diff') },
+	'browser_screenshot': { done: 'Took screenshot', proposed: 'Take screenshot', running: loadingTitleWrapper('Taking screenshot') },
 } as const satisfies Record<BuiltinToolName, { done: any, proposed: any, running: any }>
 
 
@@ -1582,7 +1600,7 @@ const toolNameToDesc = (toolName: BuiltinToolName, _toolParams: BuiltinToolCallP
 	}
 
 	try {
-		return x[toolName]?.() || { desc1: '' }
+		return (x as Record<string, (() => { desc1: React.ReactNode; desc1Info?: string }) | undefined>)[toolName]?.() || { desc1: '' }
 	}
 	catch {
 		return { desc1: '' }
@@ -1933,7 +1951,7 @@ const MCPToolWrapper = ({ toolMessage }: WrapperProps<string>) => {
 
 type ResultWrapper<T extends ToolName> = (props: WrapperProps<T>) => React.ReactNode
 
-const builtinToolNameToComponent: { [T in BuiltinToolName]: { resultWrapper: ResultWrapper<T>, } } = {
+const builtinToolNameToComponent: { [T in BuiltinToolName]?: { resultWrapper: ResultWrapper<T>, } } = {
 	'read_file': {
 		resultWrapper: ({ toolMessage }) => {
 			const accessor = useAccessor()
@@ -2479,14 +2497,14 @@ const Checkpoint = ({ message, threadId, messageIdx, isCheckpointGhost, threadIs
 	}, [isRunning, streamState])
 
 	return <div
-		className={`flex items-center justify-center px-2 `}
+		className={`group flex items-center justify-center gap-2 px-2 my-1 ${isCheckpointGhost ? 'opacity-50' : 'opacity-100'}`}
 	>
+		<div className='h-px flex-1 bg-void-border-3/40 group-hover:bg-void-border-3/70 transition-colors duration-150' />
 		<div
 			className={`
-                    text-xs
-                    text-void-fg-3
-                    select-none
-                    ${isCheckpointGhost ? 'opacity-50' : 'opacity-100'}
+                    text-[10px] uppercase tracking-wider
+                    text-void-fg-4 group-hover:text-void-fg-3
+                    select-none transition-colors duration-150
 					${isDisabled ? 'cursor-default' : 'cursor-pointer'}
                 `}
 			style={{ position: 'relative', display: 'inline-block' }} // allow absolute icon
@@ -2507,6 +2525,7 @@ const Checkpoint = ({ message, threadId, messageIdx, isCheckpointGhost, threadIs
 		>
 			Checkpoint
 		</div>
+		<div className='h-px flex-1 bg-void-border-3/40 group-hover:bg-void-border-3/70 transition-colors duration-150' />
 	</div>
 }
 

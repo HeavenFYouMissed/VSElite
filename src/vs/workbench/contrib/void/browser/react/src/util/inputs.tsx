@@ -1615,7 +1615,7 @@ export const BlockCode = ({ initValue, language, maxHeight, showScrollbars }: Bl
 		if (language) modelRef.current?.setLanguage(language)
 	}, [language])
 
-	return <div ref={divRef} className='relative z-0 px-2 py-1 bg-void-bg-3'>
+	return <div ref={divRef} className='relative z-0 px-2 py-1.5 bg-void-bg-3 rounded-lg border border-void-border-3/40 overflow-hidden'>
 		<WidgetComponent
 			className='@@bg-editor-style-override' // text-sm
 			ctor={useCallback((container) => {
