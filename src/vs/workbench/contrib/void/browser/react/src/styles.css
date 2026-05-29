@@ -107,6 +107,18 @@
 	outline: none !important;
 }
 
+/* The chat composer textarea must be completely borderless -- the only visible line on
+   the composer is its single rounded container. Kills any inherited/global textarea
+   border so there's never a "box within the box" around the text the user types in. */
+textarea.void-bg-transparent,
+textarea.void-bg-transparent:focus,
+textarea.void-bg-transparent:hover {
+	border: none !important;
+	box-shadow: none !important;
+	outline: none !important;
+	background: transparent !important;
+}
+
 .inherit-bg-all-restyle > * {
 	background-color: inherit !important;
 }
