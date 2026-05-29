@@ -814,7 +814,7 @@ const ToolHeaderWrapper = ({
 	>{desc1}</span>
 
 	return (<div className=''>
-		<div className={`w-full border border-void-border-3/50 rounded-lg px-2.5 py-1.5 bg-void-bg-3/60 overflow-hidden transition-colors duration-150 hover:border-void-border-3 ${className}`}>
+		<div className={`w-full rounded-lg px-1.5 py-0.5 overflow-hidden transition-colors duration-150 hover:bg-void-bg-2/40 ${className}`}>
 			{/* header */}
 			<div className={`select-none flex items-center min-h-[26px]`}>
 				<div className={`flex items-center w-full gap-x-2 overflow-hidden justify-between ${isRejected ? 'line-through' : ''}`}>

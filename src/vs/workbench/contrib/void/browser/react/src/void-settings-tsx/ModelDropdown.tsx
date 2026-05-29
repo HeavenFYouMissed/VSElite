@@ -56,7 +56,17 @@ const MemoizedModelDropdown = ({ featureName, className }: { featureName: Featur
 
 	useEffect(() => {
 		const oldOptions = oldOptionsRef.current
-		const newOptions = settingsState._modelOptions.filter((o) => filter(o.selection, { chatMode: settingsState.globalSettings.chatMode, overridesOfModel: settingsState.overridesOfModel }))
+		// Dedupe by provider:model so a model present in both defaults and the user's
+		// persisted settings doesn't render twice (which crashes React with a duplicate key).
+		const _seenModelKeys = new Set<string>()
+		const newOptions = settingsState._modelOptions
+			.filter((o) => filter(o.selection, { chatMode: settingsState.globalSettings.chatMode, overridesOfModel: settingsState.overridesOfModel }))
+			.filter((o) => {
+				const k = `${o.selection.providerName}:${o.selection.modelName}`
+				if (_seenModelKeys.has(k)) { return false }
+				_seenModelKeys.add(k)
+				return true
+			})
 
 		if (!optionsEqual(oldOptions, newOptions)) {
 			setMemoizedOptions(newOptions)

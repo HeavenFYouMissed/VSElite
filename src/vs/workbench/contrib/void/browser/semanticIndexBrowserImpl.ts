@@ -246,9 +246,14 @@ export class SemanticIndexBrowserImpl extends Disposable implements ISemanticInd
 		}));
 
 		// Eager init on next microtask so the workbench layout has settled.
+		// NOTE: embeddings (@xenova/transformers) are gated OFF by default -- the package
+		// isn't bundled in the renderer, and a dynamic import throws a module-resolution
+		// error that spams the console. Lexical retrieval is the default. Flip
+		// ENABLE_EMBEDDINGS once embeddings are served behind a node-side IPC boundary.
+		const ENABLE_EMBEDDINGS = false;
 		queueMicrotask(() => {
 			void this._initAndMaybeRebuild();
-			void this._tryLoadEmbeddings();
+			if (ENABLE_EMBEDDINGS) { void this._tryLoadEmbeddings(); }
 		});
 	}
 
