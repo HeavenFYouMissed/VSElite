@@ -243,13 +243,26 @@ floor, `.v/` workspace (skills/memory/files + seed skill), V's brain (deepseek-f
 (`onDidChangeStreamState` → recent activity + auto building scene; returns home on idle),
 scene-back (esc / "back to V") with conversation preserved across scenes.
 
+**Also done:** big synthesized `V_SYSTEM_PROMPT` (companion + skill-concierge + prompt-coach,
+drawn from Codex personality/escalation + the buddy-agent mission + tone/safety rules; model
+never revealed). Red **slash-command palette** in the prompt (`/build /refactor /skill /watch
+/clear /help` + your `.v/` skills, keyboard-navigable; /refactor + /skill route to V's brain).
+
 **Backlog (requested, not yet built):**
-- **Image input to V** — paste images / "select files" so V can see them (vision path).
+- **Image input via auto-router** — a vision-capable model *describes* the image, the
+  description is fed to V (V's flash brain need not be multimodal). Add paste / "select files".
 - **See & refactor the agent composer** — V reads what you're typing into the *coding-agent*
-  chat before send, and can refactor it into a deep prompt written back into that composer
-  (not auto-sent). Needs a shared draft seam between SidebarChat and V.
-- **Prompt library** — refactor pro prompts (Claude Code / high-end agents) into V's system
-  prompt; make `V_SYSTEM_PROMPT` swappable.
+  chat before send and rewrites it into a deep prompt written back into that composer (not
+  auto-sent). Needs a shared draft seam between SidebarChat and V. (/refactor is the manual
+  version of this today.)
+- **V's skill system (full)** — the buddy-agent build brief: normalized skill catalog with
+  progressive disclosure (catalog → SKILL.md → resources); remote sources (skillsmp API,
+  marketplace.json, mega-repos); search; **author** new skills; **handoff** to the main agent
+  via `.agents/skills/<name>/SKILL.md` + wrapped `<use_skill .../>` pointer (prefer MCP, then
+  filesystem-drop, then clipboard). Study openskills / deepagents SkillsMiddleware before
+  building. Today: `/skill` + `.v/skills/` are the seed; `.v/skills` should converge on the
+  cross-agent `.agents/skills/` standard. Skill-creator loop (draft → eval → iterate) for
+  authoring quality.
 - **More scenes** — watching/reviewing/thinking levels; richer building visuals.
 
 ## 8. Note: major VS Code merge in progress

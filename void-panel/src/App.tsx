@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { VStage, type Choice } from './components/VStage'
 import { VSidePanel, type Activity, type Skill } from './components/VSidePanel'
 import { BuildingView, type BuildStep } from './components/BuildingView'
+import { VSlashMenu, type SlashItem } from './components/VSlashMenu'
 import { useProjectBriefing } from './hooks/useVoidBridge'
 import { bridge, type AgentEvent } from './lib/messagePort'
 
@@ -25,6 +26,15 @@ const humanizeTool = (name: string): string => {
 	return map[name] || name.replace(/_/g, ' ')
 }
 
+const SLASH_COMMANDS: SlashItem[] = [
+	{ name: 'build', arg: 'thing', desc: 'V builds it (scene preview)', kind: 'command' },
+	{ name: 'refactor', arg: 'prompt', desc: 'sharpen a prompt for the agent', kind: 'command' },
+	{ name: 'skill', arg: 'task', desc: 'find or make a skill', kind: 'command' },
+	{ name: 'watch', desc: 'keep an eye on the agent', kind: 'command' },
+	{ name: 'clear', desc: 'clear the transcript', kind: 'command' },
+	{ name: 'help', desc: 'list commands', kind: 'command' },
+]
+
 export function App() {
 	const { briefing, connected } = useProjectBriefing()
 	const [messages, setMessages] = useState<Msg[]>([
@@ -43,8 +53,28 @@ export function App() {
 	const greeted = useRef(false)
 	const streamingRef = useRef(false)
 	useEffect(() => { streamingRef.current = streaming }, [streaming])
+	const [slashIndex, setSlashIndex] = useState(0)
 
 	const goHome = () => { setView('home'); setBuild(null) }
+
+	// slash palette: open while typing the command token (before the first space)
+	const slashItems: SlashItem[] = (() => {
+		if (!input.startsWith('/') || input.includes(' ')) return []
+		const q = input.slice(1).toLowerCase()
+		const skillItems: SlashItem[] = skills.map(s => ({ name: s.name, desc: 'your skill', kind: 'skill' }))
+		return [...SLASH_COMMANDS, ...skillItems].filter(i => i.name.toLowerCase().includes(q))
+	})()
+	const slashOpen = slashItems.length > 0
+	useEffect(() => { setSlashIndex(0) }, [input])
+
+	const pickSlash = (i: number) => {
+		const it = slashItems[i]
+		if (!it) return
+		if (it.kind === 'skill') { setInput(`/skill ${it.name} `); return }
+		if (it.arg) { setInput(`/${it.name} `); return } // wait for the argument
+		runCommand(it.name, '')
+		setInput('')
+	}
 
 	useEffect(() => {
 		if (!connected || greeted.current) return
@@ -137,17 +167,49 @@ export function App() {
 		}, 1300)
 	}
 
+	const askV = (text: string, displayText?: string) => {
+		setMessages(m => [...m, { role: 'you', text: displayText ?? text }, { role: 'v', text: '' }])
+		setStreaming(true)
+		bridge.stream('vChat', { text }, {
+			onText: full => setMessages(m => replaceLastV(m, full)),
+			onFinal: payload => { setMessages(m => replaceLastV(m, String(payload ?? '').trim() || '…')); setStreaming(false) },
+			onError: err => { setMessages(m => replaceLastV(m, `⚠ ${err}`)); setStreaming(false) },
+			onAbort: () => setStreaming(false),
+		})
+	}
+
+	// slash commands: some run locally, others reframe the message for V's brain
+	const runCommand = (name: string, arg: string): boolean => {
+		switch (name) {
+			case 'clear':
+				setMessages([{ role: 'sys', text: 'transcript cleared' }]); setChoices([]); return true
+			case 'help':
+				setMessages(m => [...m, { role: 'sys', text: 'commands: ' + SLASH_COMMANDS.map(c => '/' + c.name).join('  ') }]); return true
+			case 'watch':
+				setMessages(m => [...m, { role: 'v', text: "watching the agent — i'll log what it does and flag anything worth a skill or a fix." }]); return true
+			case 'build':
+				if (!arg) return false
+				setMessages(m => [...m, { role: 'you', text: `/build ${arg}` }]); runBuildScene(arg); return true
+			case 'refactor':
+				if (!arg) return false
+				askV(`refactor this into a sharp, detailed prompt i can send to the coding agent. return ONLY the rewritten prompt, no preamble:\n\n${arg}`, `/refactor ${arg}`); return true
+			case 'skill':
+				if (!arg) return false
+				askV(`act as my skill concierge for this task: "${arg}". tell me if an existing skill fits, or sketch a new SKILL.md (name + description + steps). keep it tight.`, `/skill ${arg}`); return true
+			default:
+				return false
+		}
+	}
+
 	const send = (text: string) => {
 		const t = text.trim()
 		if (!t || streaming) return
-		// /build preview — demonstrates V's level-shift (real trigger comes from agent-watching)
-		const buildMatch = t.match(/^\/?build\s+(.+)/i)
-		if (buildMatch) {
-			setMessages(m => [...m, { role: 'you', text: t }])
-			setInput('')
-			setChoices([])
-			runBuildScene(buildMatch[1])
-			return
+		const slash = t.match(/^\/(\w[\w-]*)\s*(.*)$/)
+		if (slash) {
+			const handled = runCommand(slash[1].toLowerCase(), slash[2].trim())
+			if (handled) { setInput(''); setChoices([]); return }
+			// a /skill-name shortcut → treat as skill concierge for that named skill
+			if (skills.some(s => s.name === slash[1])) { setInput(''); setChoices([]); askV(`use my skill "${slash[1]}" — ${slash[2].trim() || 'apply it to what we\'re doing'}`, t); return }
 		}
 		setMessages(m => [...m, { role: 'you', text: t }, { role: 'v', text: '' }])
 		setInput('')
@@ -190,16 +252,27 @@ export function App() {
 			</div>
 			)}
 
-			<div className="prompt">
-				<span className="car">{'>'}</span>
-				<input
-					value={input}
-					onChange={e => setInput(e.target.value)}
-					onKeyDown={e => { if (e.key === 'Enter') send(input) }}
-					placeholder="talk to V…"
-					autoFocus
-				/>
-				<span className="cursor">▋</span>
+			<div className="prompt-wrap">
+				{slashOpen && <VSlashMenu items={slashItems} index={slashIndex} onPick={pickSlash} />}
+				<div className="prompt">
+					<span className="car">{'>'}</span>
+					<input
+						value={input}
+						onChange={e => setInput(e.target.value)}
+						onKeyDown={e => {
+							if (slashOpen) {
+								if (e.key === 'ArrowDown') { e.preventDefault(); setSlashIndex(i => (i + 1) % slashItems.length); return }
+								if (e.key === 'ArrowUp') { e.preventDefault(); setSlashIndex(i => (i - 1 + slashItems.length) % slashItems.length); return }
+								if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); pickSlash(slashIndex); return }
+								if (e.key === 'Escape') { e.preventDefault(); setInput(''); return }
+							}
+							if (e.key === 'Enter') send(input)
+						}}
+						placeholder="talk to V…  (/ for commands)"
+						autoFocus
+					/>
+					<span className="cursor">▋</span>
+				</div>
 			</div>
 		</div>
 	)
