@@ -123,8 +123,11 @@ npm install && npm run buildreact && npm run watch
 These can break `contrib/void` at runtime even after a clean merge:
 - **Electron 35→37 / Node 20→22** (the `navigator` global now exists in the ext host).
 - **EditContext input default-on** (1.101) — affects any custom input/cursor handling.
-- **Webview perf + CSS anchor positioning rework** (1.118/1.119) — your React chat is a
-  webview; check positioning/sizing and any webview patches you carry.
+- **ViewPane constructor drift** — the chat is React mounted **directly into the workbench
+  DOM** via `SidebarViewPane extends ViewPane` (NOT a webview/iframe). `renderBody`/`layoutBody`
+  are verified unchanged in 1.122, but the `super(...)` call passes 10 positional deps; verify
+  the `ViewPane` constructor didn't gain/reorder a dependency. Most likely signature break.
+  (The 1.118/1.119 webview rework does NOT affect us — no `IWebviewService` in `contrib/void`.)
 - **New default themes** (1.113) changed color tokens — reconcile with your branding.
 - From **1.116**, upstream ships Copilot as a **built-in extension** — strip/replace it (you have your own chat).
 
@@ -191,8 +194,11 @@ METHOD (re-fork + replant, 3-way merge)
 RUNTIME HOTSPOTS to expect (these break contrib/void at runtime, not at merge time):
 - Electron 35->37 / Node 20->22: the `navigator` global now exists in the extension host.
 - EditContext input is default-on (1.101): check custom cursor/input handling.
-- Webview rework (1.118/1.119, CSS anchor positioning): our React chat is a webview —
-  verify it positions/sizes correctly and reconcile any webview patches.
+- ViewPane drift: the chat is React mounted DIRECTLY into the workbench DOM via
+  SidebarViewPane extends ViewPane (NOT a webview). renderBody/layoutBody are unchanged in
+  1.122, but the super(...) call passes 10 positional deps -- verify the ViewPane constructor
+  didn't gain/reorder a dependency. Most likely signature break. (1.118/1.119 webview rework
+  does NOT affect us.)
 - New default themes (1.113) changed color tokens: reconcile with our branding.
 - From 1.116 upstream bundles Copilot as a built-in extension: remove/disable it, we have
   our own chat.

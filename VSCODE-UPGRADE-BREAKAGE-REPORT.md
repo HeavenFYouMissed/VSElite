@@ -79,7 +79,9 @@ signature-level drift not detectable statically — see limits).
 Static import/symbol checks prove the *shapes* line up. They do **not** catch:
 - **Changed function/constructor signatures** (same symbol name, new/changed params or types) — surfaces only under `tsc`.
 - **Changed interface/type shapes** consumed by void.
-- **Runtime/behavioral** changes: **Electron 35→37 / Node 20→22** (the `navigator` global now exists in the ext host), **EditContext** input default-on (1.101), **webview CSS anchor-positioning rework** (1.118/1.119) — your React chat is a webview, this is the most likely runtime snag.
+- **Runtime/behavioral** changes: **Electron 35→37 / Node 20→22** (the `navigator` global now exists in the ext host), **EditContext** input default-on (1.101).
+- **`ViewPane` constructor / service signature drift** — the chat mounts via a `SidebarViewPane extends ViewPane` and calls `super(...)` with **10 positional args**. `renderBody(HTMLElement)` and `layoutBody(height,width)` are **verified identical** in 1.122, but if upstream added/reordered a `ViewPane` constructor dependency over 23 versions, that `super(...)` call is the **single most likely signature break**. Verify it first.
+- **NOTE — the chat is NOT a webview.** It is React mounted **directly into the workbench DOM** (`ReactDOM.createRoot` into a `ViewPane` body via `mountFnGenerator`); there is **no `IWebviewService`/iframe** in `contrib/void`. So the 1.118/1.119 **webview** rework does **not** affect the chat. The relevant risks are the runtime + ViewPane signature above, not webview positioning/CSP.
 - **The React/esbuild bundle** under `contrib/void/browser/react/` (its own deps/build).
 - **New default themes** (1.113) color-token reconciliation.
 - Removing the **built-in Copilot** extension that upstream bundles from 1.116.
