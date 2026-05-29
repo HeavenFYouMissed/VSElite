@@ -20,6 +20,7 @@ export function App() {
 	const [recent, setRecent] = useState<Activity[]>([])
 	const [skills, setSkills] = useState<Skill[]>([])
 	const [fileCount, setFileCount] = useState(0)
+	const [streaming, setStreaming] = useState(false)
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const greeted = useRef(false)
 
@@ -49,15 +50,27 @@ export function App() {
 		if (el) el.scrollTop = el.scrollHeight
 	}, [messages])
 
+	const replaceLastV = (m: Msg[], text: string): Msg[] => {
+		const copy = m.slice()
+		for (let i = copy.length - 1; i >= 0; i--) {
+			if (copy[i].role === 'v') { copy[i] = { role: 'v', text }; break }
+		}
+		return copy
+	}
+
 	const send = (text: string) => {
 		const t = text.trim()
-		if (!t) return
-		setMessages(m => [...m, { role: 'you', text: t }])
+		if (!t || streaming) return
+		setMessages(m => [...m, { role: 'you', text: t }, { role: 'v', text: '' }])
 		setInput('')
 		setChoices([])
-		window.setTimeout(() => {
-			setMessages(m => [...m, { role: 'v', text: 'on it — though my brain isn\'t plugged in yet (that\'s next). i\'m listening.' }])
-		}, 280)
+		setStreaming(true)
+		bridge.stream('vChat', { text: t }, {
+			onText: full => setMessages(m => replaceLastV(m, full)),
+			onFinal: payload => { setMessages(m => replaceLastV(m, String(payload ?? '').trim() || '…')); setStreaming(false) },
+			onError: err => { setMessages(m => replaceLastV(m, `⚠ ${err}`)); setStreaming(false) },
+			onAbort: () => setStreaming(false),
+		})
 	}
 
 	return (
@@ -73,7 +86,7 @@ export function App() {
 						{messages.map((m, i) => (
 							<div key={i} className="line">
 								<span className={`pfx pfx-${m.role}`}>{PFX[m.role]}{m.role === 'sys' ? ' ' : '>'} </span>
-								<span className={`msg msg-${m.role}`}>{m.text}</span>
+								<span className={`msg msg-${m.role}`}>{m.text || (m.role === 'v' && streaming ? '▍' : '')}</span>
 							</div>
 						))}
 					</div>

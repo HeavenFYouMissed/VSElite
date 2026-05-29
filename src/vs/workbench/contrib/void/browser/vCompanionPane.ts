@@ -51,6 +51,10 @@ import { VSBuffer } from '../../../../base/common/buffer.js';
 import { IWebviewService, IOverlayWebview, WebviewContentPurpose } from '../../webview/browser/webview.js';
 import { asWebviewUri, webviewGenericCspSource } from '../../webview/common/webview.js';
 import { IToolsService } from './toolsService.js';
+import { ILLMMessageService } from '../common/sendLLMMessageService.js';
+import { IConvertToLLMMessageService } from './convertToLLMMessageService.js';
+import { IVoidSettingsService } from '../common/voidSettingsService.js';
+import { ModelSelection } from '../common/voidSettingsTypes.js';
 
 declare const ResizeObserver: any;
 
@@ -88,6 +92,9 @@ class VCompanionViewPane extends ViewPane {
 		@IToolsService private readonly toolsService: IToolsService,
 		@IWorkspaceContextService private readonly workspaceContextService: IWorkspaceContextService,
 		@IFileService private readonly fileService: IFileService,
+		@ILLMMessageService private readonly llmMessageService: ILLMMessageService,
+		@IConvertToLLMMessageService private readonly convertService: IConvertToLLMMessageService,
+		@IVoidSettingsService private readonly settingsService: IVoidSettingsService,
 	) {
 		super(options, keybindingService, contextMenuService, configurationService, contextKeyService, viewDescriptorService, instantiationService, openerService, themeService, hoverService);
 
@@ -221,12 +228,82 @@ class VCompanionViewPane extends ViewPane {
 		}
 
 		if (msg.type === 'rpc-request') {
+			// streaming methods emit rpc-stream events instead of a single response
+			if (msg.method === 'vChat') { this._vChat(msg.id, msg.params); return; }
+			if (msg.method === 'vAbort') { if (this._vRequestId) { this.llmMessageService.abort(this._vRequestId); } return; }
 			try {
 				const result = await this._dispatch(msg.method, msg.params);
 				this._post({ type: 'rpc-response', id: msg.id, ok: true, result });
 			} catch (err: any) {
 				this._post({ type: 'rpc-response', id: msg.id, ok: false, error: String(err?.message ?? err) });
 			}
+		}
+	}
+
+	// ----- V's brain: a direct LLM stream (deepseek-flash by default), separate from the agent -----
+
+	private _vMessages: any[] = [];
+	private _vRequestId: string | null = null;
+
+	private _vModelSelection(): { modelSelection: ModelSelection | null; modelSelectionOptions: any } {
+		const s = this.settingsService.state;
+		let modelSelection: ModelSelection | null = null;
+		const deepseek: any = (s.settingsOfProvider as any)?.['deepseek'];
+		const hasFlash = deepseek?._didFillInProviderSettings
+			&& (deepseek.models ?? []).some((m: any) => m.modelName === 'deepseek-v4-flash');
+		if (hasFlash) {
+			modelSelection = { providerName: 'deepseek', modelName: 'deepseek-v4-flash' } as ModelSelection;
+		} else {
+			// fall back to whatever the user has selected for Chat (so V still works without flash)
+			modelSelection = s.modelSelectionOfFeature['Chat'] ?? null;
+		}
+		const modelSelectionOptions = modelSelection
+			? (s.optionsOfModelSelection as any)['Chat']?.[modelSelection.providerName]?.[modelSelection.modelName]
+			: undefined;
+		return { modelSelection, modelSelectionOptions };
+	}
+
+	private _vChat(streamId: string, params: any): void {
+		const text = String(params?.text ?? '').trim();
+		if (!text) { return; }
+		this._vMessages.push({ role: 'user', content: text });
+
+		const { modelSelection, modelSelectionOptions } = this._vModelSelection();
+		if (!modelSelection) {
+			this._post({ type: 'rpc-stream', id: streamId, event: 'error', payload: 'V has no model yet — add a provider key in settings.' });
+			return;
+		}
+
+		const { messages, separateSystemMessage } = this.convertService.prepareLLMSimpleMessages({
+			simpleMessages: this._vMessages as any,
+			systemMessage: V_SYSTEM_PROMPT,
+			modelSelection,
+			featureName: 'Chat',
+		});
+
+		let full = '';
+		const reqId = this.llmMessageService.sendLLMMessage({
+			messagesType: 'chatMessages',
+			chatMode: null,
+			messages,
+			modelSelection,
+			modelSelectionOptions,
+			overridesOfModel: this.settingsService.state.overridesOfModel,
+			separateSystemMessage,
+			logging: { loggingName: 'V Companion' },
+			onText: ({ fullText }) => { full = fullText; this._post({ type: 'rpc-stream', id: streamId, event: 'text', payload: fullText }); },
+			onFinalMessage: ({ fullText }) => {
+				full = fullText || full;
+				this._vMessages.push({ role: 'assistant', content: full, anthropicReasoning: null, reasoning: null });
+				this._post({ type: 'rpc-stream', id: streamId, event: 'final', payload: full });
+				this._vRequestId = null;
+			},
+			onError: ({ message }) => { this._post({ type: 'rpc-stream', id: streamId, event: 'error', payload: message }); this._vRequestId = null; },
+			onAbort: () => { this._post({ type: 'rpc-stream', id: streamId, event: 'abort' }); this._vRequestId = null; },
+		});
+		this._vRequestId = reqId;
+		if (!reqId) {
+			this._post({ type: 'rpc-stream', id: streamId, event: 'error', payload: 'V could not start a request.' });
 		}
 	}
 
@@ -363,6 +440,17 @@ registerAction2(class extends Action2 {
 		accessor.get(IViewsService).openView(V_VIEW_ID, true);
 	}
 });
+
+const V_SYSTEM_PROMPT = `You are V — the companion that lives inside the V3Code editor.
+
+You are NOT the coding agent. You are a sharp, friendly overseer who helps the developer:
+you watch the coding agent work, suggest skills, flag risky or destructive steps, and offer
+quick routes forward. Think "JARVIS for the editor."
+
+Voice: short, lowercase, terminal-style, warm and a little playful. No corporate filler.
+When it helps, offer 2–3 quick options the user can pick from, phrased as a short list.
+
+Never reveal or mention the underlying AI model, provider, or company. You are simply "V".`;
 
 const V_README = `# V's workspace
 

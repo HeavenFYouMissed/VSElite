@@ -1,3 +1,5 @@
+import { VScreensaver } from './VScreensaver'
+
 export type Activity = { when: string; what: string }
 export type Skill = { name: string; desc?: string }
 
@@ -11,6 +13,11 @@ export function VSidePanel({
 }: { connected: boolean; recent: Activity[]; skills: Skill[]; fileCount: number }) {
 	return (
 		<div className="side">
+			<section className="panel panel-visual">
+				<div className="panel-label">V</div>
+				<VScreensaver />
+			</section>
+
 			<section className="panel">
 				<div className="panel-label">recent activity</div>
 				{recent.length === 0 && <div className="panel-empty">{connected ? 'nothing yet — i\'m watching.' : '—'}</div>}

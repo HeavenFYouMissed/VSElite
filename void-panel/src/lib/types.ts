@@ -32,6 +32,8 @@ export type RpcMethod =
 	| 'callTool'                         // toolsService.callTool(toolName, params)
 	| 'getProjectBriefing'               // convenience: callTool('get_project_briefing', {...})
 	| 'vWorkspaceSummary'                // V's .v/ home: { available, fileCount, skills[], home }
+	| 'vChat'                            // V's brain — streams text/final/error/abort
+	| 'vAbort'                           // stop V's current reply
 	| 'sendLLMMessage'                   // V's own Flash brain (streams)
 	| 'abort'
 	| 'addUserMessageAndStreamResponse'  // drive the coding agent (streams)

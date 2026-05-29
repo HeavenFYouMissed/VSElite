@@ -56,16 +56,16 @@ body {
 	display: flex;
 }
 .col-left {
-	flex: 1 1 70%;
+	flex: 1 1 75%;
 	min-width: 0;
 	display: flex;
 	flex-direction: column;
 	border-right: 1px dashed rgba(139, 92, 246, 0.16);
 }
 .col-right {
-	flex: 0 0 30%;
-	min-width: 200px;
-	max-width: 340px;
+	flex: 0 0 25%;
+	min-width: 210px;
+	max-width: 360px;
 	overflow-y: auto;
 	padding: 10px 12px;
 }
@@ -132,7 +132,7 @@ body {
 .vstage {
 	position: relative;
 	flex: 0 0 auto;
-	height: 64px;
+	height: 74px;
 	overflow: hidden;
 	border-top: 1px solid rgba(139, 92, 246, 0.09);
 	border-bottom: 1px solid rgba(139, 92, 246, 0.09);
@@ -140,7 +140,7 @@ body {
 }
 .vstage-ground {
 	position: absolute;
-	left: 0; right: 0; bottom: 12px;
+	left: 0; right: 0; bottom: 4px;
 	white-space: nowrap;
 	overflow: hidden;
 	color: #2a2142;
@@ -150,9 +150,14 @@ body {
 }
 .vstage-actor {
 	position: absolute;
-	bottom: 14px;
+	bottom: 2px;
 	transform: translateX(-50%);
 	transition: left 0.05s linear;
+	/* crop V's feet so more of his head shows (he stands "in" the floor) */
+	height: 56px;
+	overflow: hidden;
+	display: flex;
+	align-items: flex-start;
 }
 /* choices pop up on V's floor (he steps left and idles) */
 .vstage-choices {
@@ -189,7 +194,23 @@ body {
 .cursor { color: #5fd35f; animation: vblink 1.1s step-end infinite; user-select: none; }
 @keyframes vblink { 50% { opacity: 0; } }
 
-/* scrollbar */
-.transcript::-webkit-scrollbar { width: 8px; }
-.transcript::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.18); border-radius: 4px; }
-.transcript::-webkit-scrollbar-track { background: transparent; }
+/* V's visual screensaver in the right column */
+.panel-visual { padding-bottom: 6px; }
+.screensaver {
+	margin: 2px 0 0;
+	font-family: inherit;
+	font-size: 11px;
+	line-height: 1.2;
+	color: #3f8f3f;
+	white-space: pre;
+	overflow: hidden;
+	user-select: none;
+	letter-spacing: 1px;
+}
+
+/* dark scrollbars everywhere (match the terminal, kill the white one on the right) */
+*::-webkit-scrollbar { width: 8px; height: 8px; }
+*::-webkit-scrollbar-thumb { background: rgba(139, 92, 246, 0.2); border-radius: 4px; }
+*::-webkit-scrollbar-thumb:hover { background: rgba(139, 92, 246, 0.32); }
+*::-webkit-scrollbar-track { background: transparent; }
+* { scrollbar-width: thin; scrollbar-color: rgba(139, 92, 246, 0.25) transparent; }
