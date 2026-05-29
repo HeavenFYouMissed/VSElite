@@ -20,7 +20,7 @@ export type RpcResponse = {
 export type RpcStream = {
 	type: 'rpc-stream'
 	id: string
-	event: 'text' | 'final' | 'error' | 'abort'
+	event: 'text' | 'tool' | 'final' | 'error' | 'abort'
 	payload?: unknown
 }
 
@@ -32,8 +32,9 @@ export type RpcMethod =
 	| 'callTool'                         // toolsService.callTool(toolName, params)
 	| 'getProjectBriefing'               // convenience: callTool('get_project_briefing', {...})
 	| 'vWorkspaceSummary'                // V's .v/ home: { available, fileCount, skills[], home }
-	| 'vChat'                            // V's brain — streams text/final/error/abort
+	| 'vChat'                            // V's brain — streams text/tool/final/error/abort
 	| 'vAbort'                           // stop V's current reply
+	| 'vRunAgent'                        // V hands a task to the main coding agent
 	| 'sendLLMMessage'                   // V's own Flash brain (streams)
 	| 'abort'
 	| 'addUserMessageAndStreamResponse'  // drive the coding agent (streams)

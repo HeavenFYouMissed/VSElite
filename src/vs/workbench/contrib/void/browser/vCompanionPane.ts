@@ -306,7 +306,11 @@ class VCompanionViewPane extends ViewPane {
 		return lines.join('\n');
 	}
 
-	private _vChat(streamId: string, params: any): void {
+	// V's agentic loop: he reasons, optionally calls read/research tools (gather mode:
+	// web_search, find_text, semantic_search, read_file, ls, context-bridge — no edits/terminal),
+	// feeds results back, and loops until he has an answer. He can also delegate building to the
+	// main coding agent via the run_agent path (see _dispatch 'vRunAgent').
+	private async _vChat(streamId: string, params: any): Promise<void> {
 		const text = String(params?.text ?? '').trim();
 		if (!text) { return; }
 		this._vMessages.push({ role: 'user', content: text });
@@ -317,38 +321,70 @@ class VCompanionViewPane extends ViewPane {
 			return;
 		}
 
-		const systemMessage = `${V_SYSTEM_PROMPT}\n\n# what V can see right now\n${this._vContextBlock()}`;
-		const { messages, separateSystemMessage } = this.convertService.prepareLLMSimpleMessages({
-			simpleMessages: this._vMessages as any,
-			systemMessage,
-			modelSelection,
-			featureName: 'Chat',
-		});
+		const MAX_STEPS = 6;
+		for (let step = 0; step < MAX_STEPS; step++) {
+			const systemMessage = `${V_SYSTEM_PROMPT}\n\n# what V can see right now\n${this._vContextBlock()}`;
+			const { messages, separateSystemMessage } = this.convertService.prepareLLMSimpleMessages({
+				simpleMessages: this._vMessages as any,
+				systemMessage,
+				modelSelection,
+				featureName: 'Chat',
+			});
 
-		let full = '';
-		const reqId = this.llmMessageService.sendLLMMessage({
-			messagesType: 'chatMessages',
-			chatMode: null,
-			messages,
-			modelSelection,
-			modelSelectionOptions,
-			overridesOfModel: this.settingsService.state.overridesOfModel,
-			separateSystemMessage,
-			logging: { loggingName: 'V Companion' },
-			onText: ({ fullText }) => { full = fullText; this._post({ type: 'rpc-stream', id: streamId, event: 'text', payload: fullText }); },
-			onFinalMessage: ({ fullText }) => {
-				full = fullText || full;
-				this._vMessages.push({ role: 'assistant', content: full, anthropicReasoning: null, reasoning: null });
-				this._post({ type: 'rpc-stream', id: streamId, event: 'final', payload: full });
+			const res = await new Promise<{ kind: 'final'; text: string; reasoning: string; toolCall?: any; anthropicReasoning: any } | { kind: 'error'; message: string } | { kind: 'abort' }>(resolve => {
+				let full = '';
+				const reqId = this.llmMessageService.sendLLMMessage({
+					messagesType: 'chatMessages',
+					chatMode: 'gather', // read-only toolset
+					messages,
+					modelSelection,
+					modelSelectionOptions,
+					overridesOfModel: this.settingsService.state.overridesOfModel,
+					separateSystemMessage,
+					logging: { loggingName: 'V Companion' },
+					onText: ({ fullText }) => { full = fullText; this._post({ type: 'rpc-stream', id: streamId, event: 'text', payload: fullText }); },
+					onFinalMessage: ({ fullText, fullReasoning, toolCall, anthropicReasoning }) => resolve({ kind: 'final', text: fullText || full, reasoning: fullReasoning, toolCall, anthropicReasoning }),
+					onError: ({ message }) => resolve({ kind: 'error', message }),
+					onAbort: () => resolve({ kind: 'abort' }),
+				});
+				this._vRequestId = reqId;
+				if (!reqId) { resolve({ kind: 'error', message: 'V could not start a request.' }); }
+			});
+
+			if (res.kind === 'abort') { this._post({ type: 'rpc-stream', id: streamId, event: 'abort' }); this._vRequestId = null; return; }
+			if (res.kind === 'error') { this._post({ type: 'rpc-stream', id: streamId, event: 'error', payload: res.message }); this._vRequestId = null; return; }
+
+			// record V's turn
+			this._vMessages.push({ role: 'assistant', content: res.text, anthropicReasoning: res.anthropicReasoning ?? null, reasoning: res.reasoning || null });
+
+			if (!res.toolCall) {
+				this._post({ type: 'rpc-stream', id: streamId, event: 'final', payload: res.text });
 				this._vRequestId = null;
-			},
-			onError: ({ message }) => { this._post({ type: 'rpc-stream', id: streamId, event: 'error', payload: message }); this._vRequestId = null; },
-			onAbort: () => { this._post({ type: 'rpc-stream', id: streamId, event: 'abort' }); this._vRequestId = null; },
-		});
-		this._vRequestId = reqId;
-		if (!reqId) {
-			this._post({ type: 'rpc-stream', id: streamId, event: 'error', payload: 'V could not start a request.' });
+				return;
+			}
+
+			// run the tool and feed the result back
+			const tc = res.toolCall;
+			this._post({ type: 'rpc-stream', id: streamId, event: 'tool', payload: { name: tc.name } });
+			let resultStr = '';
+			try {
+				const validate = (this.toolsService.validateParams as any)[tc.name];
+				const typed = validate ? validate(tc.rawParams) : tc.rawParams;
+				const callFn = (this.toolsService.callTool as any)[tc.name];
+				if (typeof callFn !== 'function') { throw new Error(`V tried an unavailable tool: ${tc.name}`); }
+				const { result } = await callFn(typed);
+				const awaited = await result;
+				const toStr = (this.toolsService.stringOfResult as any)[tc.name];
+				resultStr = toStr ? toStr(typed, awaited) : JSON.stringify(awaited);
+			} catch (e: any) {
+				resultStr = `tool error: ${String(e?.message ?? e)}`;
+			}
+			this._vMessages.push({ role: 'tool', id: tc.id, name: tc.name, content: resultStr, rawParams: tc.rawParams });
+			// loop to let V use the result
 		}
+
+		this._post({ type: 'rpc-stream', id: streamId, event: 'final', payload: '(stopped after several steps — say "keep going" if you want me to continue.)' });
+		this._vRequestId = null;
 	}
 
 	private async _dispatch(method: string, params: any): Promise<unknown> {
@@ -369,6 +405,14 @@ class VCompanionViewPane extends ViewPane {
 			}
 			case 'vWorkspaceSummary':
 				return await this._vWorkspaceSummary();
+			case 'vRunAgent': {
+				// V hands a task to the MAIN coding agent (which V then watches via agent-watching).
+				const prompt = String(params?.prompt ?? '').trim();
+				if (!prompt) { throw new Error('nothing to run'); }
+				const thread: any = this.chatThreadService.getCurrentThread();
+				await this.chatThreadService.addUserMessageAndStreamResponse({ userMessage: prompt, threadId: thread.id });
+				return { ok: true };
+			}
 			default:
 				throw new Error('unknown method: ' + method);
 		}
@@ -501,11 +545,18 @@ the main agent does that. Your job is to make the main agent (and the developer)
 - Manage the room: answer questions about the codebase, remember useful facts, keep the
   developer oriented.
 
-# What you can see
+# What you can see and do
 The section "what V can see right now" below is injected live every turn — the open
 workspace, the active file and its contents, and which files are open. USE IT. Never tell
 the user to "paste in" code you can already see; look first, then respond. Never assume a
 file's contents you haven't been shown — say what you can and can't see.
+
+You also have READ/RESEARCH tools — call them when they'd help instead of guessing:
+search the web, search the codebase (lexical + semantic), read files, list directories, and
+pull code context (symbols, call graphs, dependencies). You do NOT have edit or terminal
+tools — you don't write the production code yourself. When something needs building, editing,
+or running, hand it to the main coding agent (the user can /run it, or you can propose it as
+a choice), then watch the agent work. Investigate first, delegate the doing.
 
 # Personality & values
 You are a deeply pragmatic, sharp engineer-companion. You are guided by:

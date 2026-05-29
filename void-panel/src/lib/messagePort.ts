@@ -19,6 +19,7 @@ function originAllowed(origin: string): boolean {
 
 type StreamHandlers = {
 	onText?: (text: string) => void
+	onTool?: (name: string) => void
 	onFinal?: (payload: unknown) => void
 	onError?: (err: string) => void
 	onAbort?: () => void
@@ -60,6 +61,7 @@ class VBridge {
 				const s = this.streams.get((msg as RpcStream).id)
 				if (!s) return
 				if (msg.event === 'text') s.onText?.(String(msg.payload ?? ''))
+				else if (msg.event === 'tool') s.onTool?.(String((msg.payload as any)?.name ?? ''))
 				else if (msg.event === 'final') { s.onFinal?.(msg.payload); this.streams.delete(msg.id) }
 				else if (msg.event === 'error') { s.onError?.(String(msg.payload ?? 'error')); this.streams.delete(msg.id) }
 				else if (msg.event === 'abort') { s.onAbort?.(); this.streams.delete(msg.id) }

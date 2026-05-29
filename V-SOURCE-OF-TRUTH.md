@@ -243,6 +243,17 @@ floor, `.v/` workspace (skills/memory/files + seed skill), V's brain (deepseek-f
 (`onDidChangeStreamState` → recent activity + auto building scene; returns home on idle),
 scene-back (esc / "back to V") with conversation preserved across scenes.
 
+**Also done — V's agency:** V now runs an **agentic tool loop** (gather/read-only tools:
+web_search, find_text, semantic_search, read_file, ls, get_dir_tree, context-bridge,
+get_project_briefing — no edits/terminal). He reasons → calls a tool → feeds the result back
+→ loops (cap 6), streaming tool steps to the transcript (`· searching the web`). And he can
+**run the main coding agent**: `/run <task>` (RPC `vRunAgent` → `addUserMessageAndStreamResponse`
+on the current thread), which V then watches via agent-watching. This is the orchestrator
+direction — "run your project through V" — and it all sits behind the RPC seam (web-ready).
+Autonomous delegation (V calling run_agent as a tool inside his loop) is the next step; it
+needs a custom tool injected into the model's toolset (gather/agent mode only advertise
+builtins today).
+
 **Also done:** big synthesized `V_SYSTEM_PROMPT` (companion + skill-concierge + prompt-coach,
 drawn from Codex personality/escalation + the buddy-agent mission + tone/safety rules; model
 never revealed). Red **slash-command palette** in the prompt (`/build /refactor /skill /watch

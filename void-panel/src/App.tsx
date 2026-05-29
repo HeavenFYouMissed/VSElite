@@ -27,6 +27,7 @@ const humanizeTool = (name: string): string => {
 }
 
 const SLASH_COMMANDS: SlashItem[] = [
+	{ name: 'run', arg: 'task', desc: 'hand a task to the coding agent', kind: 'command' },
 	{ name: 'build', arg: 'thing', desc: 'V builds it (scene preview)', kind: 'command' },
 	{ name: 'refactor', arg: 'prompt', desc: 'sharpen a prompt for the agent', kind: 'command' },
 	{ name: 'skill', arg: 'task', desc: 'find or make a skill', kind: 'command' },
@@ -133,12 +134,18 @@ export function App() {
 		return () => window.removeEventListener('keydown', onKey)
 	}, [view])
 
-	const replaceLastV = (m: Msg[], text: string): Msg[] => {
+	// update the trailing V message, or start a new one if the last line isn't V's,
+	// so tool lines interleave cleanly: you> …  · searching the web  v> answer
+	const upsertV = (text: string) => setMessages(m => {
 		const copy = m.slice()
-		for (let i = copy.length - 1; i >= 0; i--) {
-			if (copy[i].role === 'v') { copy[i] = { role: 'v', text }; break }
-		}
+		if (copy.length && copy[copy.length - 1].role === 'v') copy[copy.length - 1] = { role: 'v', text }
+		else copy.push({ role: 'v', text })
 		return copy
+	})
+
+	const runMainAgent = (prompt: string) => {
+		setMessages(m => [...m, { role: 'sys', text: `· handed to the agent: ${prompt}` }])
+		bridge.call('vRunAgent', { prompt }).catch(() => setMessages(m => [...m, { role: 'sys', text: '⚠ could not reach the agent' }]))
 	}
 
 	// Scene system: V shifts into a dedicated "level" for major work, then returns home.
@@ -168,12 +175,13 @@ export function App() {
 	}
 
 	const askV = (text: string, displayText?: string) => {
-		setMessages(m => [...m, { role: 'you', text: displayText ?? text }, { role: 'v', text: '' }])
+		setMessages(m => [...m, { role: 'you', text: displayText ?? text }])
 		setStreaming(true)
 		bridge.stream('vChat', { text }, {
-			onText: full => setMessages(m => replaceLastV(m, full)),
-			onFinal: payload => { setMessages(m => replaceLastV(m, String(payload ?? '').trim() || '…')); setStreaming(false) },
-			onError: err => { setMessages(m => replaceLastV(m, `⚠ ${err}`)); setStreaming(false) },
+			onText: full => upsertV(full),
+			onTool: name => setMessages(m => [...m, { role: 'sys', text: `· ${humanizeTool(name)}` }]),
+			onFinal: payload => { upsertV(String(payload ?? '').trim() || '…'); setStreaming(false) },
+			onError: err => { setMessages(m => [...m, { role: 'sys', text: `⚠ ${err}` }]); setStreaming(false) },
 			onAbort: () => setStreaming(false),
 		})
 	}
@@ -190,6 +198,9 @@ export function App() {
 			case 'build':
 				if (!arg) return false
 				setMessages(m => [...m, { role: 'you', text: `/build ${arg}` }]); runBuildScene(arg); return true
+			case 'run':
+				if (!arg) return false
+				runMainAgent(arg); return true
 			case 'refactor':
 				if (!arg) return false
 				askV(`refactor this into a sharp, detailed prompt i can send to the coding agent. return ONLY the rewritten prompt, no preamble:\n\n${arg}`, `/refactor ${arg}`); return true
@@ -211,16 +222,9 @@ export function App() {
 			// a /skill-name shortcut → treat as skill concierge for that named skill
 			if (skills.some(s => s.name === slash[1])) { setInput(''); setChoices([]); askV(`use my skill "${slash[1]}" — ${slash[2].trim() || 'apply it to what we\'re doing'}`, t); return }
 		}
-		setMessages(m => [...m, { role: 'you', text: t }, { role: 'v', text: '' }])
 		setInput('')
 		setChoices([])
-		setStreaming(true)
-		bridge.stream('vChat', { text: t }, {
-			onText: full => setMessages(m => replaceLastV(m, full)),
-			onFinal: payload => { setMessages(m => replaceLastV(m, String(payload ?? '').trim() || '…')); setStreaming(false) },
-			onError: err => { setMessages(m => replaceLastV(m, `⚠ ${err}`)); setStreaming(false) },
-			onAbort: () => setStreaming(false),
-		})
+		askV(t)
 	}
 
 	return (
