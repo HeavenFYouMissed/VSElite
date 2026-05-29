@@ -87,6 +87,7 @@ export class ChatGhostTextService extends Disposable implements IChatGhostTextSe
 			existing.shift();
 		}
 		this.suggestions.set(key, existing);
+		this.logService.trace(`[v3code.ghostText] Registered ${lines.length}-line suggestion for ${key}`);
 		this._onDidSuggestionsChange.fire(uri);
 	}
 

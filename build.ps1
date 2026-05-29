@@ -5,7 +5,7 @@
 param(
     [switch]$NoLaunch,
     [switch]$SkipGulp,
-    [string]$ExpectedString = "BUILDTEST-12345"
+    [string]$ExpectedString = "paste or drop an image to attach"
 )
 
 $ErrorActionPreference = "Stop"

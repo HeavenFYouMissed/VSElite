@@ -22,7 +22,7 @@ import { ICommandService } from '../../../../../../../platform/commands/common/c
 import { WarningBox } from '../void-settings-tsx/WarningBox.js';
 import { getModelCapabilities, getIsReasoningEnabledState } from '../../../../common/modelCapabilities.js';
 import { AlertTriangle, File, Ban, Check, ChevronRight, Dot, FileIcon, Pencil, Undo, Undo2, X, Flag, Copy as CopyIcon, Info, CirclePlus, Ellipsis, CircleEllipsis, Folder, ALargeSmall, TypeOutline, Text } from 'lucide-react';
-import { ChatMessage, CheckpointEntry, StagingSelectionItem, ToolMessage } from '../../../../common/chatThreadServiceTypes.js';
+import { ChatMessage, CheckpointEntry, ImageAttachment, StagingSelectionItem, ToolMessage } from '../../../../common/chatThreadServiceTypes.js';
 import { approvalTypeOfBuiltinToolName, BuiltinToolCallParams, BuiltinToolName, ToolName, LintErrorItem, ToolApprovalType, toolApprovalTypes } from '../../../../common/toolsServiceTypes.js';
 import { CopyButton, EditToolAcceptRejectButtonsHTML, IconShell1, JumpToFileButton, JumpToTerminalButton, StatusIndicator, StatusIndicatorForApplyButton, useApplyStreamState, useEditToolStreamState } from '../markdown/ApplyBlockHoverButtons.js';
 import { IsRunningType } from '../../../chatThreadService.js';
@@ -2916,27 +2916,92 @@ export const SidebarChat = () => {
 
 	const sidebarRef = useRef<HTMLDivElement>(null)
 	const scrollContainerRef = useRef<HTMLDivElement | null>(null)
+
+	// pending images attached to the next message (paste / drag-drop)
+	const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([])
+
+	// Attach images from clipboard paste or drag-and-drop onto the chat textarea.
+	// VoidInputBox2 doesn't expose onPaste, so we listen on the underlying textarea.
+	useEffect(() => {
+		const el = textAreaRef.current
+		if (!el) return
+
+		const SUPPORTED: Record<string, ImageAttachment['mimeType']> = {
+			'image/png': 'image/png', 'image/jpeg': 'image/jpeg',
+			'image/gif': 'image/gif', 'image/webp': 'image/webp',
+		}
+
+		const fileToAttachment = (file: File): Promise<ImageAttachment | null> => new Promise((resolve) => {
+			const mimeType = SUPPORTED[file.type]
+			if (!mimeType) { resolve(null); return }
+			const reader = new FileReader()
+			reader.onload = () => {
+				const result = reader.result as string
+				const base64 = result.includes(',') ? result.split(',')[1] : result
+				resolve({ data: base64, mimeType, name: file.name || 'pasted-image' })
+			}
+			reader.onerror = () => resolve(null)
+			reader.readAsDataURL(file)
+		})
+
+		const addFiles = async (files: File[]) => {
+			const attachments = (await Promise.all(files.map(fileToAttachment))).filter((a): a is ImageAttachment => !!a)
+			if (attachments.length > 0) setPendingImages(prev => [...prev, ...attachments])
+		}
+
+		const onPaste = (e: ClipboardEvent) => {
+			const items = e.clipboardData?.items
+			if (!items) return
+			const files: File[] = []
+			for (const item of items) {
+				if (item.kind === 'file' && item.type.startsWith('image/')) {
+					const f = item.getAsFile()
+					if (f) files.push(f)
+				}
+			}
+			if (files.length > 0) { e.preventDefault(); void addFiles(files) }
+		}
+		const onDrop = (e: DragEvent) => {
+			const files = Array.from(e.dataTransfer?.files ?? []).filter(f => f.type.startsWith('image/'))
+			if (files.length > 0) { e.preventDefault(); void addFiles(files) }
+		}
+		const onDragOver = (e: DragEvent) => {
+			if (Array.from(e.dataTransfer?.items ?? []).some(i => i.kind === 'file')) e.preventDefault()
+		}
+
+		el.addEventListener('paste', onPaste)
+		el.addEventListener('drop', onDrop)
+		el.addEventListener('dragover', onDragOver)
+		return () => {
+			el.removeEventListener('paste', onPaste)
+			el.removeEventListener('drop', onDrop)
+			el.removeEventListener('dragover', onDragOver)
+		}
+	}, [textAreaRef, setPendingImages])
+
 	const onSubmit = useCallback(async (_forceSubmit?: string) => {
 
-		if (isDisabled && !_forceSubmit) return
+		if (isDisabled && !_forceSubmit && pendingImages.length === 0) return
 		if (isRunning) return
 
 		const threadId = chatThreadsService.state.currentThreadId
 
 		// send message to LLM
 		const userMessage = _forceSubmit || textAreaRef.current?.value || ''
+		const images = pendingImages
 
 		try {
-			await chatThreadsService.addUserMessageAndStreamResponse({ userMessage, threadId })
+			await chatThreadsService.addUserMessageAndStreamResponse({ userMessage, threadId, images: images.length > 0 ? images : undefined })
 		} catch (e) {
 			console.error('Error while sending message in chat:', e)
 		}
 
 		setSelections([]) // clear staging
+		setPendingImages([]) // clear attached images
 		textAreaFnsRef.current?.setValue('')
 		textAreaRef.current?.focus() // focus input after submit
 
-	}, [chatThreadsService, isDisabled, isRunning, textAreaRef, textAreaFnsRef, setSelections, settingsState])
+	}, [chatThreadsService, isDisabled, isRunning, textAreaRef, textAreaFnsRef, setSelections, settingsState, pendingImages])
 
 	const onAbort = async () => {
 		const threadId = currentThread.id
@@ -3072,10 +3137,30 @@ export const SidebarChat = () => {
 		setSelections={setSelections}
 		onClickAnywhere={() => { textAreaRef.current?.focus() }}
 	>
+		{pendingImages.length > 0 && (
+			<div className='flex flex-wrap gap-2 px-1 pb-2'>
+				{pendingImages.map((img, i) => (
+					<div key={i} className='relative group' style={{ width: 56, height: 56 }}>
+						<img
+							src={`data:${img.mimeType};base64,${img.data}`}
+							alt={img.name ?? 'attached image'}
+							className='w-full h-full object-cover rounded border border-void-border-3'
+						/>
+						<button
+							onClick={() => setPendingImages(prev => prev.filter((_, j) => j !== i))}
+							className='absolute -top-1.5 -right-1.5 bg-void-bg-1 border border-void-border-3 rounded-full p-0.5 opacity-80 hover:opacity-100'
+							title='Remove image'
+						>
+							<X size={12} />
+						</button>
+					</div>
+				))}
+			</div>
+		)}
 		<VoidInputBox2
 			enableAtToMention
 			className={`min-h-[60px] px-0.5 py-0.5`}
-			placeholder={`BUILDTEST-12345`}
+			placeholder={`Message V3Code — paste or drop an image to attach`}
 			onChangeText={onChangeText}
 			onKeyDown={onKeyDown}
 			onFocus={() => { chatThreadsService.setCurrentlyFocusedMessageIdx(undefined) }}

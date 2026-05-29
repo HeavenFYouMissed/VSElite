@@ -116,13 +116,13 @@ export class SlashCommandService extends Disposable implements ISlashCommandServ
 		return context;
 	}
 
-	private _register(id: string, name: string, description: string, icon: string | undefined, handler: CommandHandler): void {
+	private _registerCommand(id: string, name: string, description: string, icon: string | undefined, handler: CommandHandler): void {
 		this._commands.set(id, { id, name, description, icon });
 		this._handlers.set(id, handler);
 	}
 
 	private _registerBuiltinCommands(): void {
-		this._register('fix', 'fix', 'Fix errors in the current file', 'wrench', (ctx) => {
+		this._registerCommand('fix', 'fix', 'Fix errors in the current file', 'wrench', (ctx) => {
 			const diagBlock = ctx.diagnostics?.length
 				? `Current diagnostics:\n${ctx.diagnostics.join('\n')}\n\n`
 				: '';
@@ -133,7 +133,7 @@ export class SlashCommandService extends Disposable implements ISlashCommandServ
 			};
 		});
 
-		this._register('explain', 'explain', 'Explain the selected code', 'book', (ctx) => {
+		this._registerCommand('explain', 'explain', 'Explain the selected code', 'book', (ctx) => {
 			const selection = ctx.selectedText ? `\n\n\`\`\`\n${ctx.selectedText}\n\`\`\`` : '';
 			return {
 				modifiedMessage: `Explain this:${selection}`,
@@ -142,7 +142,7 @@ export class SlashCommandService extends Disposable implements ISlashCommandServ
 			};
 		});
 
-		this._register('test', 'test', 'Generate tests for this file', 'beaker', (ctx) => {
+		this._registerCommand('test', 'test', 'Generate tests for this file', 'beaker', (ctx) => {
 			const filePath = ctx.activeFileUri?.fsPath ?? 'the current file';
 			return {
 				modifiedMessage: `Generate comprehensive unit tests for ${filePath}.`,
@@ -151,7 +151,7 @@ export class SlashCommandService extends Disposable implements ISlashCommandServ
 			};
 		});
 
-		this._register('commit', 'commit', 'Stage all changes and commit', 'git-commit', (ctx) => {
+		this._registerCommand('commit', 'commit', 'Stage all changes and commit', 'git-commit', (ctx) => {
 			return {
 				modifiedMessage: 'Stage all current changes and create a well-formatted git commit with a descriptive message.',
 				systemPromptAddition: 'Use conventional commit format. Summarise the "why" over the "what". Do not push unless asked.',
@@ -159,7 +159,7 @@ export class SlashCommandService extends Disposable implements ISlashCommandServ
 			};
 		});
 
-		this._register('refactor', 'refactor', 'Refactor the selected code', 'tools', (ctx) => {
+		this._registerCommand('refactor', 'refactor', 'Refactor the selected code', 'tools', (ctx) => {
 			const selection = ctx.selectedText ? `\n\n\`\`\`\n${ctx.selectedText}\n\`\`\`` : '';
 			return {
 				modifiedMessage: `Refactor the following code for clarity and maintainability:${selection}`,
@@ -168,7 +168,7 @@ export class SlashCommandService extends Disposable implements ISlashCommandServ
 			};
 		});
 
-		this._register('doc', 'doc', 'Add documentation', 'note', (ctx) => {
+		this._registerCommand('doc', 'doc', 'Add documentation', 'note', (ctx) => {
 			const selection = ctx.selectedText ? `\n\n\`\`\`\n${ctx.selectedText}\n\`\`\`` : '';
 			return {
 				modifiedMessage: `Add thorough documentation to the following code:${selection}`,

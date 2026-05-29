@@ -83,10 +83,10 @@ import './semanticIndexStatusBar.js'
 // register V3Code agentic feature services. These register their DI singletons so they
 // are injectable. Full UI/agent-loop wiring is incremental; registration here makes the
 // services live and available for consumers.
+// NOTE: agentModeService (use existing ChatMode normal/gather/agent), rollbackService
+// (use existing checkpoint system), and diffPreviewService (use existing editCodeService
+// diff zones) were removed as redundant with capabilities V3Code already has.
 import './autoContextService.js'        // auto-attach relevant files to a prompt
-import './agentModeService.js'          // agent/ask/plan tool gating
-import './rollbackService.js'           // bulk undo of agent file changes
-import './diffPreviewService.js'        // multi-file review-before-apply
 import './backgroundAgentService.js'    // background task state management
 import './slashCommandService.js'       // /fix /explain /test /commit /refactor /doc
 import './chatGhostTextService.js'      // chat-aware inline completion cache
