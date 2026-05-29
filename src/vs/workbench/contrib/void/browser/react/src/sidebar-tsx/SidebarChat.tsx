@@ -333,10 +333,8 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
                 flex flex-col px-3 py-2.5 relative text-left shrink-0
                 rounded-2xl
                 bg-void-bg-2
-				border border-[var(--v3-amethyst,#8b5cf6)]/60
+				border border-void-border-3
 				shadow-[0_1px_3px_rgba(0,0,0,0.18)]
-				transition-colors duration-150
-				focus-within:border-[var(--v3-amethyst,#8b5cf6)]
 				${className}
             `}
 			onClick={(e) => {
