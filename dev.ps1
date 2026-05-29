@@ -80,11 +80,15 @@ function Copy-ToHost {
 # FULL path: gulp recompiles the whole workbench (needed for .ts changes). Slow.
 function Build-Gulp {
     Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Running gulp compile-client (full, ~3 min)..." -ForegroundColor Cyan
-    $hadError = $false
+    # Show real errors only. NOTE: PowerShell -match is case-insensitive, so do NOT match
+    # bare "Error" -- it hits the harmless "Finished compilation with 0 errors" summary and
+    # causes false failures. Match specific failure signatures; trust $LASTEXITCODE for success.
     npx gulp compile-client 2>&1 | ForEach-Object {
-        if ($_ -match "Error|error TS|errored") { Write-Host "  $_" -ForegroundColor Red; $hadError = $true }
+        if ($_ -match "error TS\d|compilation with [1-9]\d* error|'compile-client' errored|cannot find module") {
+            Write-Host "  $_" -ForegroundColor Red
+        }
     }
-    if ($LASTEXITCODE -ne 0 -or $hadError) { Write-Host "  gulp compile-client FAILED" -ForegroundColor Red; return $false }
+    if ($LASTEXITCODE -ne 0) { Write-Host "  gulp compile-client FAILED (exit $LASTEXITCODE)" -ForegroundColor Red; return $false }
     Ensure-NlsFile
     Write-Host "  Gulp complete." -ForegroundColor Green
     return $true
