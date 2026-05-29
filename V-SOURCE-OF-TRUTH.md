@@ -203,6 +203,37 @@ greeting and live Context Bridge status. No agent hooks yet.
 
 ---
 
+## 7b. Access model, V's brain & tab placement (decisions 2026-05-29)
+
+These were locked while building the chat UI; they extend §2/§7.
+
+- **Tab placement:** V is a **bottom-panel tab labelled `[v]`** (short, low footprint),
+  registered in the composite title bar **alongside Problems / Output / Debug Console /
+  Terminal / Ports**. The `[v]` tab is **selected/shown first when the editor opens**.
+  (This refines §1's "next to Ports" — same panel, `[v]` is the default active tab.)
+- **The alien lives in the panel content** (the message-box container of the V tab),
+  not the right-side chat. The right-side chat keeps its own alien sky header (already shipped).
+- **V's brain = `deepseek-v4-flash`** by default (cheap, fast — fine for the companion's
+  whisper/nudge/oversee role). Runs through `llmMessageService.sendLLMMessage` (its own
+  request stream, separate from the coding agent).
+- **Access tiers (pricing):**
+  - **Paid plans** (billed via `@v3code/backend`, keyed by **user id**): V's brain is
+    served by us (hosted DeepSeek-Flash). This is the default for paying users.
+  - **Free plan:** V still works using the hosted Flash brain within free-tier limits,
+    OR the user supplies their own key (BYOK) to power V.
+  - **Model override:** a user can point V's brain at **their own model** (any configured
+    provider/model) instead of the hosted Flash — set in **Settings** and/or **onboarding**
+    as a dedicated **"V key"** field (separate from the coding-agent model selection).
+- **Onboarding:** add a **V key** step (hosted-plan sign-in OR BYOK key OR pick-your-own-model),
+  so V has a brain from first launch. Mirror the existing provider-key onboarding pattern.
+
+> Implementation note: the panel UI (`void-panel/`) is brain-agnostic — it calls
+> `llmMessageService.sendLLMMessage` over RPC. WHICH model/brain answers (hosted Flash vs
+> BYOK vs override) is resolved host-side from the user's plan + V-key settings. This keeps
+> the pricing/identity logic in the workbench/backend, not in V's face.
+
+---
+
 ## 8. Note: major VS Code merge in progress
 
 A major refactor pulling newer VS Code into the fork is underway. This is *why*
