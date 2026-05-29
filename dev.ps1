@@ -95,16 +95,24 @@ function Launch-V3Code {
         Write-Host "  V3Code.exe not found at $electronExe (run a full build first)." -ForegroundColor Yellow
         return
     }
-    Ensure-NlsFile  # never launch into a black screen due to a missing NLS file
+    Ensure-NlsFile  # belt-and-suspenders for the NLS file
 
     Get-Process -Name "V3Code" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     Start-Sleep -Milliseconds 400
+    # CRITICAL: a compile-client build is a DEV build. It MUST be launched with VSCODE_DEV=1
+    # so the window loads workbench-dev.html + the dev module loader. Without these env vars
+    # the app runs in PRODUCTION mode, expects bundled output that a dev build lacks, and the
+    # renderer crashes to a BLACK SCREEN (MonacoBootstrapWindow undefined). This mirrors
+    # scripts/code.bat and is the true fix for the chronic "won't open" builds.
+    $env:VSCODE_DEV = "1"
+    $env:NODE_ENV = "development"
+    $env:VSCODE_CLI = "1"
     Start-Process -FilePath $electronExe -ArgumentList @(
         ".",
         "--user-data-dir", "$root\.tmp\user-data",
         "--extensions-dir", "$root\.tmp\extensions"
     ) -WorkingDirectory $root
-    Write-Host "  V3Code launched." -ForegroundColor Green
+    Write-Host "  V3Code launched (VSCODE_DEV=1)." -ForegroundColor Green
 }
 
 # A single iteration: react build, then either fast-copy or full gulp.

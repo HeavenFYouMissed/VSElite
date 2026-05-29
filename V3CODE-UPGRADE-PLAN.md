@@ -197,6 +197,27 @@ Upstream now ships **weekly** (since 1.111). To stay current:
 
 ---
 
+## CRITICAL: launching a dev build (the chronic black-screen bug)
+
+A `compile-client` build is a **dev build**. It MUST be launched with these env vars
+(this is what `scripts/code.bat` does) or the renderer crashes to a **black window**:
+
+```
+$env:VSCODE_DEV = "1"      # loads workbench-dev.html + the dev module loader
+$env:NODE_ENV   = "development"
+$env:VSCODE_CLI = "1"
+.build\electron\V3Code.exe . --user-data-dir .tmp\user-data --extensions-dir .tmp\extensions
+```
+
+Without `VSCODE_DEV=1`, the app runs in PRODUCTION mode, expects bundled output (incl.
+`nls.messages.json` and bundled modules) that a dev build does not have, and
+`MonacoBootstrapWindow` is undefined -> `workbench.js` crashes calling `.load()` on
+undefined -> fully black window with only window controls. This was the true root cause
+of the chronic "half the time it won't open" problem. `dev.ps1` and `build.ps1` now set
+these env vars automatically. Secondary: also ensure `out/nls.messages.json` exists (`[]`).
+
 ## Status log
 
-- 2026-05-29: Dev loop fast path shipped (`dev.ps1`). Bloat + base upgrade pending.
+- 2026-05-29: Dev loop fast path shipped (`dev.ps1`). Fixed chronic black-screen launch
+  (VSCODE_DEV=1 env vars + out/nls.messages.json now guaranteed by dev.ps1/build.ps1).
+  Bloat trimmed. Base upgrade pending.

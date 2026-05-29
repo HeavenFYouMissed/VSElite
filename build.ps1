@@ -81,6 +81,12 @@ if ($NoLaunch) {
 Write-Host ""
 Write-Host "=== Step 5: Launching V3Code ===" -ForegroundColor Cyan
 if (-not (Test-Path $electronExe)) { Fail "Electron exe missing: $electronExe" }
+# CRITICAL: dev builds MUST launch with VSCODE_DEV=1 (loads workbench-dev.html + dev loader).
+# Without it the app runs in production mode, expects bundled output a dev build lacks, and
+# the renderer crashes to a BLACK SCREEN. Mirrors scripts/code.bat.
+$env:VSCODE_DEV = "1"
+$env:NODE_ENV = "development"
+$env:VSCODE_CLI = "1"
 Start-Process -FilePath $electronExe -ArgumentList @(
     ".",
     "--user-data-dir", "$root\.tmp\user-data",
@@ -88,4 +94,4 @@ Start-Process -FilePath $electronExe -ArgumentList @(
 ) -WorkingDirectory $root
 
 Write-Host ""
-Write-Host "Launched. Open the V3Code sidebar — composer placeholder should read '$ExpectedString'." -ForegroundColor Green
+Write-Host "Launched (VSCODE_DEV=1). Open the V3Code sidebar — composer placeholder should read '$ExpectedString'." -ForegroundColor Green
