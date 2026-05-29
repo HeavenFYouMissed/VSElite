@@ -1886,7 +1886,9 @@ const SingleDiffEditor = ({ block, lang }: { block: ExtractedSearchReplaceBlock,
 			{
 				automaticLayout: true,
 				readOnly: true,
-				renderSideBySide: true,
+				renderSideBySide: false, // unified inline diff (red removed / green added stacked) -- Cursor-style
+				renderMarginRevertIcon: false,
+				diffWordWrap: 'on',
 				minimap: { enabled: false },
 				lineNumbers: 'off',
 				scrollbar: {
@@ -1916,13 +1918,13 @@ const SingleDiffEditor = ({ block, lang }: { block: ExtractedSearchReplaceBlock,
 
 		// Calculate the height based on content
 		const updateHeight = () => {
-			const contentHeight = Math.max(
-				originalModel.getLineCount() * 19, // approximate line height
-				modifiedModel.getLineCount() * 19
-			) + 19 * 2 + 1; // add padding
+			// Inline (unified) diff stacks removed + added lines, so sum both sides.
+			const contentHeight = (
+				originalModel.getLineCount() + modifiedModel.getLineCount()
+			) * 18 + 8; // approximate line height + small padding
 
-			// Set reasonable min/max heights
-			const height = Math.min(Math.max(contentHeight, 100), 300);
+			// Fit content; only cap very large diffs.
+			const height = Math.min(Math.max(contentHeight, 24), 360);
 			if (divRef.current) {
 				divRef.current.style.height = `${height}px`;
 				editor.layout();
