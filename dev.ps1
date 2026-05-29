@@ -34,6 +34,21 @@ $reactOut    = "$reactDir\out\sidebar-tsx\index.js"
 $reactOutDir = "$reactDir\out"
 $hostOutDir  = "$root\out\vs\workbench\contrib\void\browser\react\out"
 $electronExe = "$root\.build\electron\V3Code.exe"
+$nlsFile     = "$root\out\nls.messages.json"
+
+# CRITICAL: gulp compile-client wipes out/ and compiles with build=false, which does NOT
+# generate out/nls.messages.json. The workbench bootstrap (src/main.ts) hard-requires that
+# file or the renderer crashes to a BLACK SCREEN. In dev (build=false) all UI text comes
+# from inline English, so the NLS array is unused -- an empty [] satisfies the bootstrap.
+# This single missing file is the root cause of the chronic "won't open" builds.
+function Ensure-NlsFile {
+    if (-not (Test-Path $nlsFile)) {
+        if (Test-Path "$root\out") {
+            '[]' | Set-Content -Path $nlsFile -NoNewline -Encoding UTF8
+            Write-Host "  Wrote out/nls.messages.json (required for the renderer to boot)." -ForegroundColor Green
+        }
+    }
+}
 
 function Build-React {
     Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Building React (scope-tailwind + tsup)..." -ForegroundColor Cyan
@@ -70,6 +85,7 @@ function Build-Gulp {
         if ($_ -match "Error|error TS|errored") { Write-Host "  $_" -ForegroundColor Red; $hadError = $true }
     }
     if ($LASTEXITCODE -ne 0 -or $hadError) { Write-Host "  gulp compile-client FAILED" -ForegroundColor Red; return $false }
+    Ensure-NlsFile
     Write-Host "  Gulp complete." -ForegroundColor Green
     return $true
 }
@@ -79,6 +95,8 @@ function Launch-V3Code {
         Write-Host "  V3Code.exe not found at $electronExe (run a full build first)." -ForegroundColor Yellow
         return
     }
+    Ensure-NlsFile  # never launch into a black screen due to a missing NLS file
+
     Get-Process -Name "V3Code" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
     Start-Sleep -Milliseconds 400
     Start-Process -FilePath $electronExe -ArgumentList @(

@@ -48,6 +48,15 @@ if (-not $SkipGulp) {
     Write-Host "=== Step 3: Building VS Code host (gulp compile-client) ===" -ForegroundColor Cyan
     npx gulp compile-client
     if ($LASTEXITCODE -ne 0) { Fail "gulp compile-client failed" }
+
+    # CRITICAL: compile-client wipes out/ and compiles with build=false, which does NOT
+    # generate out/nls.messages.json. Without it, the workbench renderer crashes to a
+    # BLACK SCREEN. Dev uses inline English so an empty [] satisfies the bootstrap.
+    $nlsFile = "$root\out\nls.messages.json"
+    if (-not (Test-Path $nlsFile)) {
+        '[]' | Set-Content -Path $nlsFile -NoNewline -Encoding UTF8
+        Write-Host "  Wrote out/nls.messages.json (required for renderer to boot)" -ForegroundColor Green
+    }
 } else {
     Write-Host ""
     Write-Host "=== Step 3: SKIPPED (gulp) ===" -ForegroundColor Yellow
