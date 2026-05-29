@@ -297,6 +297,59 @@ This is the standalone-agent behavior the owner emphasized. It lives in
   upgrading what the agent can do. This is the core of V's *support* identity:
   he doesn't just help once, he makes the environment more capable over time.
 
+### 3.1 The support surface — what V brings to the environment
+
+The premise (owner): V3Code already does things Cursor/Trae/VS Code don't —
+auto-injected never-forget briefing, LSP-aware semantic index, privacy-first
+local embeddings, `reasoning_content` streaming. **But that power is passive and
+agent-facing.** V is the layer that makes it legible, proactive, and human-
+facing. Each ability below hangs off infra that already exists:
+
+- **`/` command palette (two surfaces).** V3Code already drives mode-switching
+  through command actions (`vibeModeActions.ts`). V gets (a) workbench command
+  contributions (`V: Plan…`, `V: Enhance prompt`, `V: Health check`,
+  `V: Guard report`) registered like any `Action2`, and (b) an **in-chat `/`
+  slash menu** in his input box: `/plan /enhance /skill /health /guard /memory
+  /handoff`. The slash menu is pure React in `VChat`; the commands are the same
+  handlers `vCompanionService` exposes.
+
+- **IDE governor (manage V3Code itself).** V watches the IDE's own load —
+  background tasks (the workspace **indexer**, `IFileService` watchers, running
+  **MCP servers**), responsiveness, and "too many things running." When it's
+  heavy or slow, V **proposes** throttling/pausing with one-click apply (e.g.
+  "indexer + 3 MCP servers are running; pause indexing while you debug?"). Uses
+  `IWorkbenchLayoutService`, the indexer status, and `mcpService`.
+  **Default: suggest, never silently kill** — V must not fight the user or stall
+  the indexer mid-pass.
+
+- **Egress / secrets guard (the standout).** V3Code is already privacy-first
+  (local-only embeddings, remote opt-in, OpenAI never — `CONTEXT-BRIDGE-NATIVE.md`
+  §5). V extends that to *outbound prompts*: before anything reaches a cloud
+  model, V scans the assembled payload + staged files for `.env` contents,
+  secrets, API keys, tokens (reuse the `find_text` secret patterns from health
+  checks) and **blocks or redacts** with a prompt. Hook the single injection
+  point `convertToLLMMessageService.prepareLLMChatMessages` (the same chokepoint
+  CB uses). No competitor markets this.
+
+- **Destructive-action guard.** Watches the agent's file tools (delete /
+  rewrite / mass-edit). Before a destructive op on something with high blast
+  radius or outside the active plan, V pauses the agent, drops a
+  `rollbackService` checkpoint, and asks. Extends §3's blast-radius + scope-drift
+  lanes specifically to *deletions*.
+
+- **Reads the agent's reasoning.** The agent streams `reasoning_content`
+  (cleaned up in the latest commit). V consumes it so nudges are intent-aware,
+  not just file-aware: "its reasoning shows it's about to swap the JWT algorithm
+  — that's shared with payments, per your memory note."
+
+- **Proactive prompt-vagueness nudge.** Beyond on-demand enhancement, the
+  observer flags a vague prompt *before* send ("this is vague — want me to
+  sharpen it with the auth context?") `[Sharpen] [Send as-is]`.
+
+These are the concrete answers to "what does V *do for you*": he's not a chat
+box, he's a co-pilot that plans with you, guards what leaves your machine,
+keeps the agent honest, upgrades its skills, and keeps the IDE itself fast.
+
 ---
 
 ## 4. Memory (his "remembers everything")
@@ -395,6 +448,11 @@ this water (push from server → device); full portable chat is the destination.
   off until trust is established).
 - **Ambient mode:** idle threshold before V roams (default ~45s) + whether
   ambient/screensaver is on by default (recommend on — it's the "alive" signal).
+- **Governor autonomy:** confirmed suggest-only (no auto-kill of indexer/MCP/
+  watchers). Lock the throttle actions V is allowed to *offer*.
+- **Egress guard scope:** redact silently vs always prompt; which secret
+  patterns; whether it blocks or just warns on cloud sends (recommend block +
+  prompt for `.env`/keys, warn for everything else).
 - ~~Sprite asset source~~ — **resolved:** Retro Diffusion Animations
   (8-Direction Rotation + Walking & Idle). Approved look locked (§2.7).
 
