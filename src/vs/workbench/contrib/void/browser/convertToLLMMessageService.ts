@@ -80,7 +80,10 @@ const prepareMessages_openai_tools = (messages: SimpleLLMMessage[]): AnthropicOr
 
 		if (currMsg.role !== 'tool') {
 			if (currMsg.role === 'assistant' && currMsg.reasoning) {
-				newMessages.push({ ...currMsg, reasoning_content: currMsg.reasoning } as any)
+				// DeepSeek and other OAI-compat thinking models require prior
+				// reasoning_content echoed back. Build a clean object -- do NOT spread
+				// currMsg, which would leak anthropicReasoning/reasoning as junk fields.
+				newMessages.push({ role: 'assistant', content: currMsg.content, reasoning_content: currMsg.reasoning } as any)
 			} else if (currMsg.role === 'user' && currMsg.images && currMsg.images.length > 0) {
 				// Multimodal user message with images -- use content array format
 				const contentParts: any[] = [{ type: 'text', text: currMsg.content }];
@@ -91,8 +94,10 @@ const prepareMessages_openai_tools = (messages: SimpleLLMMessage[]): AnthropicOr
 					});
 				}
 				newMessages.push({ role: 'user', content: contentParts } as any);
+			} else if (currMsg.role === 'assistant') {
+				newMessages.push({ role: 'assistant', content: currMsg.content })
 			} else {
-				newMessages.push(currMsg)
+				newMessages.push({ role: 'user', content: currMsg.content })
 			}
 			continue
 		}

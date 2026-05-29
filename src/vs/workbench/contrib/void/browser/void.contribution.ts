@@ -73,13 +73,23 @@ import './contextBridge/lspBridgeAdapter.js'
 
 // register Semantic Index (codebase indexing + retrieval)
 // The renderer-side impl walks the workspace via IFileService, hashes via Web Crypto,
-// and stores chunks in-memory. Lexical retrieval is wired so the meter has real progress
-// and the agent's semantic_search gets non-empty results. The full sqlite + embeddings
-// pipeline lands when the IPC boundary to a node-host service is built.
+// and stores chunks in-memory. Lexical + optional embeddings (bge-small) retrieval is wired
+// so the meter has real progress and the agent's semantic_search gets non-empty results.
 import '../common/semanticIndex/semanticIndexConfiguration.js'
 import './semanticIndexBrowserImpl.js'
 import './semanticIndexActions.js'
 import './semanticIndexStatusBar.js'
+
+// register V3Code agentic feature services. These register their DI singletons so they
+// are injectable. Full UI/agent-loop wiring is incremental; registration here makes the
+// services live and available for consumers.
+import './autoContextService.js'        // auto-attach relevant files to a prompt
+import './agentModeService.js'          // agent/ask/plan tool gating
+import './rollbackService.js'           // bulk undo of agent file changes
+import './diffPreviewService.js'        // multi-file review-before-apply
+import './backgroundAgentService.js'    // background task state management
+import './slashCommandService.js'       // /fix /explain /test /commit /refactor /doc
+import './chatGhostTextService.js'      // chat-aware inline completion cache
 
 // register misc service
 import './miscWokrbenchContrib.js'
