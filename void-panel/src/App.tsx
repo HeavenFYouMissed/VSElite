@@ -1,11 +1,14 @@
 import { useEffect, useRef, useState } from 'react'
 import { VStage, type Choice } from './components/VStage'
 import { VSidePanel, type Activity, type Skill } from './components/VSidePanel'
+import { BuildingView, type BuildStep } from './components/BuildingView'
 import { useProjectBriefing } from './hooks/useVoidBridge'
 import { bridge } from './lib/messagePort'
 
 type Role = 'v' | 'you' | 'sys'
 type Msg = { role: Role; text: string }
+type VView = 'home' | 'building'
+type BuildState = { title: string; steps: BuildStep[]; pct: number }
 
 const PFX: Record<Role, string> = { v: 'v', you: 'you', sys: '··' }
 
@@ -21,6 +24,8 @@ export function App() {
 	const [skills, setSkills] = useState<Skill[]>([])
 	const [fileCount, setFileCount] = useState(0)
 	const [streaming, setStreaming] = useState(false)
+	const [view, setView] = useState<VView>('home')
+	const [build, setBuild] = useState<BuildState | null>(null)
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const greeted = useRef(false)
 
@@ -58,9 +63,44 @@ export function App() {
 		return copy
 	}
 
+	// Scene system: V shifts into a dedicated "level" for major work, then returns home.
+	// Driven manually for now (the /build preview); agent-watching will fire this for real.
+	const runBuildScene = (title: string) => {
+		const labels = ['reading the workspace', 'scaffolding files', 'wiring it together', 'checking it builds']
+		setView('building')
+		setBuild({ title, pct: 4, steps: labels.map((label, i) => ({ label, state: i === 0 ? 'active' : 'todo' })) })
+		let i = 0
+		const id = window.setInterval(() => {
+			i++
+			setBuild(b => {
+				if (!b) return b
+				const steps = b.steps.map((s, idx): BuildStep => ({ ...s, state: idx < i ? 'done' : idx === i ? 'active' : 'todo' }))
+				const pct = Math.min(100, Math.round((i / labels.length) * 100))
+				return { ...b, steps, pct }
+			})
+			if (i >= labels.length) {
+				window.clearInterval(id)
+				window.setTimeout(() => {
+					setView('home')
+					setBuild(null)
+					setMessages(m => [...m, { role: 'v', text: `done — ${title} is wired up. back to base.` }])
+				}, 1100)
+			}
+		}, 1300)
+	}
+
 	const send = (text: string) => {
 		const t = text.trim()
 		if (!t || streaming) return
+		// /build preview — demonstrates V's level-shift (real trigger comes from agent-watching)
+		const buildMatch = t.match(/^\/?build\s+(.+)/i)
+		if (buildMatch) {
+			setMessages(m => [...m, { role: 'you', text: t }])
+			setInput('')
+			setChoices([])
+			runBuildScene(buildMatch[1])
+			return
+		}
 		setMessages(m => [...m, { role: 'you', text: t }, { role: 'v', text: '' }])
 		setInput('')
 		setChoices([])
@@ -80,6 +120,9 @@ export function App() {
 				<span className="muted">{connected ? 'context-bridge online' : 'standalone'}</span>
 			</div>
 
+			{view === 'building' && build ? (
+				<BuildingView title={build.title} steps={build.steps} pct={build.pct} />
+			) : (
 			<div className="main">
 				<div className="col-left">
 					<div className="transcript" ref={scrollRef}>
@@ -97,6 +140,7 @@ export function App() {
 					<VSidePanel connected={connected} recent={recent} skills={skills} fileCount={fileCount} />
 				</div>
 			</div>
+			)}
 
 			<div className="prompt">
 				<span className="car">{'>'}</span>
