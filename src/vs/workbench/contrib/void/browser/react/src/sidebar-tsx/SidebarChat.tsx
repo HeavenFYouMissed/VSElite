@@ -333,10 +333,7 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
                 flex flex-col px-3 py-2.5 relative text-left shrink-0
                 rounded-2xl
                 bg-void-bg-2
-				border border-void-border-3/60
 				shadow-[0_1px_3px_rgba(0,0,0,0.18)]
-				transition-colors duration-150 ease-out
-				hover:border-void-border-2/70
 				${className}
             `}
 			onClick={(e) => {
@@ -376,8 +373,9 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
 						<ReasoningOptionSlider featureName={featureName} />
 
 						<div className='flex items-center flex-wrap gap-x-1.5 gap-y-1 text-nowrap'>
-							{featureName === 'Chat' && <ChatModeDropdown className='text-xs text-void-fg-2 bg-void-bg-1/80 border border-void-border-3/50 rounded-lg py-1 px-2 transition-colors duration-150 hover:bg-void-bg-1 hover:border-void-border-2' />}
-							<ModelDropdown featureName={featureName} className='text-xs text-void-fg-2 bg-void-bg-1/80 border border-void-border-3/50 rounded-lg py-1 px-2 transition-colors duration-150 hover:bg-void-bg-1 hover:border-void-border-2' />
+							{featureName === 'Chat' && <ChatModeDropdown className='text-xs text-void-fg-2 bg-void-bg-1/60 rounded-lg py-1 px-2 transition-colors duration-150 hover:bg-void-bg-1' />}
+							<ModelDropdown featureName={featureName} className='text-xs text-void-fg-2 bg-void-bg-1/60 rounded-lg py-1 px-2 transition-colors duration-150 hover:bg-void-bg-1' />
+							{featureName === 'Chat' && <ToolApprovalTypeSwitch size='xs' approvalType='edits' desc='Auto-approve' />}
 						</div>
 					</div>
 				)}
