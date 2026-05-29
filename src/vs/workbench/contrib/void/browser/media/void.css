@@ -459,17 +459,18 @@ z-index: 1;
    Chat panel polish — Copilot-like glow + accent colors
    ============================================================================ */
 
-/* Chat input box — amethyst focus glow that says "you're talking to AI" */
+/* Chat input textarea is BORDERLESS. The composer's single rounded container
+   (VoidChatArea) provides the only box around the input -- no inner border/glow
+   around the text the user types in. (Previously this drew an amethyst box that
+   couldn't be overridden from React because of !important.) */
 .monaco-workbench .part.auxiliarybar .void-scope textarea,
-.monaco-workbench .part.auxiliarybar .void-scope input[type="text"] {
-border: 1px solid rgba(139, 92, 246, 0.35) !important;
-border-radius: 8px !important;
-transition: border-color 0.2s ease, box-shadow 0.2s ease;
-}
+.monaco-workbench .part.auxiliarybar .void-scope input[type="text"],
 .monaco-workbench .part.auxiliarybar .void-scope textarea:focus,
 .monaco-workbench .part.auxiliarybar .void-scope input[type="text"]:focus {
-border-color: rgba(167, 139, 250, 0.8) !important;
-box-shadow: 0 0 0 1px rgba(167, 139, 250, 0.4), 0 0 20px rgba(139, 92, 246, 0.25) !important;
+border: none !important;
+border-radius: 0 !important;
+box-shadow: none !important;
+outline: none !important;
 }
 
 /* Send button + primary buttons — venom-green accent for "GO" feel */
