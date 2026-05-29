@@ -31,7 +31,7 @@ import { acceptAllBg, acceptBorder, buttonFontSize, buttonTextColor, rejectAllBg
 import { builtinToolNames, isABuiltinToolName, MAX_FILE_CHARS_PAGE, MAX_TERMINAL_INACTIVE_TIME } from '../../../../common/prompt/prompts.js';
 import { RawToolCallObj } from '../../../../common/sendLLMMessageTypes.js';
 import ErrorBoundary from './ErrorBoundary.js';
-import { V3AlienHeader } from './V3AlienHeader.js';
+import { ActivityBannerToggle, ChatActivityBanner, readActivityBannerEnabled, writeActivityBannerEnabled } from './ChatActivityBanner.js';
 import { ToolApprovalTypeSwitch } from '../void-settings-tsx/Settings.js';
 
 import { persistentTerminalNameOfId } from '../../../terminalToolService.js';
@@ -795,6 +795,7 @@ type ToolHeaderParams = {
 	onClick?: () => void;
 	desc2OnClick?: () => void;
 	isOpen?: boolean;
+	defaultOpen?: boolean;
 	className?: string;
 }
 
@@ -814,11 +815,12 @@ const ToolHeaderWrapper = ({
 	onClick,
 	desc2OnClick,
 	isOpen,
+	defaultOpen,
 	isRejected,
 	className, // applies to the main content
 }: ToolHeaderParams) => {
 
-	const [isOpen_, setIsOpen] = useState(false);
+	const [isOpen_, setIsOpen] = useState(defaultOpen ?? false);
 	const isExpanded = isOpen !== undefined ? isOpen : isOpen_
 
 	const isDropdown = children !== undefined // null ALLOWS dropdown
@@ -935,7 +937,8 @@ const EditTool = ({ toolMessage, threadId, messageIdx, content }: Parameters<Res
 
 	const { rawParams, params, name } = toolMessage
 	const desc1OnClick = () => voidOpenFileFn(params.uri, accessor)
-	const componentParams: ToolHeaderParams = { title, desc1, desc1OnClick, desc1Info, isError, icon, isRejected, }
+	// Show the diff expanded inline in the chat by default (Cursor-style), still collapsible.
+	const componentParams: ToolHeaderParams = { title, desc1, desc1OnClick, desc1Info, isError, icon, isRejected, defaultOpen: true, }
 
 
 	const editToolType = toolMessage.name === 'edit_file' ? 'diff' : 'rewrite'
@@ -2989,6 +2992,13 @@ export const SidebarChat = () => {
 	const [pendingImages, setPendingImages] = useState<ImageAttachment[]>([])
 	const imageFileInputRef = useRef<HTMLInputElement | null>(null)
 
+	// Activity banner: alien + ASCII status strip while the coding agent is working
+	const [activityBannerEnabled, setActivityBannerEnabled] = useState(readActivityBannerEnabled)
+	const onActivityBannerChange = useCallback((on: boolean) => {
+		setActivityBannerEnabled(on)
+		writeActivityBannerEnabled(on)
+	}, [])
+
 	const SUPPORTED_IMG: Record<string, ImageAttachment['mimeType']> = useMemo(() => ({
 		'image/png': 'image/png', 'image/jpeg': 'image/jpeg', 'image/jpg': 'image/jpeg' as ImageAttachment['mimeType'],
 		'image/gif': 'image/gif', 'image/webp': 'image/webp',
@@ -3302,6 +3312,9 @@ export const SidebarChat = () => {
 
 
 	const threadPageInput = <div key={'input' + chatThreadsState.currentThreadId}>
+		<div className='flex items-center justify-end px-4 pt-1 pb-0.5'>
+			<ActivityBannerToggle enabled={activityBannerEnabled} onChange={onActivityBannerChange} />
+		</div>
 		<div className='px-4'>
 			<CommandBarInChat />
 		</div>
@@ -3360,11 +3373,23 @@ export const SidebarChat = () => {
 	// 		</ErrorBoundary>
 	// 	</div>
 	// </div>
+	const activeToolName = toolCallSoFar?.name ?? null
+	const showActivityBanner = activityBannerEnabled && !!isRunning && isRunning !== 'idle'
+
 	const threadPageContent = <div
 		ref={sidebarRef}
 		className='w-full h-full flex flex-col overflow-hidden'
 	>
-		<V3AlienHeader isWorking={!!isRunning} />
+		{!activityBannerEnabled && (
+			<div className='flex justify-end items-center px-3 pt-1.5 shrink-0'>
+				<ActivityBannerToggle enabled={activityBannerEnabled} onChange={onActivityBannerChange} compact />
+			</div>
+		)}
+		<ChatActivityBanner
+			visible={showActivityBanner}
+			isRunning={isRunning}
+			activeToolName={activeToolName}
+		/>
 
 		<ErrorBoundary>
 			{messagesHTML}

@@ -24,6 +24,7 @@ import { ISemanticIndexService } from '../common/semanticIndex/semanticIndexType
 import { ILspBridgeAdapter } from './contextBridge/lspBridgeAdapter.js'
 import { PackContextTask } from '../common/contextBridge/contextBridgeTypes.js'
 import { ILogService } from '../../../../platform/log/common/log.js'
+import { IMainProcessService } from '../../../../platform/ipc/common/mainProcessService.js'
 import {
 	runGetFileContext,
 	runGetFileDependencies,
@@ -176,6 +177,7 @@ export class ToolsService implements IToolsService {
 		@ISemanticIndexService private readonly semanticIndexService: ISemanticIndexService,
 		@ILspBridgeAdapter private readonly lspBridgeAdapter: ILspBridgeAdapter,
 		@ILogService private readonly logService: ILogService,
+		@IMainProcessService private readonly mainProcessService: IMainProcessService,
 	) {
 		const queryBuilder = instantiationService.createInstance(QueryBuilder);
 
@@ -693,31 +695,10 @@ export class ToolsService implements IToolsService {
 
 		// --- Web & Git & Browser ---
 		web_search: async ({ query, maxResults }) => {
-			const encoded = encodeURIComponent(query)
-			const url = `https://lite.duckduckgo.com/lite/?q=${encoded}`
-			const resp = await fetch(url, {
-				headers: { 'User-Agent': 'V3Code/1.0', 'Accept': 'text/html' },
-			})
-			const html = await resp.text()
-
-			const results: Array<{ title: string, url: string, snippet: string }> = []
-			const linkRegex = /<a[^>]+rel="nofollow"[^>]+href="([^"]*)"[^>]*>\s*([\s\S]*?)\s*<\/a>/gi
-			let match: RegExpExecArray | null
-			while ((match = linkRegex.exec(html)) !== null && results.length < maxResults) {
-				const href = match[1]
-				const title = match[2].replace(/<[^>]*>/g, '').trim()
-				if (!href || !title || href.startsWith('/') || href.includes('duckduckgo.com')) continue
-				results.push({ title, url: href, snippet: '' })
-			}
-
-			const snippetRegex = /<td\s+class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi
-			let snippetIdx = 0
-			while ((match = snippetRegex.exec(html)) !== null && snippetIdx < results.length) {
-				results[snippetIdx].snippet = match[1].replace(/<[^>]*>/g, '').trim()
-				snippetIdx++
-			}
-
-			return { result: { results } }
+			const channel = this.mainProcessService.getChannel('void-channel-webSearch')
+			const cap = Math.min(10, Math.max(1, maxResults ?? 5))
+			const { results } = await channel.call<{ results: Array<{ title: string; url: string; snippet: string }> }>('search', { query, maxResults: cap })
+			return { result: { results: results ?? [] } }
 		},
 		git_status: async () => {
 			const { resPromise } = await this.terminalToolService.runCommand('git status --porcelain', { type: 'temporary', cwd: null, terminalId: generateUuid() })

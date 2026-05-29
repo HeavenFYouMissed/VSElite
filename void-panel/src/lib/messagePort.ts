@@ -1,4 +1,4 @@
-import type { HostToPanel, PanelToHost, RpcMethod, RpcResponse, RpcStream } from './types'
+import type { CtxPush, HostToPanel, PanelToHost, RpcMethod, RpcResponse, RpcStream } from './types'
 
 // postMessage bridge to the workbench host. Validates origin (dev localhost vs prod
 // vscode-resource), does request/response correlation, and exposes streaming.
@@ -34,6 +34,7 @@ class VBridge {
 	private ready = false
 	private onInitCbs: Array<(workspaceName?: string) => void> = []
 	private agentCbs: Array<(e: AgentEvent) => void> = []
+	private ctxCbs: Array<(c: CtxPush) => void> = []
 
 	constructor() {
 		window.addEventListener('message', (e: MessageEvent) => {
@@ -47,6 +48,10 @@ class VBridge {
 			}
 			if ((msg as any).type === 'agentEvent') {
 				this.agentCbs.forEach(cb => cb(msg as unknown as AgentEvent))
+				return
+			}
+			if (msg.type === 'ctx') {
+				this.ctxCbs.forEach(cb => cb(msg as CtxPush))
 				return
 			}
 			if (msg.type === 'rpc-response') {
@@ -78,6 +83,7 @@ class VBridge {
 	}
 
 	onAgentEvent(cb: (e: AgentEvent) => void) { this.agentCbs.push(cb) }
+	onCtx(cb: (c: CtxPush) => void) { this.ctxCbs.push(cb) }
 
 	call<T = unknown>(method: RpcMethod, params: unknown): Promise<T> {
 		const id = `r${++this.seq}`

@@ -594,3 +594,168 @@ font-style: italic;
 .monaco-workbench .part.auxiliarybar .void-scope [class*="rror"] {
 color: #FF6B9D !important;
 }
+
+/* ============================================================================
+   Main chat activity banner — V alien + ASCII status (only while agent works)
+   ============================================================================ */
+
+.v-chat-activity-banner {
+overflow: hidden;
+max-height: 0;
+opacity: 0;
+transition: max-height 0.35s ease, opacity 0.35s ease;
+flex-shrink: 0;
+}
+
+.v-chat-activity-banner--visible {
+max-height: 56px;
+opacity: 1;
+}
+
+.v-chat-activity-banner__inner {
+display: flex;
+align-items: center;
+justify-content: space-between;
+gap: 12px;
+min-height: 48px;
+padding: 6px 12px;
+background: linear-gradient(180deg, #160a2b 0%, #1d0f3d 55%, #13132b 100%);
+border-bottom: 1px solid rgba(139, 92, 246, 0.22);
+box-shadow: 0 4px 16px -8px rgba(139, 92, 246, 0.35);
+}
+
+.v-chat-activity-banner__alien {
+flex-shrink: 0;
+display: flex;
+align-items: flex-end;
+padding-left: 2px;
+filter: drop-shadow(0 0 6px rgba(78, 160, 59, 0.35));
+}
+
+.v-chat-activity-status {
+flex: 1;
+min-width: 0;
+font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+font-size: 11px;
+line-height: 1.25;
+color: #8888aa;
+text-align: right;
+}
+
+.v-chat-activity-status__frame {
+color: rgba(139, 92, 246, 0.55);
+letter-spacing: 0.02em;
+user-select: none;
+}
+
+.v-chat-activity-status__frame--bottom {
+margin-top: 2px;
+}
+
+.v-chat-activity-phrases {
+position: relative;
+height: 1.3em;
+margin: 2px 0;
+overflow: hidden;
+}
+
+.v-chat-activity-phrase {
+position: absolute;
+right: 0;
+left: 0;
+opacity: 0;
+white-space: nowrap;
+animation: v-phrase-cycle 10s infinite;
+}
+
+.v-chat-activity-phrase[data-accent="green"] { color: #5fd35f; text-shadow: 0 0 8px rgba(95, 211, 95, 0.35); }
+.v-chat-activity-phrase[data-accent="amethyst"] { color: #a78bfa; text-shadow: 0 0 8px rgba(167, 139, 250, 0.3); }
+.v-chat-activity-phrase[data-accent="brand"] { color: #9fff3d; text-shadow: 0 0 10px rgba(159, 255, 61, 0.4); }
+
+@keyframes v-phrase-cycle {
+0%, 16% { opacity: 1; transform: translateY(0); }
+18%, 100% { opacity: 0; transform: translateY(-3px); }
+}
+
+/* Pill switch above composer */
+.v-activity-banner-pill {
+display: inline-flex;
+align-items: center;
+gap: 8px;
+cursor: pointer;
+user-select: none;
+font-size: 10px;
+color: #666688;
+letter-spacing: 0.03em;
+text-transform: lowercase;
+}
+
+.v-activity-banner-pill__input {
+position: absolute;
+opacity: 0;
+width: 0;
+height: 0;
+pointer-events: none;
+}
+
+.v-activity-banner-pill__track {
+position: relative;
+width: 32px;
+height: 18px;
+border-radius: 999px;
+background: rgba(248, 113, 113, 0.25);
+border: 1px solid rgba(248, 113, 113, 0.45);
+transition: background 0.2s ease, border-color 0.2s ease;
+}
+
+.v-activity-banner-pill__input:checked + .v-activity-banner-pill__track {
+background: rgba(52, 211, 153, 0.2);
+border-color: rgba(52, 211, 153, 0.55);
+}
+
+.v-activity-banner-pill__thumb {
+position: absolute;
+top: 2px;
+left: 2px;
+width: 12px;
+height: 12px;
+border-radius: 50%;
+background: #f87171;
+box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+transition: transform 0.2s ease, background 0.2s ease;
+}
+
+.v-activity-banner-pill__input:checked + .v-activity-banner-pill__track .v-activity-banner-pill__thumb {
+transform: translateX(14px);
+background: #34d399;
+}
+
+.v-activity-banner-pill__label {
+opacity: 0.85;
+}
+
+.v-activity-banner-pill:hover .v-activity-banner-pill__label {
+color: #8888aa;
+}
+
+/* Compact dot in chat header when banner is off */
+.v-activity-banner-dot {
+width: 10px;
+height: 10px;
+border-radius: 50%;
+border: none;
+padding: 0;
+cursor: pointer;
+background: #f87171;
+box-shadow: 0 0 6px rgba(248, 113, 113, 0.55);
+transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
+}
+
+.v-activity-banner-dot[data-on="true"] {
+background: #34d399;
+box-shadow: 0 0 8px rgba(52, 211, 153, 0.55);
+}
+
+.v-activity-banner-dot:hover {
+transform: scale(1.15);
+}

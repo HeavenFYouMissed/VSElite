@@ -201,6 +201,80 @@ body {
 .build-step.st-done .box { color: #5fd35f; }
 .build-bar { margin-top: 16px; color: #5fd35f; font-size: 13px; letter-spacing: 1px; }
 
+.autopilot-toggle {
+	font-family: inherit; font-size: 10px; cursor: pointer;
+	background: transparent; border: 1px solid rgba(139, 92, 246, 0.35);
+	color: #7a6c9a; border-radius: 3px; padding: 2px 8px;
+}
+.autopilot-toggle.on { color: #5fd35f; border-color: rgba(95, 211, 95, 0.5); }
+
+.ctx-bar { font-size: 11px; letter-spacing: 0.05em; color: #5fd35f; margin-bottom: 4px; }
+.ctx-bar.ctx-warn { color: #e6b84a; }
+.ctx-bar.ctx-critical { color: #e0594a; }
+
+.vquestions { margin: 8px 0; padding: 8px; border: 1px dashed rgba(139, 92, 246, 0.3); border-radius: 4px; }
+.vquestions-head { color: #5fd35f; font-size: 11px; margin-bottom: 6px; }
+.vquestions-prompt { color: #cdc0e6; margin-bottom: 4px; }
+.vquestions-opt { display: block; color: #9a8fb8; font-size: 12px; margin: 2px 0; cursor: pointer; }
+.vquestions-actions { display: flex; gap: 8px; margin-top: 8px; }
+
+.skills-search {
+	width: 100%; box-sizing: border-box; margin: 8px 0;
+	background: #140c24; border: 1px solid rgba(139, 92, 246, 0.25);
+	color: #e8e0f6; font-family: inherit; font-size: 12px; padding: 6px 8px; border-radius: 4px;
+}
+.skills-cats { display: flex; flex-direction: column; gap: 8px; flex: 1; overflow-y: auto; }
+.skill-cat-card {
+	text-align: left; font-family: inherit; cursor: pointer;
+	border: 1px solid rgba(139, 92, 246, 0.2); border-radius: 5px;
+	padding: 10px 12px; background: rgba(139, 92, 246, 0.06); color: #cdc0e6;
+}
+.skill-cat-card:hover { border-color: #5fd35f; }
+.skill-cat-count { color: #6b5d8a; font-size: 11px; display: block; margin-top: 2px; }
+.skills-breadcrumb { color: #7a6c9a; font-size: 11px; margin-bottom: 8px; }
+.skills-back-cat { font-family: inherit; background: none; border: none; color: #5fd35f; cursor: pointer; padding: 0; }
+.skill-cat-name { color: #cdc0e6; font-size: 13px; }
+.skills-search-results { display: flex; flex-direction: column; gap: 8px; margin-top: 10px; }
+.vquestions-block { margin: 6px 0; }
+
+.studio-overlay { position: fixed; inset: 0; z-index: 100; background: #0a0612; display: flex; flex-direction: column; }
+.studio-frame { flex: 1; width: 100%; border: 0; }
+.studio-exit { position: absolute; top: 8px; right: 12px; z-index: 101; font-family: inherit; cursor: pointer;
+	background: #140c24; color: #e8e0f6; border: 1px solid rgba(139, 92, 246, 0.4); padding: 6px 12px; border-radius: 4px; }
+
+.sandbox-approve { font-family: inherit; font-size: 10px; cursor: pointer; margin-left: 6px;
+	color: #0c0a14; background: #5fd35f; border: none; border-radius: 3px; padding: 2px 6px; }
+
+/* skills page */
+.scene-skills { padding: 14px 16px; }
+.skills-sub { color: #6b5d8a; font-size: 12px; }
+.skills-hint { color: #6b5d8a; font-size: 12px; margin-bottom: 12px; }
+.skills-list { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
+.skills-empty { color: #5d5278; font-size: 13px; padding: 8px 2px; }
+.skill-card {
+	display: flex; align-items: center; gap: 12px;
+	border: 1px solid rgba(139, 92, 246, 0.18); border-radius: 5px;
+	padding: 9px 11px; background: rgba(139, 92, 246, 0.05); transition: 0.12s;
+}
+.skill-card:hover { border-color: rgba(95, 211, 95, 0.4); background: rgba(139, 92, 246, 0.09); }
+.skill-card-main { flex: 1 1 auto; min-width: 0; }
+.skill-card-name { color: #cdc0e6; font-size: 13px; }
+.skill-card-desc { color: #7d7298; font-size: 11.5px; line-height: 1.45; margin-top: 2px; }
+.skill-mount {
+	flex: 0 0 auto; font-family: inherit; font-size: 11px; cursor: pointer;
+	color: #0c0a14; background: #5fd35f; border: none; border-radius: 4px;
+	padding: 5px 10px; font-weight: 600; transition: 0.12s; white-space: nowrap;
+}
+.skill-mount:hover:not(:disabled) { background: #7ce67c; }
+.skill-mount:disabled { opacity: 0.5; cursor: default; }
+.skills-foot { margin-top: 12px; flex: 0 0 auto; }
+.skill-make {
+	font-family: inherit; font-size: 12px; cursor: pointer;
+	color: #b6a9d2; background: transparent; border: 1px dashed rgba(139, 92, 246, 0.3);
+	border-radius: 4px; padding: 6px 12px; width: 100%; transition: 0.12s;
+}
+.skill-make:hover { color: #cdc0e6; border-color: #5fd35f; }
+
 /* slash-command palette */
 .prompt-wrap { position: relative; flex: 0 0 auto; }
 .slash-menu {

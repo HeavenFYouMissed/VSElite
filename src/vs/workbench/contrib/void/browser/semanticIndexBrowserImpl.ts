@@ -33,6 +33,11 @@
  *     something (enabled toggle, auto-rebuild, custom exclude patterns).
  */
 
+// Side-effect: registers the workbench startup contribution that forces this
+// (Delayed) singleton to instantiate on workspace open and refreshes the index
+// when workspace folders change. Imported here (rather than editing
+// void.contribution.ts) so the trigger ships with the indexer it drives.
+import './semanticIndexAutoStart.js';
 import { Disposable } from '../../../../base/common/lifecycle.js';
 import { Emitter, Event } from '../../../../base/common/event.js';
 import { URI } from '../../../../base/common/uri.js';
@@ -225,15 +230,19 @@ export class SemanticIndexBrowserImpl extends Disposable implements ISemanticInd
 		// switch, rebase) into a single incremental update.
 		this._register(this.fileService.onDidFilesChange(e => {
 			if (!this._initDone || this._status.state === 'error') return;
+			if (!this._readConfig().enabled) return;
 			let touched = false;
 			for (const r of e.rawAdded) { if (this._shouldWatch(r.fsPath)) { this._pendingChanges.add(r.fsPath); touched = true; } }
 			for (const r of e.rawUpdated) { if (this._shouldWatch(r.fsPath)) { this._pendingChanges.add(r.fsPath); touched = true; } }
+			let removed = false;
 			for (const r of e.rawDeleted) {
 				// Remove stale chunks immediately for deleted files (no debounce needed).
 				const rel = this._absToRel(r.fsPath);
-				if (rel) this._removeFileChunks(rel);
+				if (rel) { this._removeFileChunks(rel); removed = true; }
 			}
-			if (touched) this._scheduleIncremental();
+			// Debounce add/update re-chunking into one pass; a delete-only burst
+			// still reschedules so the trimmed index gets persisted to sessionStorage.
+			if (touched || removed) this._scheduleIncremental();
 		}));
 
 		// Config changes: if the user flips enabled→true, auto-rebuild.
@@ -283,12 +292,17 @@ export class SemanticIndexBrowserImpl extends Disposable implements ISemanticInd
 		if (restored) {
 			this.logService.info(`[v3code-index] restored ${this.chunks.size} chunks from sessionStorage`);
 		}
-		if (cfg.autoRebuildOnStartup) {
+		if (cfg.autoRebuildOnStartup || !restored) {
+			// Auto-build on workspace open: if the user forced a startup rebuild OR
+			// there is no prior session to restore, walk + chunk now so the index
+			// (and the agent's semantic_search) is live immediately — no manual
+			// "Rebuild Codebase Index" command needed. A genuine app relaunch
+			// clears sessionStorage, so that path lands here and builds fresh.
 			await this.rebuild();
-		} else if (restored) {
-			this.setStatus({ state: 'ready' }, true);
 		} else {
-			this.setStatus({ state: 'idle' }, true);
+			// A usable session was restored — skip the expensive re-walk. The live
+			// file-watcher (onDidFilesChange, below) keeps it current incrementally.
+			this.setStatus({ state: 'ready' }, true);
 		}
 	}
 

@@ -20,7 +20,7 @@ Registry.as<IConfigurationRegistry>(Extensions.Configuration).registerConfigurat
 		},
 		'v3code.semanticIndex.autoRebuildOnStartup': {
 			type: 'boolean',
-			default: false,
+			default: true,
 			description: localize('v3code.semanticIndex.autoRebuild', 'Rebuild the index automatically when V3Code opens this workspace.'),
 		},
 		'v3code.semanticIndex.embedModel': {

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>V · alien sprite</title>
+<style>
+body { margin: 0; background: #0a0612; color: #c8bbe0; font-family: ui-monospace, monospace; padding: 12px; }
+canvas { image-rendering: pixelated; border: 1px solid #5fd35f; display: block; margin: 12px 0; }
+button { font-family: inherit; cursor: pointer; background: #5fd35f; color: #0a0612; border: none; padding: 6px 12px; border-radius: 4px; margin-right: 8px; }
+</style>
+</head>
+<body>
+<p>alien sprite generator (compact)</p>
+<canvas id="c" width="128" height="128"></canvas>
+<button id="done">done</button>
+<script>
+const PALETTE = ['#00000000', '#5fd35f', '#202327', '#cfd6db'];
+const SPRITE = [
+  [0,0,0,2,2,0,0,0],
+  [0,0,2,1,1,2,0,0],
+  [0,2,1,1,1,1,2,0],
+  [2,1,1,3,3,1,1,2],
+  [0,2,1,1,1,1,2,0],
+  [0,0,2,2,2,2,0,0],
+];
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+const cell = 16;
+PALETTE.forEach((col, i) => {
+  for (let y = 0; y < SPRITE.length; y++)
+    for (let x = 0; x < SPRITE[y].length; x++)
+      if (SPRITE[y][x] === i && col !== '#00000000') {
+        ctx.fillStyle = col;
+        ctx.fillRect(x * cell, y * cell, cell, cell);
+      }
+});
+document.getElementById('done').onclick = () => {
+  window.parent.postMessage({ type: 'vStudioExport', kind: 'sprite', data: { PALETTE, SPRITE, png: canvas.toDataURL('image/png') } }, '*');
+};
+</script>
+</body>
+</html>

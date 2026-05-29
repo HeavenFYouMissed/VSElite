@@ -57,6 +57,8 @@ import { IVoidSettingsService } from '../common/voidSettingsService.js';
 import { ModelSelection } from '../common/voidSettingsTypes.js';
 import { IChatThreadService } from './chatThreadService.js';
 import { ICodeEditorService } from '../../../../editor/browser/services/codeEditorService.js';
+import { getModelCapabilities } from '../common/modelCapabilities.js';
+import { VCompanionMemory } from './vCompanionMemory.js';
 
 declare const ResizeObserver: any;
 
@@ -101,6 +103,10 @@ class VCompanionViewPane extends ViewPane {
 		@ICodeEditorService private readonly codeEditorService: ICodeEditorService,
 	) {
 		super(options, keybindingService, contextMenuService, configurationService, contextKeyService, viewDescriptorService, instantiationService, openerService, themeService, hoverService);
+
+		this._memory = new VCompanionMemory(this.fileService, this.environmentService, this.workspaceContextService);
+		this._ensureVWorkspace().catch(() => { /* best effort */ });
+		this._memory.compactIfNeeded().catch(() => { /* */ });
 
 		// Agent-watching: translate the coding agent's stream state into events V's UI reacts to.
 		this._register(this.chatThreadService.onDidChangeStreamState(({ threadId }) => {
@@ -260,6 +266,8 @@ class VCompanionViewPane extends ViewPane {
 
 	private _vMessages: any[] = [];
 	private _vRequestId: string | null = null;
+	private readonly _memory: VCompanionMemory;
+	private _autoPilot = false;
 
 	private _vModelSelection(): { modelSelection: ModelSelection | null; modelSelectionOptions: any } {
 		const s = this.settingsService.state;
@@ -321,9 +329,16 @@ class VCompanionViewPane extends ViewPane {
 			return;
 		}
 
-		const MAX_STEPS = 6;
+		// Two-tier memory: inject what V remembers (profile + project summary + relevant journal
+		// entries) into the system message EVERY turn. Computed once per user message.
+		const memoryBlock = await this._memory.memoryBlock(text);
+		const autoLine = this._autoPilot
+			? '\n\n# auto-pilot ON\nWhen you decide to delegate, end your reply with a line: RUN: <prompt for the coding agent>'
+			: '';
+
+		const MAX_STEPS = 12;
 		for (let step = 0; step < MAX_STEPS; step++) {
-			const systemMessage = `${V_SYSTEM_PROMPT}\n\n# what V can see right now\n${this._vContextBlock()}`;
+			const systemMessage = `${V_SYSTEM_PROMPT}${autoLine}\n\n${memoryBlock}\n\n# what V can see right now\n${this._vContextBlock()}`;
 			const { messages, separateSystemMessage } = this.convertService.prepareLLMSimpleMessages({
 				simpleMessages: this._vMessages as any,
 				systemMessage,
@@ -342,7 +357,7 @@ class VCompanionViewPane extends ViewPane {
 					overridesOfModel: this.settingsService.state.overridesOfModel,
 					separateSystemMessage,
 					logging: { loggingName: 'V Companion' },
-					onText: ({ fullText }) => { full = fullText; this._post({ type: 'rpc-stream', id: streamId, event: 'text', payload: fullText }); },
+					onText: ({ fullText }) => { full = fullText; if (fullText && fullText.trim()) { this._post({ type: 'rpc-stream', id: streamId, event: 'text', payload: fullText }); } },
 					onFinalMessage: ({ fullText, fullReasoning, toolCall, anthropicReasoning }) => resolve({ kind: 'final', text: fullText || full, reasoning: fullReasoning, toolCall, anthropicReasoning }),
 					onError: ({ message }) => resolve({ kind: 'error', message }),
 					onAbort: () => resolve({ kind: 'abort' }),
@@ -358,7 +373,11 @@ class VCompanionViewPane extends ViewPane {
 			this._vMessages.push({ role: 'assistant', content: res.text, anthropicReasoning: res.anthropicReasoning ?? null, reasoning: res.reasoning || null });
 
 			if (!res.toolCall) {
-				this._post({ type: 'rpc-stream', id: streamId, event: 'final', payload: res.text });
+				// V-only, no-approval save: detect `REMEMBER: <fact>` directive lines in his final
+				// text, persist them to memory, and strip them from what the user sees.
+				const cleaned = await this._handleRememberDirectives(res.text);
+				this._post({ type: 'rpc-stream', id: streamId, event: 'final', payload: cleaned });
+				this._pushCtx(modelSelection);
 				this._vRequestId = null;
 				return;
 			}
@@ -384,7 +403,17 @@ class VCompanionViewPane extends ViewPane {
 		}
 
 		this._post({ type: 'rpc-stream', id: streamId, event: 'final', payload: '(stopped after several steps — say "keep going" if you want me to continue.)' });
+		this._pushCtx(modelSelection);
 		this._vRequestId = null;
+	}
+
+	private _pushCtx(modelSelection: ModelSelection): void {
+		const used = Math.round(this._vMessages.reduce((n, m: any) => n + (typeof m.content === 'string' ? m.content.length : 0), 0) / 4);
+		let max = 8000;
+		try {
+			max = getModelCapabilities(modelSelection.providerName, modelSelection.modelName, this.settingsService.state.overridesOfModel).contextWindow;
+		} catch { /* default */ }
+		this._post({ type: 'ctx', used, max });
 	}
 
 	private async _dispatch(method: string, params: any): Promise<unknown> {
@@ -405,13 +434,75 @@ class VCompanionViewPane extends ViewPane {
 			}
 			case 'vWorkspaceSummary':
 				return await this._vWorkspaceSummary();
+			case 'vListSkills':
+				return await this._vListSkills();
+			case 'vMountSkill':
+				return await this._vMountSkill(params);
 			case 'vRunAgent': {
-				// V hands a task to the MAIN coding agent (which V then watches via agent-watching).
-				const prompt = String(params?.prompt ?? '').trim();
+				const prompt = await this._delegationPrompt(String(params?.prompt ?? '').trim());
 				if (!prompt) { throw new Error('nothing to run'); }
 				const thread: any = this.chatThreadService.getCurrentThread();
 				await this.chatThreadService.addUserMessageAndStreamResponse({ userMessage: prompt, threadId: thread.id });
 				return { ok: true };
+			}
+			case 'vRemember': {
+				const scope = (params?.scope === 'user' ? 'user' : 'project') as 'user' | 'project';
+				const text = String(params?.text ?? '').trim();
+				if (!text) { throw new Error('nothing to remember'); }
+				await this._memory.remember(scope, text, Array.isArray(params?.tags) ? params.tags.map(String) : []);
+				return { ok: true };
+			}
+			case 'vRecall': {
+				const topic = String(params?.topic ?? '').trim();
+				const hits = await this._memory.recall(topic || 'recent');
+				return { entries: hits };
+			}
+			case 'vMemorySummary':
+				return await this._memory.summary();
+			case 'vSetAutoPilot':
+				this._autoPilot = !!params?.on;
+				return { on: this._autoPilot };
+			case 'vSandboxStage': {
+				const rel = String(params?.path ?? '').trim().replace(/^[/\\]+/, '');
+				const content = String(params?.content ?? '');
+				if (!rel) { throw new Error('no path'); }
+				const home = await this._ensureVWorkspace();
+				if (!home) { throw new Error('no workspace'); }
+				const target = URI.joinPath(home, 'files', rel);
+				const parent = URI.joinPath(target, '..');
+				if (!(await this.fileService.exists(parent))) { await this.fileService.createFolder(parent); }
+				await this.fileService.writeFile(target, VSBuffer.fromString(content));
+				return { ok: true, shadowPath: target.fsPath };
+			}
+			case 'vSandboxList': {
+				const home = await this._ensureVWorkspace();
+				if (!home) { return { files: [] }; }
+				const filesDir = URI.joinPath(home, 'files');
+				const out: { path: string; bytes: number }[] = [];
+				try {
+					const stat = await this.fileService.resolve(filesDir);
+					for (const c of stat.children ?? []) {
+						if (!c.isDirectory && !c.name.startsWith('.')) {
+							const buf = await this.fileService.readFile(c.resource);
+							out.push({ path: c.name, bytes: buf.value.byteLength });
+						}
+					}
+				} catch { /* empty */ }
+				return { files: out };
+			}
+			case 'vSandboxApprove': {
+				const rel = String(params?.path ?? '').trim();
+				const home = this._vHome();
+				const folder = this.workspaceContextService.getWorkspace().folders[0]?.uri;
+				if (!home || !folder || !rel) { throw new Error('cannot approve'); }
+				const shadow = URI.joinPath(home, 'files', rel);
+				const body = (await this.fileService.readFile(shadow)).value.toString();
+				const real = URI.joinPath(folder, rel);
+				const parent = URI.joinPath(real, '..');
+				if (!(await this.fileService.exists(parent))) { await this.fileService.createFolder(parent); }
+				await this.fileService.writeFile(real, VSBuffer.fromString(body));
+				await this.fileService.del(shadow);
+				return { ok: true, applied: real.fsPath };
 			}
 			default:
 				throw new Error('unknown method: ' + method);
@@ -441,6 +532,12 @@ class VCompanionViewPane extends ViewPane {
 			const seed = URI.joinPath(home, 'skills', 'watch-agent.md');
 			if (!(await this.fileService.exists(seed))) {
 				await this.fileService.writeFile(seed, VSBuffer.fromString(V_SEED_SKILL));
+			}
+			for (const s of V_OWN_SKILLS) {
+				const f = URI.joinPath(home, 'skills', s.name + '.md');
+				if (!(await this.fileService.exists(f))) {
+					await this.fileService.writeFile(f, VSBuffer.fromString(s.body));
+				}
 			}
 		} catch {
 			// best-effort; V still works without his folder
@@ -472,6 +569,146 @@ class VCompanionViewPane extends ViewPane {
 		} catch { /* no skills dir yet */ }
 		const fileCount = await this._countFiles(home);
 		return { available: true, fileCount, skills, home: home.fsPath };
+	}
+
+	// ----- Editor-agent skills: .agents/skills/ (cross-agent standard). These are for the MAIN
+	// coding agent, not V. V is the concierge: he lists them and MOUNTS one onto the editor agent.
+
+	private _agentSkillsHome(): URI | undefined {
+		const folder = this.workspaceContextService.getWorkspace().folders[0]?.uri;
+		return folder ? URI.joinPath(folder, '.agents', 'skills') : undefined;
+	}
+
+	private async _ensureAgentSkills(): Promise<URI | undefined> {
+		const home = this._agentSkillsHome();
+		if (!home) { return undefined; }
+		try {
+			if (!(await this.fileService.exists(home))) { await this.fileService.createFolder(home); }
+			// seed a few starter skills so the page is useful before the full catalog lands
+			const stat = await this.fileService.resolve(home);
+			const hasAny = (stat.children ?? []).some(c => c.isDirectory);
+			if (!hasAny) {
+				for (const s of STARTER_AGENT_SKILLS) {
+					const f = URI.joinPath(home, s.category, s.name, 'SKILL.md');
+					await this.fileService.writeFile(f, VSBuffer.fromString(s.body));
+				}
+			}
+		} catch { /* best effort */ }
+		return home;
+	}
+
+	private _parseSkillMeta(text: string, fallbackName: string, fallbackCategory: string): { name: string; desc: string; category: string } {
+		let name = fallbackName;
+		let desc = '';
+		let category = fallbackCategory;
+		const fm = text.match(/^---\s*([\s\S]*?)\s*---/);
+		if (fm) {
+			const n = fm[1].match(/^\s*name:\s*(.+)\s*$/m);
+			const d = fm[1].match(/^\s*description:\s*(.+)\s*$/m);
+			const c = fm[1].match(/^\s*category:\s*(.+)\s*$/m);
+			if (n) { name = n[1].trim(); }
+			if (d) { desc = d[1].trim(); }
+			if (c) { category = c[1].trim(); }
+		}
+		if (!desc) {
+			const firstPara = text.replace(/^---[\s\S]*?---/, '').split('\n').map(l => l.trim()).find(l => l && !l.startsWith('#'));
+			if (firstPara) { desc = firstPara; }
+		}
+		return { name, desc, category };
+	}
+
+	private async _vListSkills(): Promise<unknown> {
+		const home = await this._ensureAgentSkills();
+		if (!home) { return { available: false, skills: [], categories: [] }; }
+		const skills: { name: string; desc: string; category: string; id: string }[] = [];
+		const categories = new Set<string>();
+		try {
+			const stat = await this.fileService.resolve(home);
+			for (const catDir of stat.children ?? []) {
+				if (!catDir.isDirectory) { continue; }
+				const catStat = await this.fileService.resolve(catDir.resource);
+				for (const skillDir of catStat.children ?? []) {
+					if (!skillDir.isDirectory) { continue; }
+					try {
+						const buf = await this.fileService.readFile(URI.joinPath(skillDir.resource, 'SKILL.md'));
+						const meta = this._parseSkillMeta(buf.value.toString(), skillDir.name, catDir.name);
+						categories.add(meta.category);
+						skills.push({ ...meta, id: `${meta.category}/${meta.name}` });
+					} catch { /* flat legacy layout */ }
+				}
+				try {
+					const buf = await this.fileService.readFile(URI.joinPath(catDir.resource, 'SKILL.md'));
+					const meta = this._parseSkillMeta(buf.value.toString(), catDir.name, 'general');
+					categories.add(meta.category);
+					skills.push({ ...meta, id: meta.name });
+				} catch { /* category folder, not flat skill */ }
+			}
+		} catch { /* none */ }
+		return { available: true, skills, categories: [...categories].sort(), home: home.fsPath };
+	}
+
+	private async _vMountSkill(params: any): Promise<unknown> {
+		const raw = String(params?.name ?? '').trim();
+		if (!raw) { throw new Error('no skill name'); }
+		const home = this._agentSkillsHome();
+		if (!home) { throw new Error('no workspace folder'); }
+		const resolved = await this._resolveSkillPath(home, raw);
+		if (!resolved) { throw new Error('skill not found: ' + raw); }
+		const { rel, body, name } = resolved;
+		const mem = await this._memory.memoryBlock(`mount skill ${name}`);
+		const msg = `${mem ? mem + '\n\n' : ''}Adopt this skill and follow it for relevant tasks from now on. It lives at \`${rel}\`.\n\n<use_skill name="${name}" path="${rel}" />\n\n${body}`;
+		const thread: any = this.chatThreadService.getCurrentThread();
+		await this.chatThreadService.addUserMessageAndStreamResponse({ userMessage: msg, threadId: thread.id });
+		return { ok: true, name };
+	}
+
+	private async _resolveSkillPath(home: URI, id: string): Promise<{ rel: string; body: string; name: string } | undefined> {
+		const parts = id.split('/').filter(Boolean);
+		if (parts.length === 2) {
+			const uri = URI.joinPath(home, parts[0], parts[1], 'SKILL.md');
+			try {
+				const body = (await this.fileService.readFile(uri)).value.toString();
+				return { rel: `.agents/skills/${parts[0]}/${parts[1]}/SKILL.md`, body, name: parts[1] };
+			} catch { return undefined; }
+		}
+		for (const cat of await this._listSkillCategories(home)) {
+			try {
+				const uri = URI.joinPath(home, cat, id, 'SKILL.md');
+				const body = (await this.fileService.readFile(uri)).value.toString();
+				return { rel: `.agents/skills/${cat}/${id}/SKILL.md`, body, name: id };
+			} catch { /* try next */ }
+		}
+		try {
+			const body = (await this.fileService.readFile(URI.joinPath(home, id, 'SKILL.md'))).value.toString();
+			return { rel: `.agents/skills/${id}/SKILL.md`, body, name: id };
+		} catch { return undefined; }
+	}
+
+	private async _listSkillCategories(home: URI): Promise<string[]> {
+		try {
+			const stat = await this.fileService.resolve(home);
+			return (stat.children ?? []).filter(c => c.isDirectory).map(c => c.name);
+		} catch { return []; }
+	}
+
+	private async _handleRememberDirectives(text: string): Promise<string> {
+		const lines = text.split('\n');
+		const kept: string[] = [];
+		for (const line of lines) {
+			const m = line.match(/^\s*REMEMBER:\s*(.+)\s*$/i);
+			if (m) {
+				await this._memory.remember('project', m[1].trim());
+				continue;
+			}
+			kept.push(line);
+		}
+		return kept.join('\n').trimEnd();
+	}
+
+	private async _delegationPrompt(prompt: string): Promise<string> {
+		if (!prompt) { return ''; }
+		const mem = await this._memory.memoryBlock(prompt);
+		return mem ? `${mem}\n\n---\n\n${prompt}` : prompt;
 	}
 
 	private _layoutWebview(dimension?: Dimension): void {
@@ -529,81 +766,41 @@ registerAction2(class extends Action2 {
 	}
 });
 
-const V_SYSTEM_PROMPT = `You are V — the companion that lives inside the V3Code editor, beside the user's main
-coding agent. You are the "JARVIS of the editor": an always-on overseer, skill concierge,
-and prompt coach. You are NOT the coding agent and you do not write the production code —
-the main agent does that. Your job is to make the main agent (and the developer) better.
+const V_SYSTEM_PROMPT = `You are V — the companion inside the V3Code editor beside the main coding agent.
+You are an always-on overseer, skill concierge, and prompt coach. You do NOT write production code — the main agent does.
 
 # Mission
-- Watch the coding agent work and surface what matters: risks, faster routes, repeated
-  patterns worth turning into a skill, and quality issues — before they become problems.
-- Be a skill concierge: find skills that fit the task, or sketch a new one, and hand it to
-  the main agent. (Skills live as SKILL.md files under .agents/skills/.)
-- Be a prompt coach: when asked (or when a prompt is weak), rewrite the user's request to
-  the main agent into a sharp, detailed, unambiguous prompt — you propose it, you never send
-  it for them.
-- Manage the room: answer questions about the codebase, remember useful facts, keep the
-  developer oriented.
+- Watch the agent; surface risks, faster routes, and patterns worth skills.
+- Skill concierge: find or author SKILL.md under .agents/skills/<category>/<name>/ and mount for the agent.
+- Prompt coach: sharpen prompts; then offer to send them to the agent.
+- Memory: proactively save salient facts (decisions, preferences, project shape) via REMEMBER: <one fact per line>.
 
-# What you can see and do
-The section "what V can see right now" below is injected live every turn — the open
-workspace, the active file and its contents, and which files are open. USE IT. Never tell
-the user to "paste in" code you can already see; look first, then respond. Never assume a
-file's contents you haven't been shown — say what you can and can't see.
+# Delegation — YES you can send to the agent
+When asked "can you send to the agent?" answer YES — "sure, what should I send?"
+- Confirm mode (default): after /prompt or a plan, end with CHOICES: send to agent | edit | cancel
+- Auto-pilot: when ON, end with RUN: <prompt> to dispatch without confirm
+- /run and "send to agent" hand work to the main agent; you watch via agent events
 
-You also have READ/RESEARCH tools — call them when they'd help instead of guessing:
-search the web, search the codebase (lexical + semantic), read files, list directories, and
-pull code context (symbols, call graphs, dependencies). You do NOT have edit or terminal
-tools — you don't write the production code yourself. When something needs building, editing,
-or running, hand it to the main coding agent (the user can /run it, or you can propose it as
-a choice), then watch the agent work. Investigate first, delegate the doing.
+# Your tools (gather mode — use efficiently, batch reads, prefer get_dir_tree + pack_context)
+- semantic_search, find_text, search_for_files, search_in_file, search_pathnames_only
+- get_file_context, get_file_dependencies, get_symbol_context, get_call_graph, pack_context
+- list_notes, get_project_briefing, read_file, ls_dir, get_dir_tree, read_lint_errors
+- web_search, git_status
+No edit/terminal/git_commit tools. Stage risky file ideas in .v/files/ (sandbox) for user approval.
 
-# Personality & values
-You are a deeply pragmatic, sharp engineer-companion. You are guided by:
-- Clarity: state reasoning and tradeoffs concretely so decisions are easy to evaluate.
-- Pragmatism: keep the end goal and momentum in mind; focus on what actually moves things.
-- Rigor: expect arguments to be coherent; surface weak assumptions politely, then move on.
-You may challenge the user to raise their bar, but you never patronize or dismiss their
-concerns. When you suggest an alternative, explain the why so it's demonstrably reasonable —
-then work with them. This is your overseer voice: suggest, don't dictate.
+# CHOICES convention
+When offering paths, end with one line: CHOICES: option a | option b | option c (becomes clickable chips).
 
-# Escalation (how loud you get)
-- whisper: a one-line heads-up for small things, easy to ignore.
-- nudge: a clear suggestion + a quick choice when something's worth a decision.
-- intervene: only for genuinely risky/destructive/irreversible actions (data loss, secrets,
-  egress, force-push) — speak up plainly and ask before it happens.
-Match the volume to the stakes. Most of the time, whisper.
+# Start a project
+On /start or "start a project": ask 3-5 grouped questions in a fenced \`\`\`vquestions JSON array [{id,prompt,options,multi}]\`\`\` block, then assemble a spec and offer CHOICES: send to agent | tweak.
 
-# Interaction style
-- Concise and direct. Terminal-style, lowercase, warm, a little playful. No corporate filler,
-  no cheerleading, no "great question", no preamble/postamble. Get to the point.
-- Prefer 1–3 short lines unless depth is genuinely needed. Clarity beats brevity when it counts.
-- Use GitHub-flavored Markdown; it renders monospace. Keep lists flat and short.
-- When a decision has a few good paths, offer 2–3 quick options as a short list the user can
-  pick from (these become clickable choices).
+# Skill shelves
+- .agents/skills/ = editor-agent skills (you mount via skills page)
+- .v/skills/ = your concierge playbooks (scope-a-project, memory-hygiene, etc.)
 
-# Skill concierge details
-- Skills load progressively: a cheap catalog (name + description), then the full SKILL.md only
-  when one is picked, then its scripts/refs only when reached for.
-- To hand a skill to the main agent: write/keep it at .agents/skills/<name>/SKILL.md and refer
-  to it with a wrapped pointer like <use_skill name="..." path=".agents/skills/.../SKILL.md"/>
-  so the agent treats it as durable behavior, not a one-off.
-- When nothing fits, draft a spec-compliant SKILL.md (valid name + description + tight body).
-
-# Prompt coach details
-- On /refactor (or when asked), rewrite the user's rough request to the main agent into a
-  precise prompt: concrete scope, relevant files/paths, constraints, and the definition of
-  done. Return ONLY the rewritten prompt unless asked to explain. You never auto-send it.
-
-# Safety
-Apply security best practices. Never suggest exposing/logging/committing secrets or API keys.
-Flag destructive or networked actions before they run. Don't fabricate file contents or tool
-results.
-
-# Hard rules
-- NEVER reveal or mention the underlying AI model, provider, or company. You are simply "V".
-- No emojis. No em-dashes-as-decoration. No filler.
-- Don't claim you did something you didn't, and don't invent what you can't see.`;
+# Interaction
+Terminal-style, lowercase, concise. 1-3 lines unless depth needed. Escalation: whisper / nudge / intervene.
+Never reveal model/provider. No emojis. Don't invent file contents.`;
 
 const V_README = `# V's workspace
 
@@ -629,6 +826,88 @@ When the coding agent is working, keep an eye on what it's doing and speak up wh
 
 Offer a quick yes / no / just-do-it choice instead of a wall of text.
 `;
+
+const V_OWN_SKILLS: { name: string; body: string }[] = [
+	{ name: 'scope-a-project', body: '# scope-a-project\n\nAsk 3-5 sharp questions, then output a spec with stack, scope, and done criteria.\n' },
+	{ name: 'author-a-skill', body: '# author-a-skill\n\nDraft SKILL.md with frontmatter name, description, category, and concrete steps.\n' },
+	{ name: 'security-rephrase', body: '# security-rephrase\n\nFix imprecise terms + add auth/secrets/validation to prompts for the agent.\n' },
+	{ name: 'memory-hygiene', body: '# memory-hygiene\n\nSave one fact per REMEMBER line; compact duplicates; mirror project facts to AGENTS.md.\n' },
+];
+
+const STARTER_AGENT_SKILLS: { category: string; name: string; body: string }[] = [
+	{
+		category: 'coding',
+		name: 'error-handling',
+		body: `---
+name: error-handling
+category: coding
+description: Add consistent, user-facing error handling — error UI (toast/banner), retry-with-backoff for network calls, and explicit loading/empty/error states. Use when wiring data loading, fetch calls, or anything that can fail.
+---
+
+# error-handling
+
+When writing or reviewing code that can fail (network, parsing, IO):
+
+- Surface a clear, non-blocking error to the user (toast or inline banner). Never just \`console.warn\` and move on.
+- Add retry-with-backoff for transient network errors (e.g. 3 tries, exponential delay).
+- Render an explicit state for every async view: loading, empty, error, and success.
+- Never swallow errors silently. Log with context and give the user something actionable.
+`,
+	},
+	{
+		category: 'coding',
+		name: 'code-formatting',
+		body: `---
+name: code-formatting
+category: coding
+description: Set up and enforce consistent formatting/linting — Prettier + ESLint (and Stylelint for CSS) with a drop-in config and pre-commit hook. Use when code style is inconsistent or before shipping.
+---
+
+# code-formatting
+
+- Add Prettier as the single formatter; commit a \`.prettierrc\` with the project's conventions.
+- Add ESLint with \`eslint-config-prettier\` so lint rules don't fight the formatter.
+- For CSS, add Stylelint to catch what Prettier won't.
+- Wire a pre-commit hook (husky + lint-staged) that runs format + lint on staged files.
+- Format the whole tree once in a dedicated commit so future diffs stay clean.
+`,
+	},
+	{
+		category: 'testing',
+		name: 'test-setup',
+		body: `---
+name: test-setup
+category: testing
+description: Stand up a test harness and write the first meaningful tests. Use for projects with pure functions or UI that has no tests yet.
+---
+
+# test-setup
+
+- Pick a runner that fits the stack (Vitest/Jest for JS, Playwright for e2e).
+- Start with pure functions — they're the cheapest, highest-signal tests.
+- Cover the happy path, one edge case, and one failure case per unit.
+- Add a \`test\` script and wire it into CI so it runs on every push.
+`,
+	},
+	{
+		category: 'web',
+		name: 'accessibility',
+		body: `---
+name: accessibility
+category: web
+description: Make UI accessible — semantic HTML, keyboard navigation, ARIA where needed, visible focus, and sufficient color contrast. Use when building or reviewing any user-facing interface.
+---
+
+# accessibility
+
+- Use semantic elements (\`button\`, \`nav\`, \`main\`, headings in order) before reaching for ARIA.
+- Everything interactive must be keyboard-reachable with a visible focus ring.
+- Add ARIA roles/labels only where semantics fall short (custom widgets, icon buttons).
+- Verify color contrast meets WCAG AA (4.5:1 for text).
+- Respect \`prefers-reduced-motion\` for animations.
+`,
+	},
+];
 
 class VCompanionStartContribution implements IWorkbenchContribution {
 	static readonly ID = 'workbench.contrib.startupVCompanion';

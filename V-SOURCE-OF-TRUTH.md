@@ -259,22 +259,40 @@ drawn from Codex personality/escalation + the buddy-agent mission + tone/safety 
 never revealed). Red **slash-command palette** in the prompt (`/build /refactor /skill /watch
 /clear /help` + your `.v/` skills, keyboard-navigable; /refactor + /skill route to V's brain).
 
-**Backlog (requested, not yet built):**
-- **Image input via auto-router** — a vision-capable model *describes* the image, the
-  description is fed to V (V's flash brain need not be multimodal). Add paste / "select files".
-- **See & refactor the agent composer** — V reads what you're typing into the *coding-agent*
-  chat before send and rewrites it into a deep prompt written back into that composer (not
-  auto-sent). Needs a shared draft seam between SidebarChat and V. (/refactor is the manual
-  version of this today.)
-- **V's skill system (full)** — the buddy-agent build brief: normalized skill catalog with
-  progressive disclosure (catalog → SKILL.md → resources); remote sources (skillsmp API,
-  marketplace.json, mega-repos); search; **author** new skills; **handoff** to the main agent
-  via `.agents/skills/<name>/SKILL.md` + wrapped `<use_skill .../>` pointer (prefer MCP, then
-  filesystem-drop, then clipboard). Study openskills / deepagents SkillsMiddleware before
-  building. Today: `/skill` + `.v/skills/` are the seed; `.v/skills` should converge on the
-  cross-agent `.agents/skills/` standard. Skill-creator loop (draft → eval → iterate) for
-  authoring quality.
-- **More scenes** — watching/reviewing/thinking levels; richer building visuals.
+**Phase 3 (2026-05-29) — orchestrator + memory moat:**
+- **Two-tier memory** — global `userRoamingDataHome/v-memory/` (profile, journal.jsonl,
+  projects/<id>.md) + in-repo `.v/memory/` + AGENTS.md Session Memory mirror. Injected every
+  turn; `vRemember` / `vRecall` / `vMemorySummary` RPCs; `REMEMBER:` directive + `/remember` +
+  "save this" chip; journal compaction.
+- **Delegation** — `CHOICES: send to agent | …` chips; auto-pilot toggle + `RUN:` directive;
+  `vRunAgent` prepends memory block.
+- **web_search** — main-process `void-channel-webSearch` (SearXNG + DuckDuckGo lite fallback;
+  wired from `free-ai-search` pattern).
+- **Semantic index** — `autoRebuildOnStartup` default true; incremental file watches.
+- **Skills** — `.agents/skills/<category>/<skill>/`; two-level `VSkillsView` + search;
+  `.v/skills/` concierge shelf (scope-a-project, memory-hygiene, …).
+- **Context meter** — host pushes `{used,max}` → `VSidePanel` ASCII bar.
+- **Start-a-project** — `/start`, `vquestions` JSON block + `VQuestions.tsx`.
+- **Tool loop** — `MAX_STEPS=12`, empty assistant text suppressed.
+- **Sprite studio** — `/sprite`, `/asset`; `void-panel/public/tools/*.html` + Done postMessage.
+- **Sandbox** — `.v/files/` staging + approve RPC before real writes.
+- **Branding** — V logo SVGs in `void-panel/public/` + `resources/brand/`.
+- **V_SYSTEM_PROMPT bake** — delegation, CHOICES, start-a-project, skills, memory, efficient tools.
+
+**Main chat activity banner (2026-05-29):**
+- Replaced always-visible `V3AlienHeader` with `ChatActivityBanner.tsx` in main SidebarChat.
+- Alien + ASCII status strip appear **only while the coding agent is working** (stream/tool).
+- Pill toggle above composer (`activity banner` on/off, persisted in `localStorage`).
+- Red/green dot in chat header when banner is off — click to re-enable.
+- Styles in `void.css`; reuses `PixelAlien` from `V3AlienHeader.tsx`.
+
+**Phase 3 audit (2026-05-29):** All plan todos verified in code — no blockers.
+
+**Backlog (still open):**
+- **Image input via auto-router** — vision describes image → V.
+- **See & refactor the agent composer** — shared draft seam with SidebarChat.
+- **Remote skill catalog** — skillsmp / mega-repo clone + `search_skills` on demand.
+- **More scenes** — watching/reviewing/thinking levels.
 
 ## 8. Note: major VS Code merge in progress
 

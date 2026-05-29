@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>V · image to sprite</title>
+<style>
+body { margin: 0; background: #0a0612; color: #c8bbe0; font-family: ui-monospace, monospace; }
+header { display: flex; gap: 8px; padding: 8px; border-bottom: 1px solid #3a2a5a; align-items: center; }
+canvas { image-rendering: pixelated; border: 1px solid #5fd35f; margin: 12px; }
+button { font-family: inherit; cursor: pointer; background: #5fd35f; color: #0a0612; border: none; padding: 6px 12px; border-radius: 4px; }
+input[type=file] { color: #c8bbe0; }
+</style>
+</head>
+<body>
+<header>
+  <input type="file" id="file" accept="image/*" />
+  <label>grid <input type="range" id="grid" min="8" max="64" value="32" /></label>
+  <button id="done">done</button>
+</header>
+<canvas id="c" width="256" height="256"></canvas>
+<script>
+const canvas = document.getElementById('c');
+const ctx = canvas.getContext('2d');
+let img = null;
+function draw() {
+  if (!img) return;
+  const g = +document.getElementById('grid').value;
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.drawImage(img, 0, 0, g, g);
+  ctx.drawImage(canvas, 0, 0, g, g, 0, 0, canvas.width, canvas.height);
+}
+document.getElementById('file').onchange = e => {
+  const f = e.target.files[0]; if (!f) return;
+  const url = URL.createObjectURL(f);
+  img = new Image();
+  img.onload = () => { draw(); URL.revokeObjectURL(url); };
+  img.src = url;
+};
+document.getElementById('grid').oninput = draw;
+document.getElementById('done').onclick = () => {
+  const dataUrl = canvas.toDataURL('image/png');
+  const w = +document.getElementById('grid').value;
+  const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  const PALETTE = ['#00000000'];
+  const SPRITE = [];
+  for (let y = 0; y < w; y++) {
+    const row = [];
+    for (let x = 0; x < w; x++) {
+      const i = (y * canvas.width + x) * 4;
+      const hex = '#' + [d[i], d[i+1], d[i+2]].map(v => v.toString(16).padStart(2,'0')).join('');
+      let idx = PALETTE.indexOf(hex);
+      if (idx < 0) { idx = PALETTE.length; PALETTE.push(hex); }
+      row.push(idx);
+    }
+    SPRITE.push(row);
+  }
+  window.parent.postMessage({ type: 'vStudioExport', kind: 'sprite', data: { PALETTE, SPRITE, png: dataUrl } }, '*');
+};
+</script>
+</body>
+</html>

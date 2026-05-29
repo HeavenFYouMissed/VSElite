@@ -1,55 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 260 260" width="260" height="260">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 960" width="260" height="260">
   <defs>
-    <linearGradient id="vgrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#A78BFA"/>
-      <stop offset="55%" stop-color="#8B5CF6"/>
-      <stop offset="100%" stop-color="#5B21B6"/>
+    <linearGradient id="silver" x1="0" y1="0" x2="0.55" y2="1">
+      <stop offset="0" stop-color="#fdfefe"/><stop offset="0.45" stop-color="#cfd6db"/><stop offset="1" stop-color="#9aa3ab"/>
     </linearGradient>
-    <linearGradient id="threegrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#D4FF85"/>
-      <stop offset="55%" stop-color="#9FFF3D"/>
-      <stop offset="100%" stop-color="#5BC91D"/>
+    <linearGradient id="charcoal" x1="0.1" y1="0" x2="0.7" y2="1">
+      <stop offset="0" stop-color="#3b4046"/><stop offset="1" stop-color="#202327"/>
     </linearGradient>
-    <filter id="v3glow" x="-30%" y="-30%" width="160%" height="160%">
-      <feGaussianBlur stdDeviation="4" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
-    <filter id="threeglow" x="-50%" y="-50%" width="200%" height="200%">
-      <feGaussianBlur stdDeviation="6" result="blur"/>
-      <feMerge>
-        <feMergeNode in="blur"/>
-        <feMergeNode in="SourceGraphic"/>
-      </feMerge>
-    </filter>
   </defs>
-  <style>
-    @keyframes v3-three-pulse {
-      0%, 100% { opacity: 0.92; filter: url(#threeglow); }
-      50%      { opacity: 1;    filter: url(#threeglow) drop-shadow(0 0 8px #9FFF3D); }
-    }
-    .v3-three { animation: v3-three-pulse 2.4s ease-in-out infinite; transform-origin: 168px 130px; }
-  </style>
-
-  <g stroke="#8B5CF6" stroke-width="2" fill="none" opacity="0.75">
-    <polyline points="20,52 20,20 52,20"/>
-    <polyline points="208,20 240,20 240,52"/>
-  </g>
-  <g stroke="#7FE650" stroke-width="2" fill="none" opacity="0.75">
-    <polyline points="240,208 240,240 208,240"/>
-    <polyline points="52,240 20,240 20,208"/>
-  </g>
-
-  <g font-family="Consolas, 'JetBrains Mono', monospace" font-weight="900" text-anchor="middle">
-    <text x="92" y="158" font-size="120" fill="url(#vgrad)" letter-spacing="-4" filter="url(#v3glow)">V</text>
-    <text class="v3-three" x="168" y="158" font-size="120" fill="url(#threegrad)" letter-spacing="-4">3</text>
-  </g>
-
-  <line x1="60" y1="190" x2="200" y2="190" stroke="#8B5CF6" stroke-width="1.5" opacity="0.6"/>
-  <circle cx="130" cy="190" r="3" fill="#7FE650"/>
-
-  <text x="130" y="214" font-family="Consolas, monospace" font-size="11" fill="#9CA3AF"
-        text-anchor="middle" letter-spacing="6">CONTEXT_BRIDGE</text>
+  <polygon points="272,322 148,408 434,821 558,735" fill="url(#charcoal)"/>
+  <g transform="translate(0.000000,960.000000) scale(0.100000,-0.100000)" fill="url(#silver)"><path d="M6055 7506 l-30 -14 -70 -73 -70 -74 -48 -51 -48 -51 14 -11 14 -12
+67 61 67 62 16 -15 15 -16 5 -2018 5 -2019 13 -13 12 -13 30 38 30 38 128 190
+129 190 61 90 62 90 109 160 110 160 124 180 124 180 57 77 57 77 12 37 12 36
+2 1312 1 1311 -18 33 -18 33 -32 19 -32 20 -440 0 -440 -1 -30 -13z"/><path d="M4550 6263 l-15 -5 -92 -91 -92 -91 10 -13 11 -13 46 40 46 39 12
+-10 12 -10 -1 -852 -2 -852 -14 -21 -14 -21 78 -144 77 -144 161 -295 160
+-295 85 -155 84 -155 155 -290 156 -290 14 -24 15 -23 13 13 14 14 3 1800 3
+1801 -18 27 -18 28 -32 19 -32 20 -405 -1 -405 -1 -15 -5z"/></g>
 </svg>

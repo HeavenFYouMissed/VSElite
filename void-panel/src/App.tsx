@@ -3,13 +3,17 @@ import { VStage, type Choice } from './components/VStage'
 import { VSidePanel, type Activity, type Skill } from './components/VSidePanel'
 import { BuildingView, type BuildStep } from './components/BuildingView'
 import { VSlashMenu, type SlashItem } from './components/VSlashMenu'
+import { VSkillsView, type CatalogSkill } from './components/VSkillsView'
+import { VQuestions, type VQuestion } from './components/VQuestions'
 import { useProjectBriefing } from './hooks/useVoidBridge'
 import { bridge, type AgentEvent } from './lib/messagePort'
 
 type Role = 'v' | 'you' | 'sys'
 type Msg = { role: Role; text: string }
-type VView = 'home' | 'building'
+type VView = 'home' | 'building' | 'skills'
 type BuildState = { title: string; steps: BuildStep[]; pct: number }
+type MemInfo = { profileLines?: number; journalEntries?: number; projectId?: string }
+type SandboxFile = { path: string; bytes: number }
 
 const PFX: Record<Role, string> = { v: 'v', you: 'you', sys: '··' }
 
@@ -21,20 +25,60 @@ const humanizeTool = (name: string): string => {
 		delete_file_or_folder: 'deleting files', run_command: 'running a command', run_persistent_command: 'running a command',
 		read_file: 'reading a file', ls_dir: 'listing files', get_dir_tree: 'mapping the tree',
 		search_for_files: 'searching', search_pathnames_only: 'searching', search_in_file: 'searching a file',
+		semantic_search: 'semantic search', find_text: 'searching', web_search: 'searching the web',
+		get_symbol_context: 'pulling symbol context', get_call_graph: 'tracing call graph', pack_context: 'packing context',
+		list_notes: 'reading notes', get_project_briefing: 'reading the briefing',
 		git_commit: 'committing', read_lint_errors: 'checking lint',
 	}
 	return map[name] || name.replace(/_/g, ' ')
 }
 
 const SLASH_COMMANDS: SlashItem[] = [
+	{ name: 'skills', desc: 'browse + mount skills onto the agent', kind: 'command' },
+	{ name: 'skill-create', arg: 'task', desc: 'author a new skill for the agent', kind: 'command' },
+	{ name: 'start', arg: 'idea', desc: 'start a project — structured intake', kind: 'command' },
+	{ name: 'project', arg: 'idea', desc: 'start a project (alias)', kind: 'command' },
+	{ name: 'sprite', desc: 'open image → sprite studio', kind: 'command' },
+	{ name: 'asset', desc: 'open alien sprite studio', kind: 'command' },
+	{ name: 'prompt', arg: 'prompt', desc: 'sharpen a prompt for the agent', kind: 'command' },
+	{ name: 'security', arg: 'prompt', desc: 'rephrase for security + correct terms', kind: 'command' },
 	{ name: 'run', arg: 'task', desc: 'hand a task to the coding agent', kind: 'command' },
+	{ name: 'remember', arg: 'fact', desc: "save a fact to V's memory", kind: 'command' },
+	{ name: 'recall', arg: 'topic', desc: 'search what V remembers', kind: 'command' },
 	{ name: 'build', arg: 'thing', desc: 'V builds it (scene preview)', kind: 'command' },
-	{ name: 'refactor', arg: 'prompt', desc: 'sharpen a prompt for the agent', kind: 'command' },
-	{ name: 'skill', arg: 'task', desc: 'find or make a skill', kind: 'command' },
+	{ name: 'skill', arg: 'task', desc: 'find or sketch a skill', kind: 'command' },
 	{ name: 'watch', desc: 'keep an eye on the agent', kind: 'command' },
 	{ name: 'clear', desc: 'clear the transcript', kind: 'command' },
 	{ name: 'help', desc: 'list commands', kind: 'command' },
 ]
+
+// V ends an offer with a trailing line `CHOICES: a | b | c` — parse it into clickable chips.
+function parseChoices(text: string): { body: string; choices: Choice[] } {
+	const m = text.match(/(?:^|\n)\s*CHOICES:\s*([^\n]+?)\s*$/i)
+	if (!m || m.index == null) return { body: text, choices: [] }
+	const choices = m[1].split('|').map(s => ({ label: s.trim() })).filter(c => c.label)
+	return { body: text.slice(0, m.index).trimEnd(), choices }
+}
+
+// In auto-pilot, V ends with `RUN: <prompt>` to dispatch to the agent without a confirm.
+function parseRun(text: string): { body: string; run: string | null } {
+	const m = text.match(/(?:^|\n)\s*RUN:\s*([^\n]+?)\s*$/i)
+	if (!m || m.index == null) return { body: text, run: null }
+	return { body: text.slice(0, m.index).trimEnd(), run: m[1].trim() }
+}
+
+// Start-a-project: V emits a fenced ```vquestions JSON array``` the panel renders as a form.
+function parseVQuestions(text: string): { body: string; questions: VQuestion[] } {
+	const m = text.match(/```vquestions\s*([\s\S]*?)```/i)
+	if (!m || m.index == null) return { body: text, questions: [] }
+	let questions: VQuestion[] = []
+	try {
+		const parsed = JSON.parse(m[1].trim())
+		if (Array.isArray(parsed)) questions = parsed
+	} catch { /* malformed block — ignore */ }
+	const body = (text.slice(0, m.index) + text.slice(m.index + m[0].length)).trim()
+	return { body, questions }
+}
 
 export function App() {
 	const { briefing, connected } = useProjectBriefing()
@@ -50,13 +94,62 @@ export function App() {
 	const [streaming, setStreaming] = useState(false)
 	const [view, setView] = useState<VView>('home')
 	const [build, setBuild] = useState<BuildState | null>(null)
+	const [catalog, setCatalog] = useState<CatalogSkill[]>([])
+	const [catalogLoading, setCatalogLoading] = useState(false)
+	const [mounting, setMounting] = useState<string | null>(null)
+	const [autoPilot, setAutoPilot] = useState(false)
+	const [studioUrl, setStudioUrl] = useState<string | null>(null)
+	const [ctxUsed, setCtxUsed] = useState(0)
+	const [ctxMax, setCtxMax] = useState(0)
+	const [pendingQuestions, setPendingQuestions] = useState<VQuestion[] | null>(null)
+	const [sandboxFiles, setSandboxFiles] = useState<SandboxFile[]>([])
+	const [memInfo, setMemInfo] = useState<MemInfo | null>(null)
 	const scrollRef = useRef<HTMLDivElement>(null)
 	const greeted = useRef(false)
 	const streamingRef = useRef(false)
+	const lastProposed = useRef<string | null>(null)
+	const awaitingPrompt = useRef(false)
 	useEffect(() => { streamingRef.current = streaming }, [streaming])
 	const [slashIndex, setSlashIndex] = useState(0)
 
 	const goHome = () => { setView('home'); setBuild(null) }
+
+	const memoryLine = memInfo
+		? `${memInfo.journalEntries ?? 0} memories · ${memInfo.profileLines ?? 0} profile lines`
+		: undefined
+
+	const refreshMemorySummary = () => {
+		bridge.call<MemInfo>('vMemorySummary', {})
+			.then(s => setMemInfo(s ?? null))
+			.catch(() => { /* standalone / no folder */ })
+	}
+
+	const refreshSandbox = () => {
+		bridge.call<{ files?: SandboxFile[] }>('vSandboxList', {})
+			.then(r => setSandboxFiles(r?.files ?? []))
+			.catch(() => { /* none */ })
+	}
+
+	// Skills page: list editor-agent skills (categorised), then mount the chosen one onto the agent.
+	const openSkills = () => {
+		setView('skills')
+		setCatalogLoading(true)
+		bridge.call<{ skills?: CatalogSkill[] }>('vListSkills', {})
+			.then(r => setCatalog(r?.skills ?? []))
+			.catch(() => setCatalog([]))
+			.finally(() => setCatalogLoading(false))
+	}
+	const mountSkill = (id: string) => {
+		setMounting(id)
+		setMessages(m => [...m, { role: 'sys', text: `· mounting "${id}" onto the agent` }])
+		bridge.call('vMountSkill', { name: id })
+			.then(() => {
+				setMessages(m => [...m, { role: 'v', text: `mounted ${id}. the agent has it now and will follow it for relevant work.` }])
+				setView('home')
+			})
+			.catch(() => setMessages(m => [...m, { role: 'sys', text: `⚠ couldn't mount ${id}` }]))
+			.finally(() => setMounting(null))
+	}
 
 	// slash palette: open while typing the command token (before the first space)
 	const slashItems: SlashItem[] = (() => {
@@ -84,10 +177,16 @@ export function App() {
 		setMessages(m => [
 			...m.filter(x => !(x.role === 'sys' && x.text.includes('linking'))),
 			{ role: 'sys', text: 'context-bridge · online' },
-			{ role: 'v', text: `hey — i'm V. i'm watching ${root}. i'll keep an eye on the agent and ping you when something's worth a skill, a fix, or a heads-up.` },
+			{ role: 'v', text: `hey — i'm V. i'm watching ${root}, and i remember you across projects. tell me what you wanna build, or point me at the agent.` },
 		])
-		setChoices([{ label: 'watch the agent' }, { label: 'suggest a skill' }, { label: 'just chat' }])
-		// Phase-1 placeholder activity until the agent-watch hook is wired.
+		setChoices([
+			{ label: 'sharpen a prompt' },
+			{ label: 'start a project' },
+			{ label: 'watch the agent' },
+			{ label: 'browse skills' },
+			{ label: 'make an asset' },
+			{ label: 'help' },
+		])
 		setRecent([
 			{ when: 'now', what: 'linked context-bridge' },
 			{ when: '1m', what: `opened ${root}` },
@@ -96,7 +195,31 @@ export function App() {
 		bridge.call<{ fileCount?: number; skills?: Skill[] }>('vWorkspaceSummary', {})
 			.then(s => { setSkills(s?.skills ?? []); setFileCount(s?.fileCount ?? 0) })
 			.catch(() => { /* standalone / no folder */ })
+		refreshMemorySummary()
+		refreshSandbox()
 	}, [connected, briefing])
+
+	// Context-window meter: the host pushes {used,max} after each V turn.
+	useEffect(() => {
+		bridge.onCtx(c => { setCtxUsed(c.used); setCtxMax(c.max) })
+	}, [])
+
+	// Sprite/asset studio: the embedded tool posts its export back; relay it into V's chat.
+	useEffect(() => {
+		const onMsg = (e: MessageEvent) => {
+			if (e.data?.type === 'vStudioExport') {
+				setStudioUrl(null)
+				const kind = e.data.kind ?? 'data'
+				const raw = e.data.data
+				const summary = raw && typeof raw === 'object'
+					? Object.keys(raw).map(k => `${k}: ${typeof (raw as any)[k] === 'string' ? `${String((raw as any)[k]).length} chars` : 'data'}`).join(', ')
+					: String(raw ?? '').slice(0, 400)
+				setMessages(m => [...m, { role: 'v', text: `got your ${kind} from the studio (${summary}). tell me where it should go — a logo, a game asset, a ui sprite — and i'll stage it or hand it to the agent.` }])
+			}
+		}
+		window.addEventListener('message', onMsg)
+		return () => window.removeEventListener('message', onMsg)
+	}, [])
 
 	useEffect(() => {
 		const el = scrollRef.current
@@ -107,7 +230,6 @@ export function App() {
 	useEffect(() => {
 		bridge.onAgentEvent((e: AgentEvent) => {
 			if (e.kind === 'idle') {
-				// finish any building scene and return home (unless the user is mid-chat with V)
 				setBuild(b => (b ? { ...b, steps: b.steps.map(s => ({ ...s, state: 'done' })), pct: 100 } : b))
 				window.setTimeout(() => { if (!streamingRef.current) { setView(v => (v === 'building' ? 'home' : v)); setBuild(null) } }, 1300)
 				return
@@ -134,8 +256,7 @@ export function App() {
 		return () => window.removeEventListener('keydown', onKey)
 	}, [view])
 
-	// update the trailing V message, or start a new one if the last line isn't V's,
-	// so tool lines interleave cleanly: you> …  · searching the web  v> answer
+	// update the trailing V message, or start a new one if the last line isn't V's
 	const upsertV = (text: string) => setMessages(m => {
 		const copy = m.slice()
 		if (copy.length && copy[copy.length - 1].role === 'v') copy[copy.length - 1] = { role: 'v', text }
@@ -144,12 +265,11 @@ export function App() {
 	})
 
 	const runMainAgent = (prompt: string) => {
-		setMessages(m => [...m, { role: 'sys', text: `· handed to the agent: ${prompt}` }])
+		setMessages(m => [...m, { role: 'sys', text: `· handed to the agent: ${prompt.length > 80 ? prompt.slice(0, 80) + '…' : prompt}` }])
 		bridge.call('vRunAgent', { prompt }).catch(() => setMessages(m => [...m, { role: 'sys', text: '⚠ could not reach the agent' }]))
 	}
 
 	// Scene system: V shifts into a dedicated "level" for major work, then returns home.
-	// Driven manually for now (the /build preview); agent-watching will fire this for real.
 	const runBuildScene = (title: string) => {
 		const labels = ['reading the workspace', 'scaffolding files', 'wiring it together', 'checking it builds']
 		setView('building')
@@ -174,13 +294,38 @@ export function App() {
 		}, 1300)
 	}
 
+	// V's final reply: pull out RUN: / vquestions / CHOICES: directives, then render.
+	const finishVReply = (raw: string) => {
+		let text = String(raw ?? '').trim()
+		const runParsed = parseRun(text)
+		text = runParsed.body
+		if (runParsed.run && autoPilot) runMainAgent(runParsed.run)
+		const qParsed = parseVQuestions(text)
+		text = qParsed.body
+		if (qParsed.questions.length) setPendingQuestions(qParsed.questions)
+		const { body, choices: parsed } = parseChoices(text)
+		if (awaitingPrompt.current && body) {
+			lastProposed.current = body
+			awaitingPrompt.current = false
+		}
+		upsertV(body || '…')
+		const extra: Choice[] = [...parsed]
+		if (lastProposed.current && !extra.some(c => /send to agent/i.test(c.label))) extra.unshift({ label: 'send to agent' })
+		if (!extra.some(c => /save this/i.test(c.label))) extra.push({ label: 'save this' })
+		setChoices(extra)
+		setStreaming(false)
+		refreshMemorySummary()
+		refreshSandbox()
+	}
+
 	const askV = (text: string, displayText?: string) => {
 		setMessages(m => [...m, { role: 'you', text: displayText ?? text }])
 		setStreaming(true)
+		setPendingQuestions(null)
 		bridge.stream('vChat', { text }, {
-			onText: full => upsertV(full),
+			onText: full => { if (full && full.trim()) upsertV(full) },
 			onTool: name => setMessages(m => [...m, { role: 'sys', text: `· ${humanizeTool(name)}` }]),
-			onFinal: payload => { upsertV(String(payload ?? '').trim() || '…'); setStreaming(false) },
+			onFinal: payload => finishVReply(String(payload ?? '')),
 			onError: err => { setMessages(m => [...m, { role: 'sys', text: `⚠ ${err}` }]); setStreaming(false) },
 			onAbort: () => setStreaming(false),
 		})
@@ -193,6 +338,8 @@ export function App() {
 				setMessages([{ role: 'sys', text: 'transcript cleared' }]); setChoices([]); return true
 			case 'help':
 				setMessages(m => [...m, { role: 'sys', text: 'commands: ' + SLASH_COMMANDS.map(c => '/' + c.name).join('  ') }]); return true
+			case 'skills':
+				openSkills(); return true
 			case 'watch':
 				setMessages(m => [...m, { role: 'v', text: "watching the agent — i'll log what it does and flag anything worth a skill or a fix." }]); return true
 			case 'build':
@@ -201,14 +348,70 @@ export function App() {
 			case 'run':
 				if (!arg) return false
 				runMainAgent(arg); return true
+			case 'start':
+			case 'project':
+				askV(arg
+					? `start a project intake for: "${arg}". ask 3-5 grouped questions as a fenced \`\`\`vquestions\`\`\` JSON array block, then assemble a spec.`
+					: 'start a project intake: ask me 3-5 grouped questions as a fenced ```vquestions``` JSON array block to scope what i want to build.', arg ? `/start ${arg}` : '/start'); return true
+			case 'remember':
+				if (!arg) return false
+				bridge.call('vRemember', { text: arg })
+					.then(() => { setMessages(m => [...m, { role: 'sys', text: '· saved to memory' }]); refreshMemorySummary() })
+					.catch(() => setMessages(m => [...m, { role: 'sys', text: '⚠ could not save' }]))
+				return true
+			case 'recall':
+				bridge.call<{ entries?: { text: string }[] }>('vRecall', { topic: arg || 'recent' })
+					.then(r => {
+						const lines = (r?.entries ?? []).map(e => `- ${e.text}`).join('\n') || '(nothing remembered yet)'
+						setMessages(m => [...m, { role: 'v', text: lines }])
+					})
+					.catch(() => setMessages(m => [...m, { role: 'sys', text: '⚠ recall failed' }]))
+				return true
+			case 'sprite':
+				setStudioUrl('/tools/image-to-sprite.html'); return true
+			case 'asset':
+				setStudioUrl('/tools/alien.html'); return true
+			case 'prompt':
 			case 'refactor':
 				if (!arg) return false
-				askV(`refactor this into a sharp, detailed prompt i can send to the coding agent. return ONLY the rewritten prompt, no preamble:\n\n${arg}`, `/refactor ${arg}`); return true
+				awaitingPrompt.current = true
+				askV(`refactor this into a sharp, detailed prompt i can send to the coding agent. return ONLY the rewritten prompt, no preamble:\n\n${arg}`, `/prompt ${arg}`); return true
+			case 'security':
+				if (!arg) return false
+				askV(`rewrite this prompt for the coding agent through two lenses: (1) fix wrong or imprecise technical terminology so the agent doesn't trip up, (2) add security hardening (auth, secrets, input validation, least privilege). return the rewritten prompt, then ONE line noting what you corrected:\n\n${arg}`, `/security ${arg}`); return true
+			case 'skill-create':
+				if (!arg) return false
+				askV(`author a new skill for the CODING AGENT to use for: "${arg}". write a spec-compliant SKILL.md with frontmatter (name + description + category) and a tight body of concrete steps. it will live at .agents/skills/<category>/<name>/SKILL.md.`, `/skill-create ${arg}`); return true
 			case 'skill':
 				if (!arg) return false
-				askV(`act as my skill concierge for this task: "${arg}". tell me if an existing skill fits, or sketch a new SKILL.md (name + description + steps). keep it tight.`, `/skill ${arg}`); return true
+				askV(`act as my skill concierge for this task: "${arg}". tell me if an existing skill fits, or sketch a new SKILL.md (name + description + category + steps). keep it tight.`, `/skill ${arg}`); return true
 			default:
 				return false
+		}
+	}
+
+	// greeting/choice chips → route to a command, an action, or send to V's brain
+	const runChoice = (label: string) => {
+		const norm = label.toLowerCase()
+		if (norm === 'send to agent' && lastProposed.current) {
+			runMainAgent(lastProposed.current); lastProposed.current = null; setChoices([]); return
+		}
+		if (norm === 'save this') {
+			const lastV = [...messages].reverse().find(m => m.role === 'v')
+			if (lastV?.text) bridge.call('vRemember', { text: lastV.text }).then(refreshMemorySummary).catch(() => { /* */ })
+			setMessages(m => [...m, { role: 'sys', text: '· saved to memory' }])
+			setChoices([]); return
+		}
+		switch (label) {
+			case 'browse skills': openSkills(); return
+			case 'make a skill': setInput('/skill-create '); return
+			case 'start a project': runCommand('start', ''); setChoices([]); return
+			case 'sharpen a prompt': setInput('/prompt '); return
+			case 'security rephrase': setInput('/security '); return
+			case 'watch the agent': runCommand('watch', ''); setChoices([]); return
+			case 'make an asset': runCommand('sprite', ''); setChoices([]); return
+			case 'help': runCommand('help', ''); return
+			default: send(label)
 		}
 	}
 
@@ -219,7 +422,6 @@ export function App() {
 		if (slash) {
 			const handled = runCommand(slash[1].toLowerCase(), slash[2].trim())
 			if (handled) { setInput(''); setChoices([]); return }
-			// a /skill-name shortcut → treat as skill concierge for that named skill
 			if (skills.some(s => s.name === slash[1])) { setInput(''); setChoices([]); askV(`use my skill "${slash[1]}" — ${slash[2].trim() || 'apply it to what we\'re doing'}`, t); return }
 		}
 		setInput('')
@@ -232,10 +434,37 @@ export function App() {
 			<div className="statusline">
 				<span><span className="dot">●</span> V</span>
 				<span className="muted">{connected ? 'context-bridge online' : 'standalone'}</span>
+				<button
+					type="button"
+					className={`autopilot-toggle ${autoPilot ? 'on' : ''}`}
+					onClick={() => {
+						const next = !autoPilot
+						setAutoPilot(next)
+						bridge.call('vSetAutoPilot', { on: next }).catch(() => { /* */ })
+					}}
+				>
+					auto-pilot {autoPilot ? 'on' : 'off'}
+				</button>
 			</div>
+
+			{studioUrl && (
+				<div className="studio-overlay">
+					<iframe title="V studio" src={studioUrl} className="studio-frame" />
+					<button type="button" className="studio-exit" onClick={() => setStudioUrl(null)}>✕ exit</button>
+				</div>
+			)}
 
 			{view === 'building' && build ? (
 				<BuildingView title={build.title} steps={build.steps} pct={build.pct} onBack={goHome} />
+			) : view === 'skills' ? (
+				<VSkillsView
+					skills={catalog}
+					loading={catalogLoading}
+					mounting={mounting}
+					onMount={mountSkill}
+					onMake={() => { goHome(); setInput('/skill-create ') }}
+					onBack={goHome}
+				/>
 			) : (
 			<div className="main">
 				<div className="col-left">
@@ -246,12 +475,37 @@ export function App() {
 								<span className={`msg msg-${m.role}`}>{m.text || (m.role === 'v' && streaming ? '▍' : '')}</span>
 							</div>
 						))}
+						{pendingQuestions && pendingQuestions.length > 0 && (
+							<VQuestions
+								questions={pendingQuestions}
+								onSkip={() => { setPendingQuestions(null); askV('skip the questions — use sensible defaults and assemble the spec.') }}
+								onSubmit={ans => {
+									setPendingQuestions(null)
+									const parts = Object.entries(ans).map(([k, v]) => `${k}: ${Array.isArray(v) ? v.join(', ') : v}`)
+									askV(`answers — ${parts.join('; ')}`)
+								}}
+							/>
+						)}
 					</div>
-					<VStage busy={false} choices={choices} onChoose={send} />
+					<VStage busy={streaming} choices={choices} onChoose={runChoice} />
 				</div>
 
 				<div className="col-right">
-					<VSidePanel connected={connected} recent={recent} skills={skills} fileCount={fileCount} />
+					<VSidePanel
+						connected={connected}
+						recent={recent}
+						skills={skills}
+						fileCount={fileCount}
+						ctxUsed={ctxUsed}
+						ctxMax={ctxMax}
+						memorySummary={memoryLine}
+						sandboxFiles={sandboxFiles}
+						onApproveSandbox={path => {
+							bridge.call('vSandboxApprove', { path })
+								.then(() => { refreshSandbox(); setMessages(m => [...m, { role: 'sys', text: `· applied ${path}` }]) })
+								.catch(() => setMessages(m => [...m, { role: 'sys', text: `⚠ could not apply ${path}` }]))
+						}}
+					/>
 				</div>
 			</div>
 			)}
