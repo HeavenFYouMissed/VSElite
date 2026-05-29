@@ -344,7 +344,11 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
                 flex flex-col p-2.5 relative input text-left shrink-0
                 rounded-xl
                 bg-void-bg-2
-				border border-transparent
+				border border-void-border-3
+				shadow-[0_2px_10px_rgba(0,0,0,0.22)]
+				transition-all duration-150 ease-out
+				focus-within:border-[var(--vscode-focusBorder)]
+				focus-within:shadow-[0_0_0_1px_var(--vscode-focusBorder),0_6px_20px_rgba(0,0,0,0.32)]
 				${className}
             `}
 			onClick={(e) => {
@@ -418,9 +422,11 @@ export const ButtonSubmit = ({ className, disabled, ...props }: ButtonProps & Re
 	return <button
 		type='button'
 		className={`rounded-full flex-shrink-0 flex-grow-0 flex items-center justify-center w-7 h-7
-			bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)]
-			hover:brightness-110
-			${disabled ? 'opacity-40 cursor-default' : 'cursor-pointer'}
+			bg-[var(--v3code-accent,#8b5cf6)] text-white
+			shadow-[0_2px_8px_rgba(139,92,246,0.35)]
+			transition-all duration-150
+			hover:brightness-110 hover:scale-105
+			${disabled ? 'opacity-40 cursor-default saturate-50' : 'cursor-pointer'}
 			${className}
 		`}
 		// data-tooltip-id='void-tooltip'

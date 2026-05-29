@@ -62,8 +62,15 @@ import './tooltipService.js'
 // register onboarding service
 import './voidOnboardingService.js'
 
-// auto-register Context Bridge MCP server on startup
-import './contextBridgeStartup.js'
+// Context Bridge auto-registration as an EXTERNAL MCP server is intentionally DISABLED.
+// All 10 context-bridge tools (get_symbol_context, get_file_context, get_call_graph,
+// get_file_dependencies, pack_context, find_text, remember, forget, list_notes,
+// get_project_briefing) are built into V3Code natively via toolsService.ts + lspBridgeAdapter,
+// using VS Code's in-process language features (faster + no approval prompts). Running the
+// external stdio MCP server too is redundant and makes the agent call the MCP copies, which
+// trigger "Approve MCP tool" prompts. Re-enable only if you want the tools exposed to OTHER
+// editors over MCP.
+// import './contextBridgeStartup.js'
 
 // register Context Bridge native service (symbol-attached notes)
 import '../common/contextBridge/contextBridgeService.js'

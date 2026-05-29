@@ -11,7 +11,14 @@
 ## Who's doing what right now
 
 **Cursor (Daniel driving):** hardening V3Code — image-with-chat, making existing
-features work correctly. Touching existing `void/` services + the chat UI.
+features work correctly. **MAJOR REFACTOR IN PROGRESS:** merging newer VS Code
+into the fork — panel/webview/registration APIs and file paths will move.
+Touching existing `void/` services + the chat UI + broad `src/vs` areas.
+
+> Because of the merge: build V's **UI (`void-panel/`) anytime** (decoupled,
+> unaffected); build V's **host shell after the merge settles**, mirroring the
+> post-merge panel/webview pattern. Locate integration points by pattern, not
+> line number.
 
 **Claude (this agent):** designed the **V companion** + produced its build plan.
 Currently **planning/docs only — NOT writing V3Code code.** Cursor will build V

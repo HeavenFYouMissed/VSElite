@@ -21,7 +21,8 @@ job is to **aid** the existing coding agent (not replace it): watch its work,
 nudge toward skills/quality, guard egress + destructive ops, manage the IDE, and
 be the human-facing dashboard for Context Bridge.
 
-- **Home:** lives in the **bottom terminal-area panel** as a Claude-Code-style
+- **Home:** lives in the **bottom panel as a tab next to Ports** (alongside
+  Problems / Output / Debug Console / Terminal / Ports) as a Claude-Code-style
   chat REPL (scroll transcript + pinned input, streaming, slash menu). Can
   relocate into the left file-explorer area to become a tall full chat.
 - **Greets on open** with something true about the codebase (pulled live from
@@ -134,10 +135,13 @@ greeting and live Context Bridge status. No agent hooks yet.
 4. Add root `package.json` scripts: `"void-panel-dev": "cd void-panel && npm run dev"`,
    `"void-panel-build": "cd void-panel && npm run build"`.
 5. NEW `vCompanionPane.ts`: a `ViewPane` registered at
-   **`ViewContainerLocation.Panel`** (copy the registration shape from
-   `sidebarPane.ts`, but a NEW container id e.g. `workbench.view.vCompanion`,
-   `order: 0`). In `renderBody`, create a **VS Code webview** (via the webview
-   service) instead of mounting React.
+   **`ViewContainerLocation.Panel`**, ordered to sit **next to the Ports tab**
+   (give its container an `order` just after the Ports view container). Mirror
+   how the **Ports / Terminal / Output** containers register in THIS codebase
+   *as it stands post-refactor* — match the current pattern, not old line
+   numbers. Use a NEW container id, e.g. `workbench.view.vCompanion`. In
+   `renderBody`, create a **VS Code webview** (via the webview service) instead
+   of mounting React.
 6. NEW `vCompanionContent.html`: minimal HTML with one `<iframe id="v-frame">`
    whose `src` is `http://localhost:5173` in dev, else the `asWebviewUri()` of
    `void-panel/dist/index.html`. Inject a `<script>` that sets up the MessagePort
@@ -196,3 +200,25 @@ greeting and live Context Bridge status. No agent hooks yet.
 - Self-fix blast-radius threshold + on/off default (recommend off initially).
 - Sprite assets: generate in Retro Diffusion (8-Direction Rotation + Walking &
   Idle); approved green-chibi-with-red-V look is locked.
+
+---
+
+## 8. Note: major VS Code merge in progress
+
+A major refactor pulling newer VS Code into the fork is underway. This is *why*
+the housing is designed the way it is — and how to stay safe through it:
+
+- **V's UI (`void-panel/`) is fully decoupled** — its own Vite app, no `src/vs`
+  imports, talks to the workbench only over the postMessage RPC. The merge does
+  **not** touch it. It can be built/iterated **anytime, independent of the
+  refactor.**
+- **V's coupling to the workbench is intentionally tiny:** two new files
+  (`vCompanionPane.ts`, `vCompanionContent.html`) + one import in
+  `void.contribution.ts` + two `package.json` scripts. Only these can be
+  disturbed by the merge.
+- **Build the host AFTER the merge settles**, and locate integration points
+  **by pattern, not line number** — search for how Ports/Terminal register their
+  panel view containers and how webviews are created in the *post-merge* tree,
+  then mirror that. Old `file:line` references in this doc are illustrative only.
+- The **RPC contract** (§3) is the stable boundary. Keep it stable across the
+  merge and both sides (UI + host) stay decoupled.
