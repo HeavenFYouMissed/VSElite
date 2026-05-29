@@ -473,6 +473,13 @@ box-shadow: none !important;
 outline: none !important;
 }
 
+/* Chat panel title bar (the "Chat" header row) shares the composer's lighter surface
+   so the top of the panel matches the input field for a cohesive look. */
+.monaco-workbench .part.auxiliarybar > .title,
+.monaco-workbench .part.auxiliarybar .composite.title {
+background-color: var(--v3-input-surface, #2a1f47) !important;
+}
+
 /* Send button + primary buttons — venom-green accent for "GO" feel */
 .monaco-workbench .part.auxiliarybar button[aria-label*="end"],
 .monaco-workbench .part.auxiliarybar button[aria-label*="ubmit"],

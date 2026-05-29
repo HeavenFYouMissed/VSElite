@@ -378,7 +378,7 @@ export const VoidChatArea: React.FC<VoidChatAreaProps> = ({
 						<ReasoningOptionSlider featureName={featureName} />
 
 						<div className='flex items-center flex-wrap gap-x-1.5 gap-y-1 text-nowrap'>
-							{featureName === 'Chat' && <ChatModeDropdown className='text-xs text-void-fg-2 bg-void-bg-1/60 rounded-lg py-1 px-2 transition-colors duration-150 hover:bg-void-bg-1' />}
+							{featureName === 'Chat' && <ChatModeDropdown className='text-xs font-medium text-[var(--v3-amethyst-glow,#a78bfa)] bg-[var(--v3-amethyst-muted,rgba(124,58,237,0.18))] rounded-lg py-1 px-2 transition-all duration-150 hover:brightness-125' />}
 							<ModelDropdown featureName={featureName} className='text-xs text-void-fg-2 bg-void-bg-1/60 rounded-lg py-1 px-2 transition-colors duration-150 hover:bg-void-bg-1' />
 							{featureName === 'Chat' && <ToolApprovalTypeSwitch size='xs' approvalType='edits' desc='Auto-approve' />}
 						</div>
@@ -426,11 +426,11 @@ export const ButtonSubmit = ({ className, disabled, ...props }: ButtonProps & Re
 	return <button
 		type='button'
 		className={`rounded-full flex-shrink-0 flex-grow-0 flex items-center justify-center w-7 h-7
-			bg-[var(--v3code-accent,#8b5cf6)] text-white
-			shadow-[0_2px_8px_rgba(139,92,246,0.35)]
+			bg-white text-black
+			shadow-[0_1px_6px_rgba(255,255,255,0.18)]
 			transition-all duration-150
-			hover:brightness-110 hover:scale-105
-			${disabled ? 'opacity-40 cursor-default saturate-50' : 'cursor-pointer'}
+			hover:brightness-90 hover:scale-105
+			${disabled ? 'opacity-40 cursor-default' : 'cursor-pointer'}
 			${className}
 		`}
 		// data-tooltip-id='void-tooltip'
@@ -442,17 +442,27 @@ export const ButtonSubmit = ({ className, disabled, ...props }: ButtonProps & Re
 	</button>
 }
 
+// While the agent is working, show a spinning ring (click to stop).
 export const ButtonStop = ({ className, ...props }: ButtonHTMLAttributes<HTMLButtonElement>) => {
 	return <button
-		className={`rounded-full flex-shrink-0 flex-grow-0 flex items-center justify-center w-7 h-7
-			bg-[var(--vscode-button-background)] text-[var(--vscode-button-foreground)]
-			hover:brightness-110 cursor-pointer
+		className={`group relative rounded-full flex-shrink-0 flex-grow-0 flex items-center justify-center w-7 h-7
+			bg-white/5 hover:bg-white/10 cursor-pointer transition-colors duration-150
 			${className}
 		`}
 		type='button'
+		data-tooltip-id='void-tooltip'
+		data-tooltip-content={'Stop'}
+		data-tooltip-place='top'
 		{...props}
 	>
-		<IconSquare size={16} className="stroke-[3] p-[7px]" />
+		<svg viewBox="0 0 24 24" width="20" height="20" fill="none" className="animate-spin" style={{ animationDuration: '0.7s' }}>
+			<circle cx="12" cy="12" r="9" stroke="var(--v3-amethyst,#8b5cf6)" strokeWidth="2.5" strokeOpacity="0.25" />
+			<path d="M21 12a9 9 0 0 0-9-9" stroke="var(--v3-amethyst,#8b5cf6)" strokeWidth="2.5" strokeLinecap="round" />
+		</svg>
+		{/* small stop square shown on hover so it's clear it's clickable */}
+		<span className="absolute opacity-0 group-hover:opacity-100 transition-opacity">
+			<IconSquare size={9} className="stroke-[3] text-void-fg-2" />
+		</span>
 	</button>
 }
 
@@ -1416,7 +1426,9 @@ const ReasoningWrapper = ({ isDoneReasoning, isStreaming, children }: { isDoneRe
 	useEffect(() => {
 		if (!isWriting) setIsOpen(false) // if just finished reasoning, close
 	}, [isWriting])
-	return <ToolHeaderWrapper title='Reasoning' desc1={isWriting ? <IconLoading /> : ''} isOpen={isOpen} onClick={() => setIsOpen(v => !v)}>
+	return <ToolHeaderWrapper title='Reasoning' desc1={isWriting ? <IconLoading /> : ''} isOpen={isOpen} onClick={() => setIsOpen(v => !v)}
+		className='bg-[var(--v3-amethyst-wash,rgba(139,92,246,0.06))] border border-[var(--v3-amethyst-muted,rgba(124,58,237,0.15))] backdrop-blur-sm'
+	>
 		<ToolChildrenWrapper>
 			<div className='!select-text cursor-auto'>
 				{children}
