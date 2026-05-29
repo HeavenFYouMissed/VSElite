@@ -210,13 +210,46 @@ Register all in `void.contribution.ts` as singletons (same place
 
 ### 2.7 Sprite asset + icon
 
-- Pixel-alien sprite sheet (Retro Diffusion or similar) → `resources/` or
-  `react/src/v-panel-tsx/assets/`. States: idle, thinking, excited, sleeping,
-  alert, working, celebrating, worried, reading, waving.
+**Approved look (locked):** green chibi alien, big dark eyes, small antennae,
+red **V** on the chest, friendly. Renders on the dark panel bg with a green
+glow. (Reference art approved by owner.)
+
+**Asset source (resolved):** Retro Diffusion → **Animations** model,
+**8-Direction Rotation** + **Walking & Idle** variants. This produces the sprite
+sheets the ambient mode (§2.8) needs: directional walk cycles + idle/typing/
+sleep loops. Export frames → `react/src/v-panel-tsx/assets/`, loaded by
+`VSprite.tsx` via CSS `background-position` stepping (smoother than swapping
+`src`). Keep `image-rendering: pixelated`.
+
+States to generate: idle, walking (8-dir), typing/working, thinking, excited,
+sleeping, alert, celebrating, worried, reading, waving.
+
 - Tab icon: `registerIcon('v-companion-icon', ...)` (the file currently
   comments this out at `sidebarPane.ts:15-17` — follow that pattern, but
   actually register). A monochrome codicon-style glyph for the tab; the full
   color sprite renders inside the panel.
+
+### 2.8 Ambient / "screensaver" mode (V is alive)
+
+The wide-short panel is V's **stage**. After an idle threshold (no user input,
+no agent activity — default ~45s), the transcript dims/recedes and V roams his
+space. Any activity snaps him back to attention (transcript returns, sprite →
+`alert`/`thinking`/`idle` as appropriate).
+
+**Crucial: animation = honest backend state, not random fluff.** `VSprite`
+state is driven by `vObserverService`, so the visible behavior *means*
+something:
+
+| What you see | What's actually true |
+|---|---|
+| V **typing at his keyboard** | V is doing background work — observing the agent, indexing, scanning health, researching the roadmap |
+| V **walking** around the panel | Idle but awake, watching |
+| V **asleep** (Z's) | Nothing happening; low-power, no polling spend |
+| V **alert / waving** | New nudge, agent event, or greeting |
+
+This makes the "screensaver" a status indicator: you can tell at a glance
+whether V is busy on your behalf. Drive it from one `setState(VState)` API on
+`VSprite`, called by the observer loop — no separate screensaver subsystem.
 
 ---
 
@@ -248,7 +281,7 @@ This is the standalone-agent behavior the owner emphasized. It lives in
 - **Intervene** — for real danger (large blast radius, scope drift): can
   `v_pause_agent`, drop a `rollbackService` checkpoint, or hand off.
 
-**Two ways V acts (owner: "hand off to the agent OR fix himself"):**
+**Three ways V acts (owner: "hand off to the agent, fix himself, or make skills"):**
 - **Handoff:** V composes an enhanced instruction + context bundle and injects
   it into the agent via `chatThreadService.addUserMessageAndStreamResponse`
   (this is also the prompt-enhancement interception point). The "inbox" is the
@@ -256,6 +289,13 @@ This is the standalone-agent behavior the owner emphasized. It lives in
 - **Self-fix:** for small, safe, structurally-bounded edits, V applies the
   change directly through the same edit tools the agent uses, *after* a
   checkpoint. Gate self-fix behind a blast-radius threshold + user setting.
+- **Author skills:** beyond *installing* marketplace skills, V **writes** them.
+  When the observer sees the agent hand-rolling the same kind of work
+  repeatedly (or doing it in a way that'll "look vibe-coded"), V scaffolds a
+  small skill pack (`manifest.json` + `server.js` + `system-prompt.md`),
+  registers it with the MCP client, and equips the agent — permanently
+  upgrading what the agent can do. This is the core of V's *support* identity:
+  he doesn't just help once, he makes the environment more capable over time.
 
 ---
 
@@ -353,7 +393,10 @@ this water (push from server → device); full portable chat is the destination.
   `voidSettingsService` provider config — likely already present).
 - **Self-fix blast-radius threshold** + whether it's on by default (recommend
   off until trust is established).
-- **Sprite asset source** (Retro Diffusion sheet vs individual PNGs).
+- **Ambient mode:** idle threshold before V roams (default ~45s) + whether
+  ambient/screensaver is on by default (recommend on — it's the "alive" signal).
+- ~~Sprite asset source~~ — **resolved:** Retro Diffusion Animations
+  (8-Direction Rotation + Walking & Idle). Approved look locked (§2.7).
 
 ---
 
