@@ -1,98 +1,126 @@
-# V3Code fast dev iteration script.
-# Watches react/src/ and auto-rebuilds through the full pipeline.
-# Usage: .\dev.ps1            -> watch mode (rebuilds on file change)
-#        .\dev.ps1 -Once      -> single build + launch
-#        .\dev.ps1 -ReactOnly -> skip gulp, just react rebuild (fast, needs prior gulp)
+# V3Code fast dev iteration loop.
+#
+# The pain this solves: the full `gulp compile-client` step takes ~3 minutes. For
+# React/visual edits you DON'T need it -- the React bundle can be copied straight into
+# the host output tree, and a window reload (Ctrl+R) picks it up in seconds.
+#
+# Usage:
+#   .\dev.ps1                -> WATCH mode (fast): on save, rebuild React + copy to host.
+#                               Launches V3Code once; press Ctrl+R IN V3Code to see changes.
+#   .\dev.ps1 -Once          -> one fast build + launch, then exit.
+#   .\dev.ps1 -FullGulp      -> one FULL build (gulp compile-client) + launch. Use this
+#                               after editing .ts service files OUTSIDE react/ (e.g.
+#                               toolsService.ts, chatThreadService.ts).
+#   .\dev.ps1 -Watch -FullGulp -> watch mode but run full gulp each change (slow; rarely needed).
+#
+# RULE OF THUMB:
+#   - Edited a .tsx/.css file under react/src/  -> fast path (default) is enough.
+#   - Edited a .ts file in browser/ or common/  -> run `.\dev.ps1 -FullGulp` once.
 param(
     [switch]$Once,
-    [switch]$ReactOnly
+    [switch]$FullGulp,
+    [switch]$Watch
 )
 
-$ErrorActionPreference = "Stop"
+# NOTE: deliberately NOT "Stop" -- npx writes harmless warnings (e.g. Browserslist) to
+# stderr, which "Stop" would treat as fatal. We gate on $LASTEXITCODE explicitly instead.
+$ErrorActionPreference = "Continue"
 $env:PATH = "C:\nvm4w\nodejs;" + $env:PATH
-Set-Location "c:\Users\heave\Desktop\mcp\vselite"
+$root = "c:\Users\heave\Desktop\mcp\vselite"
+Set-Location $root
 
-$root        = "c:\Users\heave\Desktop\mcp\vselite"
 $reactDir    = "$root\src\vs\workbench\contrib\void\browser\react"
 $reactOut    = "$reactDir\out\sidebar-tsx\index.js"
-$hostOut     = "$root\out\vs\workbench\contrib\void\browser\react\out\sidebar-tsx\index.js"
+$reactOutDir = "$reactDir\out"
+$hostOutDir  = "$root\out\vs\workbench\contrib\void\browser\react\out"
 $electronExe = "$root\.build\electron\V3Code.exe"
 
 function Build-React {
-    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Building React..." -ForegroundColor Cyan
+    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Building React (scope-tailwind + tsup)..." -ForegroundColor Cyan
     Push-Location $reactDir
     try {
-        npx scope-tailwind ./src -o src2/ -s void-scope -c styles.css -p "void-" 2>&1 | Out-Null
+        npx scope-tailwind ./src -o src2/ -s void-scope -c styles.css -p "void-" *> $null
         if ($LASTEXITCODE -ne 0) { Write-Host "  scope-tailwind FAILED" -ForegroundColor Red; return $false }
-        npx tsup 2>&1 | Out-Null
-        if ($LASTEXITCODE -ne 0) { Write-Host "  tsup FAILED" -ForegroundColor Red; return $false }
+        npx tsup *> $null
+        if ($LASTEXITCODE -ne 0) { Write-Host "  tsup FAILED (TypeScript error in a .tsx file)" -ForegroundColor Red; return $false }
     } finally { Pop-Location }
-    Write-Host "  React bundle built ($((Get-Item $reactOut).Length / 1KB)KB)" -ForegroundColor Green
+    if (Test-Path $reactOut) {
+        Write-Host "  React bundle built ($([math]::Round((Get-Item $reactOut).Length / 1KB)) KB)" -ForegroundColor Green
+    }
     return $true
 }
 
+# FAST path: copy the freshly-built react/out straight into the host output tree.
+# This bypasses the ~3-min gulp. Valid for React/CSS edits (not .ts service edits).
 function Copy-ToHost {
-    if ($ReactOnly) { return $true }
-    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Copying to host bundle..." -ForegroundColor Cyan
-    $src = "$reactDir\out"
-    $dst = "$root\out\vs\workbench\contrib\void\browser\react\out"
-    if (-not (Test-Path $dst)) { New-Item -ItemType Directory -Path $dst -Force | Out-Null }
-    Copy-Item -Path "$src\*" -Destination $dst -Recurse -Force
-    Write-Host "  Host bundle updated" -ForegroundColor Green
+    if (-not (Test-Path $hostOutDir)) {
+        Write-Host "  Host output dir missing -- you must run a full gulp build at least once first (.\dev.ps1 -FullGulp)." -ForegroundColor Yellow
+        return $false
+    }
+    Copy-Item -Path "$reactOutDir\*" -Destination $hostOutDir -Recurse -Force
+    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Copied React bundle to host. Press Ctrl+R in V3Code to reload." -ForegroundColor Green
     return $true
 }
 
+# FULL path: gulp recompiles the whole workbench (needed for .ts changes). Slow.
 function Build-Gulp {
-    if ($ReactOnly) { return $true }
-    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Running gulp compile-client..." -ForegroundColor Cyan
-    npx gulp compile-client 2>&1 | ForEach-Object { if ($_ -match "error|Error") { Write-Host "  $_" -ForegroundColor Red } }
-    if ($LASTEXITCODE -ne 0) { Write-Host "  gulp FAILED" -ForegroundColor Red; return $false }
-    Write-Host "  Gulp complete" -ForegroundColor Green
+    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Running gulp compile-client (full, ~3 min)..." -ForegroundColor Cyan
+    $hadError = $false
+    npx gulp compile-client 2>&1 | ForEach-Object {
+        if ($_ -match "Error|error TS|errored") { Write-Host "  $_" -ForegroundColor Red; $hadError = $true }
+    }
+    if ($LASTEXITCODE -ne 0 -or $hadError) { Write-Host "  gulp compile-client FAILED" -ForegroundColor Red; return $false }
+    Write-Host "  Gulp complete." -ForegroundColor Green
     return $true
 }
 
 function Launch-V3Code {
     if (-not (Test-Path $electronExe)) {
-        Write-Host "  V3Code.exe not found at $electronExe" -ForegroundColor Yellow
+        Write-Host "  V3Code.exe not found at $electronExe (run a full build first)." -ForegroundColor Yellow
         return
     }
     Get-Process -Name "V3Code" -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-    Start-Sleep -Milliseconds 300
+    Start-Sleep -Milliseconds 400
     Start-Process -FilePath $electronExe -ArgumentList @(
         ".",
         "--user-data-dir", "$root\.tmp\user-data",
         "--extensions-dir", "$root\.tmp\extensions"
     ) -WorkingDirectory $root
-    Write-Host "  V3Code launched" -ForegroundColor Green
+    Write-Host "  V3Code launched." -ForegroundColor Green
 }
 
-function Do-FullBuild {
-    $ok = Build-React
-    if (-not $ok) { return }
-    if (-not $ReactOnly) {
-        $ok = Build-Gulp
-        if (-not $ok) { return }
-    } else {
-        Copy-ToHost | Out-Null
-    }
-    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] BUILD COMPLETE" -ForegroundColor Green
-    Write-Host ""
+# A single iteration: react build, then either fast-copy or full gulp.
+function Build-Once {
+    param([bool]$useGulp)
+    if (-not (Build-React)) { return $false }
+    if ($useGulp) { return (Build-Gulp) }
+    else { return (Copy-ToHost) }
 }
 
-# --- Single build mode ---
+# ---- -Once: fast single build + launch ----
 if ($Once) {
-    Do-FullBuild
-    Launch-V3Code
+    if (Build-Once -useGulp:$FullGulp) { Launch-V3Code }
     exit 0
 }
 
-# --- Watch mode ---
-Write-Host "=== V3Code Dev Watch Mode ===" -ForegroundColor Magenta
+# ---- -FullGulp (no -Watch): one full build + launch ----
+if ($FullGulp -and -not $Watch) {
+    if (Build-Once -useGulp:$true) { Launch-V3Code }
+    exit 0
+}
+
+# ---- WATCH mode (default) ----
+$useGulpInWatch = $FullGulp.IsPresent
+Write-Host "=== V3Code Dev Watch ($(if ($useGulpInWatch) { 'FULL gulp' } else { 'FAST copy' }) mode) ===" -ForegroundColor Magenta
 Write-Host "Watching: $reactDir\src\" -ForegroundColor Gray
-Write-Host "Press Ctrl+C to stop" -ForegroundColor Gray
+if (-not $useGulpInWatch) {
+    Write-Host "FAST mode: after each rebuild, press Ctrl+R inside V3Code to see changes." -ForegroundColor Gray
+    Write-Host "If you edit a .ts service file (not .tsx), stop and run: .\dev.ps1 -FullGulp" -ForegroundColor Gray
+}
+Write-Host "Press Ctrl+C to stop." -ForegroundColor Gray
 Write-Host ""
 
-Do-FullBuild
+Build-Once -useGulp:$useGulpInWatch | Out-Null
 Launch-V3Code
 
 $watcher = New-Object System.IO.FileSystemWatcher
@@ -101,25 +129,25 @@ $watcher.IncludeSubdirectories = $true
 $watcher.Filter = "*.*"
 $watcher.NotifyFilter = [System.IO.NotifyFilters]::LastWrite -bor [System.IO.NotifyFilters]::FileName
 
-$lastBuild = [DateTime]::MinValue
-$debounceMs = 1500
+$script:lastBuild = [DateTime]::MinValue
+$script:useGulp = $useGulpInWatch
+$debounceMs = 1200
 
 $handler = {
     $now = [DateTime]::Now
-    if (($now - $script:lastBuild).TotalMilliseconds -lt $script:debounceMs) { return }
-    $script:lastBuild = $now
+    if (($now - $script:lastBuild).TotalMilliseconds -lt $debounceMs) { return }
     $ext = [System.IO.Path]::GetExtension($Event.SourceEventArgs.FullPath)
-    if ($ext -match '\.(tsx?|css|js)$') {
-        Write-Host ""
-        Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Change detected: $($Event.SourceEventArgs.Name)" -ForegroundColor Yellow
-        Do-FullBuild
-    }
+    if ($ext -notmatch '\.(tsx?|css|js)$') { return }
+    $script:lastBuild = $now
+    Write-Host ""
+    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Changed: $($Event.SourceEventArgs.Name)" -ForegroundColor Yellow
+    if (-not (Build-React)) { return }
+    if ($script:useGulp) { Build-Gulp | Out-Null } else { Copy-ToHost | Out-Null }
 }
 
 Register-ObjectEvent $watcher Changed -Action $handler | Out-Null
 Register-ObjectEvent $watcher Created -Action $handler | Out-Null
 Register-ObjectEvent $watcher Renamed -Action $handler | Out-Null
-
 $watcher.EnableRaisingEvents = $true
 
 try {
@@ -127,5 +155,6 @@ try {
 } finally {
     $watcher.EnableRaisingEvents = $false
     $watcher.Dispose()
+    Get-EventSubscriber | Unregister-Event
     Write-Host "Watch stopped." -ForegroundColor Gray
 }
