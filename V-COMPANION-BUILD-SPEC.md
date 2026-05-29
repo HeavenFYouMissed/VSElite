@@ -298,11 +298,54 @@ Persistence note: chat threads & settings already use
 8. Prompt enhancement + handoff via `chatThreadService` hooks.
 9. Agent inbox (`VInbox.tsx`) + scope-drift detection.
 
-**Phase 5 — Skills, self-fix, background worker, mobile.**
+**Phase 5 — Skills, self-fix, background worker.**
+
+**Phase 6 — V Anywhere (portable chat).** Sync V's threads + memory to the
+backend; thin mobile/web client talks to the same V brain. See §6.
 
 ---
 
-## 6. Open decisions to lock before Phase 1
+## 6. North star: V anywhere (portable chat)
+
+Eventual goal: take a V conversation **on the go** — V chats from any device,
+not just the desktop IDE. This is already largely possible because the hosted
+backend exists.
+
+**What's already built (`backend/` — `@v3code/backend`):**
+- OpenAI-compatible DeepSeek gateway: `backend/src/routes/chat.ts`
+  (`/v1/chat/completions`), with a per-user L1/L2/L3 cache (`backend/README.md`).
+- **GitHub device-code auth** (`backend/src/auth/device.ts`, `github.ts`,
+  `session.ts`) — the same flow `gh auth login` uses; exactly how a phone or web
+  client signs in as the same user.
+- Postgres 16 + pgvector + Drizzle (`backend/src/db/schema.ts`), Stripe billing.
+
+**Three design defaults this imposes on the *early* build (so we don't paint V
+into the Electron renderer):**
+
+1. **Brain → gateway, not raw DeepSeek.** `vCompanionService` calls DeepSeek via
+   `sendLLMMessageService` pointed at the hosted gateway base URL with the
+   user's Bearer token, **not** a local DeepSeek key. Benefits now: per-user
+   L1/L2 cache (V gets cheaper), quota/billing, and a single brain every client
+   shares. (Void settings already support custom/OpenAI-compatible base URLs.)
+2. **Memory + threads = stable, user-keyed, serializable schema.** Keep the
+   `.v3code/v-memory.json` files + thread state as the local source/offline
+   cache, but design their schema around the backend's user id so a `v_memory` /
+   `v_threads` sync table drops into the existing Postgres later — additive, not
+   a migration.
+3. **Headless-capable brain loop.** The core loop (gather context → call gateway
+   → parse `{message,...}`) must be separable from the React panel and from
+   IDE-only tools, so the same V can run server-side for mobile. IDE-only
+   abilities (Context Bridge, file edits) **degrade gracefully** to memory +
+   chat when there's no workspace (e.g. on a phone).
+
+**Eventual shape:** desktop IDE panel, web app, and mobile are all thin clients
+of one authenticated V — same memory, same conversation, continued anywhere.
+The mobile-notification ability from `VBUILDDOCUMENT.md` is the first toe in
+this water (push from server → device); full portable chat is the destination.
+
+---
+
+## 7. Open decisions to lock before Phase 1
 
 - **Relocation mechanism:** Approach A (second Sidebar view + toggle) vs B
   (`moveViewToLocation`). Spec recommends A.
