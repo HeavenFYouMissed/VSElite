@@ -365,17 +365,28 @@ enhancement, health, etc.
 **V as control plane + human face (the "manages over it" role).** CB is
 powerful but agent-facing and invisible. V owns it and surfaces it:
 
-- **Lifecycle / reconciliation.** Today there are effectively *two* CBs:
-  `browser/contextBridgeStartup.ts` auto-registers the **external MCP server**
-  into `mcp.json` and toggles it on each launch (`mcpService.toggleServerIsOn`),
-  *while* the native tools live in `toolsService.ts`. `CONTEXT-BRIDGE-NATIVE.md`
-  §5 says **do not round-trip through the MCP server**. V's job: detect the
-  duplication, prefer native, and offer to disable/deprecate the external
-  server. (Cleanup the project already wants.)
-- **Portability healing.** `contextBridgeStartup.ts:18-19` hardcodes
-  `C:\nvm4w\nodejs\node.exe` and a `C:\Users\heave\...` script path. That breaks
-  off-machine and **blocks the "V anywhere" north star (§6)**. V detects a
-  dead/misconfigured CB server and heals or routes to native.
+- **Origin / intent (owner).** CB began as an **MCP server** (for testing),
+  proved so powerful for the editor that it became the reason V3Code exists, and
+  is now **hardwired native** as the primary engine. The MCP server is *not*
+  legacy to delete — it's kept on purpose as a **failover/backup**: if the
+  native layer ever breaks, the MCP path can still be called. It should be
+  **hidden in settings** so normal users never see it; native is the only path
+  they interact with.
+- **Native-primary, MCP-as-hidden-failover (V owns this).** V treats the native
+  tools (`toolsService.ts:615–689`) as the live engine and the external MCP
+  server (auto-registered by `browser/contextBridgeStartup.ts` via
+  `mcpService.toggleServerIsOn`) as a dormant backup. V's job is NOT to remove
+  it but to: keep it **hidden/off in normal operation**, monitor native health,
+  and **fail over** to the MCP server if native CB stops responding — then tell
+  the user "native CB went down, I switched you to the backup." The toggle lives
+  behind an advanced/hidden setting; V is the thing that flips it when needed.
+- **Failover portability.** For the backup to actually work as a safety net
+  (and for the "V anywhere" north star, §6), its config can't stay pinned to
+  `contextBridgeStartup.ts:18-19`'s hardcoded `C:\nvm4w\nodejs\node.exe` +
+  `C:\Users\heave\...` paths. V should resolve the node/script path at runtime
+  (or mark the fallback unavailable + stay on native) rather than register a
+  path that only exists on one machine. *(Design note only — no code change
+  now.)*
 - **Memory curation (librarian).** CB notes persist to
   `.context-bridge/notes.json` (`contextBridgeService.ts`, `STORE_DIR`). V
   prunes stale notes, dedupes, promotes end-of-thread learnings into `remember`
