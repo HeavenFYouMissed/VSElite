@@ -32,10 +32,12 @@ type SimpleLLMMessage = {
 } | {
 	role: 'user';
 	content: string;
+	images?: Array<{ data: string; mimeType: string }>;
 } | {
 	role: 'assistant';
 	content: string;
 	anthropicReasoning: AnthropicReasoning[] | null;
+	reasoning: string | null;
 }
 
 
@@ -77,7 +79,21 @@ const prepareMessages_openai_tools = (messages: SimpleLLMMessage[]): AnthropicOr
 		const currMsg = messages[i]
 
 		if (currMsg.role !== 'tool') {
-			newMessages.push(currMsg)
+			if (currMsg.role === 'assistant' && currMsg.reasoning) {
+				newMessages.push({ ...currMsg, reasoning_content: currMsg.reasoning } as any)
+			} else if (currMsg.role === 'user' && currMsg.images && currMsg.images.length > 0) {
+				// Multimodal user message with images -- use content array format
+				const contentParts: any[] = [{ type: 'text', text: currMsg.content }];
+				for (const img of currMsg.images) {
+					contentParts.push({
+						type: 'image_url',
+						image_url: { url: `data:${img.mimeType};base64,${img.data}` }
+					});
+				}
+				newMessages.push({ role: 'user', content: contentParts } as any);
+			} else {
+				newMessages.push(currMsg)
+			}
 			continue
 		}
 
@@ -216,10 +232,11 @@ const prepareMessages_XML_tools = (messages: SimpleLLMMessage[], supportsAnthrop
 			if (c.anthropicReasoning && supportsAnthropicReasoning) {
 				content = content ? [...c.anthropicReasoning, { type: 'text' as const, text: content }] : c.anthropicReasoning
 			}
-			llmChatMessages.push({
-				role: 'assistant',
-				content
-			})
+			const msg: any = { role: 'assistant', content }
+			if (c.reasoning && !supportsAnthropicReasoning) {
+				msg.reasoning_content = c.reasoning
+			}
+			llmChatMessages.push(msg)
 		}
 		// add user or tool to the previous user message
 		else if (c.role === 'user' || c.role === 'tool') {
@@ -656,6 +673,7 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 					role: m.role,
 					content: m.displayContent,
 					anthropicReasoning: m.anthropicReasoning,
+					reasoning: m.reasoning || null,
 				})
 			}
 			else if (m.role === 'tool') {
@@ -668,9 +686,11 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 				})
 			}
 			else if (m.role === 'user') {
+				const images = (m as any).images as Array<{data: string; mimeType: string}> | undefined;
 				simpleLLMMessages.push({
 					role: m.role,
 					content: m.content,
+					...(images && images.length > 0 ? { images } : {}),
 				})
 			}
 		}

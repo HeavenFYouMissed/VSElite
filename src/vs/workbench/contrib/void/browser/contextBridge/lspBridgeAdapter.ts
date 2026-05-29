@@ -427,15 +427,65 @@ export class LspBridgeAdapter extends Disposable implements ILspBridgeAdapter {
 		const calls = await this.withCallHierarchy(filePath, line, character, async (model, root) =>
 			model.resolveIncomingCalls(root, CancellationToken.None),
 		);
-		if (!calls) { return []; }
-		return calls.map(call => ({
-			name: call.from.name,
-			kind: vsSymbolKindToCb(call.from.kind),
-			filePath: this.relativize(call.from.uri),
-			line: call.from.selectionRange.startLineNumber - 1,
-			character: call.from.selectionRange.startColumn - 1,
-			fromRanges: call.fromRanges.map(rangeToLsp),
-		}));
+		if (calls && calls.length > 0) {
+			return calls.map(call => ({
+				name: call.from.name,
+				kind: vsSymbolKindToCb(call.from.kind),
+				filePath: this.relativize(call.from.uri),
+				line: call.from.selectionRange.startLineNumber - 1,
+				character: call.from.selectionRange.startColumn - 1,
+				fromRanges: call.fromRanges.map(rangeToLsp),
+			}));
+		}
+		// Fallback: synthesize callers from references when call hierarchy is empty.
+		// This handles cases where the TS language service hasn't fully indexed,
+		// or when the call hierarchy provider isn't available.
+		return this.synthCallersFallback(filePath, line, character);
+	}
+
+	private async synthCallersFallback(filePath: string, line: number, character: number): Promise<CallerEntry[]> {
+		const refs = await this.getReferences(filePath, line, character);
+		if (refs.length === 0) { return []; }
+
+		const callers: CallerEntry[] = [];
+		const seen = new Set<string>();
+		for (const ref of refs) {
+			if (ref.filePath === filePath && ref.line === line) { continue; }
+			const key = `${ref.filePath}:${ref.line}`;
+			if (seen.has(key)) { continue; }
+			seen.add(key);
+
+			const syms = await this.getDocumentSymbols(ref.filePath);
+			let containingSymbol: SymbolEntry | undefined;
+			for (const s of syms) {
+				if (s.line <= ref.line) {
+					if (!containingSymbol || s.line > containingSymbol.line) {
+						containingSymbol = s;
+					}
+				}
+			}
+			if (containingSymbol) {
+				callers.push({
+					name: containingSymbol.name,
+					kind: containingSymbol.kind,
+					filePath: ref.filePath,
+					line: containingSymbol.line,
+					character: containingSymbol.character ?? 0,
+					fromRanges: [{ line: ref.line, character: ref.character, endLine: ref.endLine, endCharacter: ref.endCharacter }],
+				});
+			} else {
+				callers.push({
+					name: `<${ref.filePath.split('/').pop()}>`,
+					kind: 'unknown',
+					filePath: ref.filePath,
+					line: ref.line,
+					character: ref.character,
+					fromRanges: [{ line: ref.line, character: ref.character, endLine: ref.endLine, endCharacter: ref.endCharacter }],
+				});
+			}
+			if (callers.length >= 20) { break; }
+		}
+		return callers;
 	}
 
 	async getOutgoingCalls(filePath: string, line: number, character: number): Promise<CallerEntry[]> {

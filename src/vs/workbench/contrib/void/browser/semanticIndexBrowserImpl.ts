@@ -46,6 +46,7 @@ import { Chunk, ChunkKind, Hit, IndexStatus, ISemanticIndexService } from '../co
 interface IndexedChunk extends Chunk {
 	content: string;
 	tokens: Set<string>;
+	embedding?: Float32Array;
 }
 
 interface GitignoreRule {
@@ -201,6 +202,11 @@ export class SemanticIndexBrowserImpl extends Disposable implements ISemanticInd
 	/** Cached gitignore layers from the last walk, keyed by directory URI path. */
 	private gitignoreCache = new Map<string, GitignoreLayer | null>();
 
+	// Embeddings pipeline -- lazy-loaded from @xenova/transformers if available.
+	private _embeddingPipeline: any = null;
+	private _embeddingsAvailable = false;
+	private _embeddingsLoading = false;
+
 	private get _sessionKey(): string {
 		const folders = this.workspace.getWorkspace().folders;
 		if (folders.length === 0) return 'v3code-index:no-workspace';
@@ -240,7 +246,10 @@ export class SemanticIndexBrowserImpl extends Disposable implements ISemanticInd
 		}));
 
 		// Eager init on next microtask so the workbench layout has settled.
-		queueMicrotask(() => { void this._initAndMaybeRebuild(); });
+		queueMicrotask(() => {
+			void this._initAndMaybeRebuild();
+			void this._tryLoadEmbeddings();
+		});
 	}
 
 	private _readConfig() {
@@ -627,6 +636,44 @@ export class SemanticIndexBrowserImpl extends Disposable implements ISemanticInd
 		this.fileToChunks.set(relPath, ids);
 	}
 
+	/**
+	 * Attempt to load the embeddings model. Non-blocking, fails gracefully.
+	 * Uses @xenova/transformers for in-browser WASM-based inference.
+	 */
+	private async _tryLoadEmbeddings(): Promise<void> {
+		if (this._embeddingsLoading || this._embeddingsAvailable) { return; }
+		this._embeddingsLoading = true;
+		try {
+			const { pipeline } = await import('@xenova/transformers' as any);
+			this._embeddingPipeline = await pipeline('feature-extraction', 'Xenova/bge-small-en-v1.5', {
+				quantized: true,
+			});
+			this._embeddingsAvailable = true;
+			this.logService.info('[v3code-index] Embeddings model loaded (bge-small-en-v1.5)');
+		} catch (err) {
+			this._embeddingsAvailable = false;
+			this.logService.info('[v3code-index] Embeddings unavailable, using lexical-only mode:', err);
+		} finally {
+			this._embeddingsLoading = false;
+		}
+	}
+
+	private async _computeEmbedding(text: string): Promise<Float32Array | null> {
+		if (!this._embeddingsAvailable || !this._embeddingPipeline) { return null; }
+		try {
+			const result = await this._embeddingPipeline(text, { pooling: 'cls', normalize: true });
+			return new Float32Array(result.data);
+		} catch {
+			return null;
+		}
+	}
+
+	private _cosineSimilarity(a: Float32Array, b: Float32Array): number {
+		let dot = 0;
+		for (let i = 0; i < a.length; i++) { dot += a[i] * b[i]; }
+		return dot; // vectors are pre-normalized, so dot product = cosine similarity
+	}
+
 	async retrieve(prompt: string, opts?: { topK?: number; files?: string[] }): Promise<Hit[]> {
 		const topK = opts?.topK ?? 30;
 		const fileFilter = opts?.files ? new Set(opts.files) : null;
@@ -634,14 +681,48 @@ export class SemanticIndexBrowserImpl extends Disposable implements ISemanticInd
 			.filter(t => !STOPWORDS.has(t));
 		if (queryTokens.length === 0) return [];
 
-		const scored: Array<{ chunk: IndexedChunk; score: number; overlap: number }> = [];
+		// Try to get embedding for the query (non-blocking, returns null if unavailable)
+		const queryEmbedding = this._embeddingsAvailable ? await this._computeEmbedding(prompt) : null;
+
+		const scored: Array<{ chunk: IndexedChunk; score: number; overlap: number; vecScore?: number }> = [];
 		for (const c of this.chunks.values()) {
 			if (fileFilter && !fileFilter.has(c.file)) continue;
+
+			// Lexical score (token overlap)
 			let overlap = 0;
 			for (const t of queryTokens) if (c.tokens.has(t)) overlap++;
-			if (overlap === 0) continue;
-			const score = overlap / queryTokens.length;
-			scored.push({ chunk: c, score, overlap });
+			let lexicalScore = queryTokens.length > 0 ? overlap / queryTokens.length : 0;
+
+			// Vector similarity score (if embeddings available)
+			let vecScore = 0;
+			if (queryEmbedding && c.embedding) {
+				vecScore = this._cosineSimilarity(queryEmbedding, c.embedding);
+			}
+
+			// Skip chunks with zero relevance in both signals
+			if (overlap === 0 && vecScore < 0.3) continue;
+
+			// Hybrid score: RRF-inspired fusion of lexical and vector
+			let score: number;
+			if (queryEmbedding && c.embedding) {
+				// Both signals available -- fuse with Reciprocal Rank Fusion weighting
+				score = 0.4 * lexicalScore + 0.6 * Math.max(0, vecScore);
+			} else {
+				score = lexicalScore;
+			}
+
+			// Language-aware boost: source code files score higher than docs/markdown.
+			const lang = c.language;
+			if (lang === 'typescript' || lang === 'typescriptreact' || lang === 'javascript' || lang === 'javascriptreact') {
+				score *= 1.8;
+			} else if (lang === 'python' || lang === 'rust' || lang === 'go' || lang === 'java' || lang === 'csharp' || lang === 'cpp' || lang === 'c') {
+				score *= 1.6;
+			} else if (lang === 'markdown' || lang === 'plaintext') {
+				score *= 0.5;
+			} else if (lang === 'json' || lang === 'yaml' || lang === 'toml' || lang === 'xml') {
+				score *= 0.7;
+			}
+			scored.push({ chunk: c, score, overlap, vecScore });
 		}
 		scored.sort((a, b) => b.score - a.score || b.overlap - a.overlap);
 		return scored.slice(0, topK).map(s => ({
@@ -651,7 +732,7 @@ export class SemanticIndexBrowserImpl extends Disposable implements ISemanticInd
 			},
 			content: s.chunk.content,
 			score: s.score,
-			signals: { terms: s.overlap }
+			signals: { terms: s.overlap, vec: s.vecScore }
 		}));
 	}
 }

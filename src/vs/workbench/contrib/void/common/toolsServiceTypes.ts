@@ -41,6 +41,8 @@ export const approvalTypeOfBuiltinToolName: Partial<{ [T in BuiltinToolName]?: '
 	// Context Bridge tools — write-side notes need approval, find_text is read-only.
 	'remember': 'MCP tools',
 	'forget': 'MCP tools',
+	// Git write operations
+	'git_commit': 'terminal',
 }
 
 
@@ -89,6 +91,12 @@ export type BuiltinToolCallParams = {
 	'get_call_graph': { filePath: string, symbolName: string, direction: 'incoming' | 'outgoing', depth: number },
 	'pack_context': { filePath: string, symbolName: string, task: PackContextTask, maxTokens: number },
 	'get_project_briefing': { includeNotes: boolean },
+	// --- Web & Git & Browser ---
+	'web_search': { query: string, maxResults: number },
+	'git_status': {},
+	'git_commit': { message: string },
+	'git_diff': { staged: boolean },
+	'browser_screenshot': { url: string },
 }
 
 // RESULT OF TOOL CALL
@@ -122,6 +130,12 @@ export type BuiltinToolResultType = {
 	'get_call_graph': CallGraphOutput,
 	'pack_context': PackContextOutput,
 	'get_project_briefing': ProjectBriefingOutput,
+	// --- Web & Git & Browser ---
+	'web_search': { results: Array<{ title: string, url: string, snippet: string }> },
+	'git_status': { status: string },
+	'git_commit': { output: string },
+	'git_diff': { diff: string },
+	'browser_screenshot': { screenshotPath: string },
 }
 
 

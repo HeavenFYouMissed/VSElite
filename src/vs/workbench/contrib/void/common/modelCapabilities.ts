@@ -106,8 +106,10 @@ export const defaultModelsOfProvider = {
 		'gemini-2.5-pro-preview-05-06',
 	],
 	deepseek: [ // https://api-docs.deepseek.com/quick_start/pricing
-		'deepseek-chat',
-		'deepseek-reasoner',
+		'deepseek-v4-pro',
+		'deepseek-v4-flash',
+		'deepseek-chat', // deprecated, routes to v4-flash non-thinking. Remove after July 24, 2026
+		'deepseek-reasoner', // deprecated, routes to v4-flash thinking. Remove after July 24, 2026
 	],
 	ollama: [ // autodetected
 	],
@@ -124,6 +126,8 @@ export const defaultModelsOfProvider = {
 		'anthropic/claude-3.5-sonnet',
 		'deepseek/deepseek-r1',
 		'deepseek/deepseek-r1-zero:free',
+		'deepseek/deepseek-v4-pro',
+		'deepseek/deepseek-v4-flash',
 		'mistralai/devstral-small:free'
 		// 'openrouter/quasar-alpha',
 		// 'google/gemini-2.5-pro-preview-03-25',
@@ -424,6 +428,8 @@ const extensiveModelOptionsFallback: VoidStaticProviderInfo['modelOptionsFallbac
 	if (lower.includes('grok2') || lower.includes('grok2')) return toFallback(xAIModelOptions, 'grok-2')
 	if (lower.includes('grok')) return toFallback(xAIModelOptions, 'grok-3')
 
+	if (lower.includes('deepseek-v4-pro')) return toFallback(openSourceModelOptions_assumingOAICompat, 'deepseekR1')
+	if (lower.includes('deepseek-v4')) return toFallback(openSourceModelOptions_assumingOAICompat, 'deepseekR1')
 	if (lower.includes('deepseek-r1') || lower.includes('deepseek-reasoner')) return toFallback(openSourceModelOptions_assumingOAICompat, 'deepseekR1')
 	if (lower.includes('deepseek') && lower.includes('v2')) return toFallback(openSourceModelOptions_assumingOAICompat, 'deepseekCoderV2')
 	if (lower.includes('deepseek')) return toFallback(openSourceModelOptions_assumingOAICompat, 'deepseekCoderV3')
@@ -928,19 +934,60 @@ const geminiSettings: VoidStaticProviderInfo = {
 
 // ---------------- DEEPSEEK API ----------------
 const deepseekModelOptions = {
-	'deepseek-chat': {
-		...openSourceModelOptions_assumingOAICompat.deepseekR1,
-		contextWindow: 64_000, // https://api-docs.deepseek.com/quick_start/pricing
-		reservedOutputTokenSpace: 8_000, // 8_000,
-		cost: { cache_read: .07, input: .27, output: 1.10, },
+	'deepseek-v4-pro': {
+		contextWindow: 1_000_000,
+		reservedOutputTokenSpace: 384_000,
+		cost: { cache_read: 0.003625, input: 0.435, output: 0.87 },
 		downloadable: false,
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role',
+		specialToolFormat: 'openai-style',
+		reasoningCapabilities: {
+			supportsReasoning: true,
+			canTurnOffReasoning: true,
+			canIOReasoning: true,
+			openSourceThinkTags: ['<think>', '</think>'] as [string, string],
+		},
 	},
-	'deepseek-reasoner': {
-		...openSourceModelOptions_assumingOAICompat.deepseekCoderV2,
-		contextWindow: 64_000,
-		reservedOutputTokenSpace: 8_000, // 8_000,
-		cost: { cache_read: .14, input: .55, output: 2.19, },
+	'deepseek-v4-flash': {
+		contextWindow: 1_000_000,
+		reservedOutputTokenSpace: 384_000,
+		cost: { cache_read: 0.0028, input: 0.14, output: 0.28 },
 		downloadable: false,
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role',
+		specialToolFormat: 'openai-style',
+		reasoningCapabilities: {
+			supportsReasoning: true,
+			canTurnOffReasoning: true,
+			canIOReasoning: true,
+			openSourceThinkTags: ['<think>', '</think>'] as [string, string],
+		},
+	},
+	'deepseek-chat': { // deprecated -- routes to deepseek-v4-flash non-thinking. Remove after July 24, 2026.
+		contextWindow: 1_000_000,
+		reservedOutputTokenSpace: 384_000,
+		cost: { cache_read: 0.0028, input: 0.14, output: 0.28 },
+		downloadable: false,
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role',
+		specialToolFormat: 'openai-style',
+		reasoningCapabilities: false,
+	},
+	'deepseek-reasoner': { // deprecated -- routes to deepseek-v4-flash thinking. Remove after July 24, 2026.
+		contextWindow: 1_000_000,
+		reservedOutputTokenSpace: 384_000,
+		cost: { cache_read: 0.0028, input: 0.14, output: 0.28 },
+		downloadable: false,
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role',
+		specialToolFormat: 'openai-style',
+		reasoningCapabilities: {
+			supportsReasoning: true,
+			canTurnOffReasoning: false,
+			canIOReasoning: true,
+			openSourceThinkTags: ['<think>', '</think>'] as [string, string],
+		},
 	},
 } as const satisfies { [s: string]: VoidStaticModelInfo }
 

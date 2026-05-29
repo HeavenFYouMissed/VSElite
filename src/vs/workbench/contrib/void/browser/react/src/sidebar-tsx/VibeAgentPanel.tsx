@@ -9,6 +9,10 @@ import { SidebarChat } from './SidebarChat.js';
 import ErrorBoundary from './ErrorBoundary.js';
 import { Pill } from './VibeComponents.js';
 import { PlanModePanel, AgentTrayRow } from './VibeTodoPlan.js';
+import {
+	IconPlan, IconBrowser, IconTerminal, IconExtensions, IconFiles,
+	IconGit, IconAgents, IconMcp, IconSettings, IconCamera,
+} from './V3Icons.js';
 
 // ---- Tool tabs definition ----
 
@@ -22,15 +26,15 @@ interface ToolTabDef {
 }
 
 const TOOL_TABS: ToolTabDef[] = [
-	{ id: 'plan', label: 'Plan', icon: '📋', badge: 'new' },
-	{ id: 'browser', label: 'Browser', icon: '🌐' },
-	{ id: 'terminal', label: 'Terminal', icon: '💻' },
-	{ id: 'extensions', label: 'Extensions', icon: '🧩' },
-	{ id: 'files', label: 'Files', icon: '📁' },
-	{ id: 'git', label: 'Git', icon: '🔀' },
-	{ id: 'agents', label: 'Agents', icon: '🤖' },
-	{ id: 'mcp', label: 'MCP', icon: '🖥' },
-	{ id: 'settings', label: 'Settings', icon: '⚙' },
+	{ id: 'plan', label: 'Plan', icon: <IconPlan />, badge: 'new' },
+	{ id: 'browser', label: 'Browser', icon: <IconBrowser /> },
+	{ id: 'terminal', label: 'Terminal', icon: <IconTerminal /> },
+	{ id: 'extensions', label: 'Extensions', icon: <IconExtensions /> },
+	{ id: 'files', label: 'Files', icon: <IconFiles /> },
+	{ id: 'git', label: 'Git', icon: <IconGit /> },
+	{ id: 'agents', label: 'Agents', icon: <IconAgents /> },
+	{ id: 'mcp', label: 'MCP', icon: <IconMcp /> },
+	{ id: 'settings', label: 'Settings', icon: <IconSettings /> },
 ];
 
 // ---- Panel content components (stubs — wired to real data later) ----
@@ -55,8 +59,8 @@ const BrowserPanel: React.FC = () => {
 					onKeyDown={e => e.key === 'Enter' && setUrl(url)}
 				/>
 				<button className="v3code-btn v3code-btn--primary v3code-btn--sm" onClick={() => setUrl(url)}>Go</button>
-				<button className="v3code-btn v3code-btn--secondary v3code-btn--sm" onClick={takeScreenshot} title="Take screenshot">
-					📸
+				<button className="v3code-btn v3code-btn--secondary v3code-btn--sm" onClick={takeScreenshot} title="Take screenshot" style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center' }}>
+					<IconCamera />
 				</button>
 			</div>
 			<iframe
@@ -83,7 +87,7 @@ const TerminalPanel: React.FC = () => (
 	<div style={{ padding: '16px', height: '100%', fontFamily: 'monospace', fontSize: '13px', color: '#34D399' }}>
 		<div style={{ marginBottom: '8px', color: 'var(--v3code-fg-secondary)' }}>Terminal output will appear here...</div>
 		<div style={{ color: 'var(--v3code-fg)' }}>$ npm run dev</div>
-		<div style={{ color: '#34D399' }}>✓ compiled successfully</div>
+		<div style={{ color: '#34D399' }}>compiled successfully</div>
 		<div style={{ color: 'var(--v3code-fg-secondary)' }}>Local: http://localhost:3000</div>
 	</div>
 );
@@ -190,19 +194,20 @@ export const VibeAgentPanel: React.FC = () => {
 	return (
 		<div className="@@void-scope dark" style={{
 			display: 'flex',
-			width: '100vw',
-			height: '100vh',
+			width: '100%',
+			height: '100%',
 			background: 'var(--v3code-bg, #0f0f1a)',
 			color: 'var(--v3code-fg, #e0e0e0)',
 			fontFamily: 'system-ui, -apple-system, sans-serif',
 			overflow: 'hidden',
 		}}>
-			{/* ===== LEFT: Tools Sidebar ===== */}
+			{/* ===== LEFT: Tools Sidebar (icon-rail by default, expandable) ===== */}
 			<div style={{
 				display: 'flex',
 				flexDirection: 'column',
-				width: toolsExpanded ? '320px' : '48px',
-				minWidth: toolsExpanded ? '280px' : '48px',
+				width: toolsExpanded ? '240px' : '48px',
+				minWidth: toolsExpanded ? '220px' : '48px',
+				flexShrink: 0,
 				borderRight: '1px solid var(--v3code-border, #2a2a3a)',
 				background: 'var(--v3code-bg-secondary, #13132b)',
 				transition: 'width 0.2s ease',
@@ -277,7 +282,7 @@ export const VibeAgentPanel: React.FC = () => {
 				flex: 1,
 				display: 'flex',
 				flexDirection: 'column',
-				minWidth: '400px',
+				minWidth: 0,
 				overflow: 'hidden',
 			}}>
 				{/* Chat header */}

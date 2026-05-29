@@ -25,6 +25,7 @@ registerAction2(class extends Action2 {
 			f1: true,
 			keybinding: {
 				primary: KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyV,
+				secondary: [KeyMod.CtrlCmd | KeyMod.Alt | KeyCode.Backslash],
 				weight: 200,
 			},
 		});

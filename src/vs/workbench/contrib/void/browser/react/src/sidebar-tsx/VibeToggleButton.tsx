@@ -5,28 +5,24 @@
 
 import React, { useCallback, useEffect, useState } from 'react';
 import { useAccessor } from '../util/services.js';
-import { IVibeModeService } from '../../../vibeModeService.js';
+import type { IVibeModeService } from '../../../vibeModeService.js';
 
 /**
- * Large branded VIBE/DEV toggle button.
- * Positioned top-left in the title bar area (replaces Trae's SOLO switch).
- *
- * VIBE = Purple gradient, pulsing glow, agent mode active
- * DEV  = Subtle dark, normal state
+ * Two-state slide toggle (DEV | VIBE) — modeled on Trae's IDE/SOLO switch.
+ * Active half is "sunk-in" (inset shadow + accent gradient).
+ * Inactive half is flat and dim. Clicking the inactive half toggles mode.
  */
 export const VibeToggleButton: React.FC = () => {
 	const accessor = useAccessor();
 
-	// Safely get vibe service — may not be registered yet
 	let vibeService: IVibeModeService | null = null;
 	try {
-		vibeService = accessor.get(IVibeModeService);
+		vibeService = accessor.get('IVibeModeService') as IVibeModeService | null;
 	} catch {
-		// Service not registered — button won't work, that's OK
+		// service unavailable
 	}
 
 	const [mode, setMode] = useState<'vibe' | 'dev'>(vibeService?.mode ?? 'dev');
-	const [isHovered, setIsHovered] = useState(false);
 
 	useEffect(() => {
 		if (!vibeService) return;
@@ -35,100 +31,110 @@ export const VibeToggleButton: React.FC = () => {
 		return () => disp.dispose();
 	}, [vibeService]);
 
-	const handleToggle = useCallback(() => {
-		vibeService?.toggle();
-	}, [vibeService]);
+	const setVibe = useCallback(() => {
+		if (mode !== 'vibe') vibeService?.enterVibe();
+	}, [vibeService, mode]);
+
+	const setDev = useCallback(() => {
+		if (mode !== 'dev') vibeService?.exitVibe();
+	}, [vibeService, mode]);
 
 	const isVibe = mode === 'vibe';
 
+	const halfBase: React.CSSProperties = {
+		flex: 1,
+		padding: '0 14px',
+		fontSize: '11px',
+		fontWeight: 700,
+		letterSpacing: '0.8px',
+		textTransform: 'uppercase',
+		fontFamily: 'inherit',
+		cursor: 'pointer',
+		border: 'none',
+		outline: 'none',
+		background: 'transparent',
+		color: 'rgba(200, 200, 220, 0.45)',
+		transition: 'color 180ms ease, text-shadow 180ms ease',
+		zIndex: 1,
+		userSelect: 'none',
+		display: 'flex',
+		alignItems: 'center',
+		justifyContent: 'center',
+		height: '100%',
+	};
+
+	const halfActive: React.CSSProperties = {
+		color: '#ffffff',
+		textShadow: '0 0 8px rgba(167, 139, 250, 0.55)',
+	};
+
 	return (
-		<button
-			onClick={handleToggle}
-			onMouseEnter={() => setIsHovered(true)}
-			onMouseLeave={() => setIsHovered(false)}
+		<div
+			className="v3code-vibe-toggle"
+			role="tablist"
+			aria-label="Mode selector"
 			style={{
-				display: 'flex',
-				alignItems: 'center',
-				gap: '8px',
-				padding: '6px 14px',
-				borderRadius: '8px',
-				border: isVibe
-					? '1px solid var(--v3code-accent, #8B5CF6)'
-					: '1px solid var(--v3code-border, #333)',
-				background: isVibe
-					? 'linear-gradient(135deg, #8B5CF6 0%, #6D28D9 50%, #4C1D95 100%)'
-					: 'var(--v3code-bg-secondary, #1e1e2e)',
-				color: isVibe ? '#fff' : 'var(--v3code-fg-secondary, #888)',
-				cursor: 'pointer',
-				fontSize: '13px',
-				fontWeight: 700,
-				letterSpacing: '0.5px',
-				transition: 'all 0.3s ease',
-				boxShadow: isVibe
-					? '0 0 20px rgba(139, 92, 246, 0.4), 0 0 40px rgba(139, 92, 246, 0.2)'
-					: isHovered
-						? '0 0 10px rgba(139, 92, 246, 0.2)'
-						: 'none',
-				transform: isHovered ? 'scale(1.03)' : 'scale(1)',
 				position: 'relative',
+				display: 'inline-flex',
+				alignItems: 'stretch',
+				width: 132,
+				height: 26,
+				borderRadius: 999,
+				background: 'linear-gradient(180deg, #1a1a26 0%, #14141d 100%)',
+				border: '1px solid rgba(255, 255, 255, 0.06)',
+				boxShadow:
+					'inset 0 1px 2px rgba(0, 0, 0, 0.6), inset 0 -1px 0 rgba(255, 255, 255, 0.03), 0 1px 0 rgba(255, 255, 255, 0.04)',
 				overflow: 'hidden',
 			}}
 		>
-			{/* Animated glow bar for VIBE mode */}
-			{isVibe && (
-				<div
-					style={{
-						position: 'absolute',
-						top: 0,
-						left: 0,
-						right: 0,
-						height: '2px',
-						background: 'linear-gradient(90deg, transparent, #A78BFA, #C4B5FD, #A78BFA, transparent)',
-						animation: 'v3code-glow-slide 2s linear infinite',
-					}}
-				/>
-			)}
-
-			{/* Icon */}
+			{/* Sliding thumb (the sunk-in active half) */}
 			<div
+				aria-hidden="true"
 				style={{
-					width: '20px',
-					height: '20px',
-					borderRadius: '4px',
-					display: 'flex',
-					alignItems: 'center',
-					justifyContent: 'center',
-					background: isVibe ? 'rgba(255,255,255,0.2)' : 'rgba(139, 92, 246, 0.15)',
-					fontSize: '12px',
-				}}
-			>
-				{isVibe ? '⚡' : '◈'}
-			</div>
-
-			{/* Label */}
-			<span style={{ textTransform: 'uppercase' }}>
-				{isVibe ? 'VIBE' : 'DEV'}
-			</span>
-
-			{/* Status dot */}
-			<div
-				style={{
-					width: '6px',
-					height: '6px',
-					borderRadius: '50%',
-					background: isVibe ? '#34D399' : '#6B7280',
-					boxShadow: isVibe ? '0 0 8px rgba(52, 211, 153, 0.6)' : 'none',
-					transition: 'all 0.3s ease',
+					position: 'absolute',
+					top: 2,
+					left: 2,
+					width: 'calc(50% - 2px)',
+					height: 'calc(100% - 4px)',
+					borderRadius: 999,
+					background: isVibe
+						? 'linear-gradient(180deg, #8B5CF6 0%, #6D28D9 100%)'
+						: 'linear-gradient(180deg, #2a2a3a 0%, #1f1f2c 100%)',
+					boxShadow: isVibe
+						? 'inset 0 1px 0 rgba(255,255,255,0.18), inset 0 -2px 4px rgba(0,0,0,0.35), 0 0 14px rgba(139, 92, 246, 0.45)'
+						: 'inset 0 1px 0 rgba(255,255,255,0.06), inset 0 -1px 2px rgba(0,0,0,0.4)',
+					transform: isVibe ? 'translateX(100%)' : 'translateX(0)',
+					transition: 'transform 260ms cubic-bezier(0.4, 0.0, 0.2, 1), background 260ms ease, box-shadow 260ms ease',
+					zIndex: 0,
 				}}
 			/>
-		</button>
+
+			<button
+				type="button"
+				role="tab"
+				aria-selected={!isVibe}
+				onClick={setDev}
+				style={{ ...halfBase, ...(!isVibe ? halfActive : {}) }}
+			>
+				DEV
+			</button>
+			<button
+				type="button"
+				role="tab"
+				aria-selected={isVibe}
+				onClick={setVibe}
+				style={{ ...halfBase, ...(isVibe ? halfActive : {}) }}
+			>
+				VIBE
+			</button>
+		</div>
 	);
 };
 
-/** CSS keyframes injected once */
+/** Focus-ring CSS injected from Sidebar.tsx. */
 export const vibeToggleStyles = `
-@keyframes v3code-glow-slide {
-	0% { transform: translateX(-100%); }
-	100% { transform: translateX(100%); }
+.v3code-vibe-toggle button:focus-visible {
+	box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.5);
+	border-radius: 999px;
 }
 `;

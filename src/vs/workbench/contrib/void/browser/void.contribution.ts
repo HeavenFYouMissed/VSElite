@@ -11,14 +11,12 @@ import './editCodeService.js'
 import './sidebarActions.js'
 import './sidebarPane.js'
 
-// register Agent panel mode + editor input (Ctrl+Shift+A toggles chat <-> agent main-editor split)
-import './voidChatEditorInput.js'
-import './agentPanelService.js'
-import './agentPanelActions.js'
-
-// register VIBE/DEV mode toggle (fullscreen agent panel powered by zen mode)
-import './vibeModeService.js'
-import './vibeModeActions.js'
+// Agent panel + VIBE mode disabled — see Sidebar.tsx for chat-only layout
+// import './voidChatEditorInput.js'
+// import './agentPanelService.js'
+// import './agentPanelActions.js'
+// import './vibeModeService.js'
+// import './vibeModeActions.js'
 
 // register quick edit (Ctrl+K)
 import './quickEditActions.js'

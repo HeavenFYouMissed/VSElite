@@ -10,11 +10,13 @@ import { InstantiationType, registerSingleton } from '../../../../platform/insta
 import { IContextKeyService, RawContextKey, IContextKey } from '../../../../platform/contextkey/common/contextkey.js';
 import { IStorageService, StorageScope, StorageTarget } from '../../../../platform/storage/common/storage.js';
 import { ILogService } from '../../../../platform/log/common/log.js';
-import { ICommandService } from '../../../../platform/commands/common/commands.js';
+import { IWorkbenchLayoutService, Parts } from '../../../services/layout/browser/layoutService.js';
+import { mainWindow } from '../../../../base/browser/window.js';
 
 /**
- * VIBE = full-screen agent mode (zen mode + agent panel overlay)
- * DEV  = normal VS Code editor mode
+ * VIBE = Agent-forward layout. File explorer hidden, aux bar (chat) expanded.
+ *        Editor stays visible, files toggleable from activity bar. NO zen mode.
+ * DEV  = Standard layout. All restored to pre-VIBE state.
  */
 export type VibeMode = 'vibe' | 'dev';
 
@@ -34,6 +36,13 @@ export const V3CODE_VIBE_TOOLS_TAB_CONTEXT_KEY = new RawContextKey<string>('v3co
 
 const STORAGE_KEY = 'v3code.vibeMode';
 
+interface PreVibeLayout {
+	sidebarHidden: boolean;
+	auxBarHidden: boolean;
+	editorHidden: boolean;
+	panelHidden: boolean;
+}
+
 export class VibeModeService extends Disposable implements IVibeModeService {
 	declare readonly _serviceBrand: undefined;
 
@@ -44,12 +53,13 @@ export class VibeModeService extends Disposable implements IVibeModeService {
 	readonly onDidChangeMode: Event<VibeMode> = this._onDidChangeMode.event;
 
 	private readonly _vibeModeKey: IContextKey<boolean>;
+	private _preVibeLayout: PreVibeLayout | null = null;
 
 	constructor(
 		@IStorageService private readonly storageService: IStorageService,
 		@IContextKeyService contextKeyService: IContextKeyService,
-		@ICommandService private readonly commandService: ICommandService,
 		@ILogService private readonly logService: ILogService,
+		@IWorkbenchLayoutService private readonly layoutService: IWorkbenchLayoutService,
 	) {
 		super();
 		this._vibeModeKey = V3CODE_VIBE_MODE_CONTEXT_KEY.bindTo(contextKeyService);
@@ -59,7 +69,7 @@ export class VibeModeService extends Disposable implements IVibeModeService {
 		if (stored === 'vibe') {
 			queueMicrotask(() => {
 				if (this._mode === 'dev') {
-					void this.enterVibe();
+					this.enterVibe();
 				}
 			});
 		}
@@ -67,43 +77,74 @@ export class VibeModeService extends Disposable implements IVibeModeService {
 
 	toggle(): void {
 		if (this._mode === 'dev') {
-			void this.enterVibe();
+			this.enterVibe();
 		} else {
-			void this.exitVibe();
+			this.exitVibe();
 		}
 	}
 
-	async enterVibe(): Promise<void> {
+	enterVibe(): void {
 		if (this._mode === 'vibe') { return; }
-		this.logService.info('[v3code.vibe] Entering VIBE mode...');
+		this.logService.info('[v3code.vibe] Entering VIBE mode');
 
-		// Enter zen mode first to hide all chrome and get full screen
 		try {
-			await this.commandService.executeCommand('workbench.action.toggleZenMode');
+			// Snapshot current layout for later restore
+			this._preVibeLayout = {
+				sidebarHidden: !this.layoutService.isVisible(Parts.SIDEBAR_PART),
+				auxBarHidden: !this.layoutService.isVisible(Parts.AUXILIARYBAR_PART),
+				editorHidden: !this.layoutService.isVisible(Parts.EDITOR_PART, mainWindow),
+				panelHidden: !this.layoutService.isVisible(Parts.PANEL_PART),
+			};
+
+			// Hide file explorer sidebar (still toggleable via activity bar)
+			if (this.layoutService.isVisible(Parts.SIDEBAR_PART)) {
+				this.layoutService.setPartHidden(true, Parts.SIDEBAR_PART);
+			}
+
+			// Hide bottom panel (terminal/output) to maximize chat real-estate
+			if (this.layoutService.isVisible(Parts.PANEL_PART)) {
+				this.layoutService.setPartHidden(true, Parts.PANEL_PART);
+			}
+
+			// Hide editor so the auxiliary bar (chat) takes over the main canvas
+			if (this.layoutService.isVisible(Parts.EDITOR_PART, mainWindow)) {
+				this.layoutService.setPartHidden(true, Parts.EDITOR_PART, mainWindow);
+			}
+
+			// Show auxiliary bar (where chat lives) — now full width
+			if (!this.layoutService.isVisible(Parts.AUXILIARYBAR_PART)) {
+				this.layoutService.setPartHidden(false, Parts.AUXILIARYBAR_PART);
+			}
+
 			this._mode = 'vibe';
 			this._vibeModeKey.set(true);
 			this.storageService.store(STORAGE_KEY, 'vibe', StorageScope.WORKSPACE, StorageTarget.USER);
 			this._onDidChangeMode.fire('vibe');
-			this.logService.info('[v3code.vibe] VIBE mode activated');
 		} catch (err) {
-			this.logService.error('[v3code.vibe] Failed to enter VIBE mode', err);
+			this.logService.error('[v3code.vibe] enterVibe failed', err);
 		}
 	}
 
-	async exitVibe(): Promise<void> {
+	exitVibe(): void {
 		if (this._mode === 'dev') { return; }
-		this.logService.info('[v3code.vibe] Exiting VIBE mode...');
+		this.logService.info('[v3code.vibe] Exiting VIBE mode');
 
-		// Exit zen mode
 		try {
-			await this.commandService.executeCommand('workbench.action.toggleZenMode');
+			if (this._preVibeLayout) {
+				// Restore editor first so other parts size correctly around it
+				this.layoutService.setPartHidden(this._preVibeLayout.editorHidden, Parts.EDITOR_PART, mainWindow);
+				this.layoutService.setPartHidden(this._preVibeLayout.sidebarHidden, Parts.SIDEBAR_PART);
+				this.layoutService.setPartHidden(this._preVibeLayout.auxBarHidden, Parts.AUXILIARYBAR_PART);
+				this.layoutService.setPartHidden(this._preVibeLayout.panelHidden, Parts.PANEL_PART);
+				this._preVibeLayout = null;
+			}
+
 			this._mode = 'dev';
 			this._vibeModeKey.set(false);
 			this.storageService.store(STORAGE_KEY, 'dev', StorageScope.WORKSPACE, StorageTarget.USER);
 			this._onDidChangeMode.fire('dev');
-			this.logService.info('[v3code.vibe] DEV mode restored');
 		} catch (err) {
-			this.logService.error('[v3code.vibe] Failed to exit VIBE mode', err);
+			this.logService.error('[v3code.vibe] exitVibe failed', err);
 		}
 	}
 }

@@ -8,6 +8,12 @@ import { VoidFileSnapshot } from './editCodeServiceTypes.js';
 import { AnthropicReasoning, RawToolParamsObj } from './sendLLMMessageTypes.js';
 import { ToolCallParams, ToolName, ToolResult } from './toolsServiceTypes.js';
 
+export type ImageAttachment = {
+	data: string; // base64-encoded image data
+	mimeType: 'image/png' | 'image/jpeg' | 'image/gif' | 'image/webp';
+	name?: string;
+};
+
 export type ToolMessage<T extends ToolName> = {
 	role: 'tool';
 	content: string; // give this result to LLM (string of value)
@@ -53,6 +59,7 @@ export type ChatMessage =
 		content: string; // content displayed to the LLM on future calls - allowed to be '', will be replaced with (empty)
 		displayContent: string; // content displayed to user  - allowed to be '', will be ignored
 		selections: StagingSelectionItem[] | null; // the user's selection
+		images?: ImageAttachment[]; // attached images for vision models
 		state: {
 			stagingSelections: StagingSelectionItem[];
 			isBeingEdited: boolean;

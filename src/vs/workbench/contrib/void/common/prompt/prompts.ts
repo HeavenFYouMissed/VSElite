@@ -445,6 +445,47 @@ export const builtinTools: {
 		},
 	},
 
+	// --- Web & Git & Browser ---
+
+	web_search: {
+		name: 'web_search',
+		description: `Search the web using DuckDuckGo. Returns a list of results with title, URL, and snippet. Use this when the user needs up-to-date information from the internet, documentation lookups, or to verify current facts.`,
+		params: {
+			query: { description: 'The search query string.' },
+			max_results: { description: 'Optional. Maximum number of results to return. Default is 5.' },
+		},
+	},
+
+	git_status: {
+		name: 'git_status',
+		description: `Shows the current git status of the workspace (equivalent to \`git status --porcelain\`). Returns a list of modified, added, deleted, and untracked files. No parameters required.`,
+		params: {},
+	},
+
+	git_commit: {
+		name: 'git_commit',
+		description: `Stages all changes and creates a git commit with the given message. Runs \`git add -A && git commit -m "..."\`. Only use when the user explicitly asks to commit.`,
+		params: {
+			message: { description: 'The commit message.' },
+		},
+	},
+
+	git_diff: {
+		name: 'git_diff',
+		description: `Shows the current git diff. By default shows unstaged changes; set staged to true to see staged changes.`,
+		params: {
+			staged: { description: 'Optional. Default is false. Set to true to show only staged changes (git diff --staged).' },
+		},
+	},
+
+	browser_screenshot: {
+		name: 'browser_screenshot',
+		description: `Takes a screenshot of a given URL. Note: this feature requires Electron BrowserWindow integration and is currently a placeholder.`,
+		params: {
+			url: { description: 'The full URL to take a screenshot of.' },
+		},
+	},
+
 	// go_to_definition
 	// go_to_usages
 

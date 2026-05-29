@@ -1,0 +1,8 @@
+## Extracted third-party sources used as reference templates only.
+## DO NOT commit — these are copyrighted bundles from Trae / Cursor installations.
+## Re-extract instructions: see docs/trae-blueprint/source/README.md
+trae-blueprint/source/*.mjs
+trae-blueprint/source/*.js
+trae-blueprint/source/*.css
+cursor-blueprint/source/*.js
+cursor-blueprint/source/*.css

@@ -3075,7 +3075,7 @@ export const SidebarChat = () => {
 		<VoidInputBox2
 			enableAtToMention
 			className={`min-h-[60px] px-0.5 py-0.5`}
-			placeholder={`Message V3Code…`}
+			placeholder={`BUILDTEST-12345`}
 			onChangeText={onChangeText}
 			onKeyDown={onKeyDown}
 			onFocus={() => { chatThreadsService.setCurrentlyFocusedMessageIdx(undefined) }}

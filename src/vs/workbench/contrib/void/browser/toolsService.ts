@@ -392,12 +392,34 @@ export class ToolsService implements IToolsService {
 				const maxTokens = validateNumber(params.max_tokens, { default: 3000 }) ?? 3000
 				return { filePath, symbolName, task, maxTokens }
 			},
-			get_project_briefing: (params: RawToolParamsObj) => {
-				const includeNotes = validateBoolean(params.include_notes, { default: true })
-				return { includeNotes }
-			},
+		get_project_briefing: (params: RawToolParamsObj) => {
+			const includeNotes = validateBoolean(params.include_notes, { default: true })
+			return { includeNotes }
+		},
 
-		}
+		// --- Web & Git & Browser ---
+		web_search: (params: RawToolParamsObj) => {
+			const query = validateStr('query', params.query)
+			const maxResults = validateNumber(params.max_results, { default: 5 }) ?? 5
+			return { query, maxResults }
+		},
+		git_status: (_params: RawToolParamsObj) => {
+			return {}
+		},
+		git_commit: (params: RawToolParamsObj) => {
+			const message = validateStr('message', params.message)
+			return { message }
+		},
+		git_diff: (params: RawToolParamsObj) => {
+			const staged = validateBoolean(params.staged, { default: false })
+			return { staged }
+		},
+		browser_screenshot: (params: RawToolParamsObj) => {
+			const url = validateStr('url', params.url)
+			return { url }
+		},
+
+	}
 
 
 		// Lightweight telemetry wrapper for Context Bridge tools — emits one
@@ -664,11 +686,62 @@ export class ToolsService implements IToolsService {
 				const result = await runPackContext(this.lspBridgeAdapter, this.contextBridgeService, params)
 				return { result }
 			}),
-			get_project_briefing: async (params) => cbTrace('get_project_briefing', async () => {
-				const result = await runGetProjectBriefing(this.lspBridgeAdapter, fileService, workspaceContextService, this.contextBridgeService, params)
-				return { result }
-			}),
-		}
+		get_project_briefing: async (params) => cbTrace('get_project_briefing', async () => {
+			const result = await runGetProjectBriefing(this.lspBridgeAdapter, fileService, workspaceContextService, this.contextBridgeService, params)
+			return { result }
+		}),
+
+		// --- Web & Git & Browser ---
+		web_search: async ({ query, maxResults }) => {
+			const encoded = encodeURIComponent(query)
+			const url = `https://lite.duckduckgo.com/lite/?q=${encoded}`
+			const resp = await fetch(url, {
+				headers: { 'User-Agent': 'V3Code/1.0', 'Accept': 'text/html' },
+			})
+			const html = await resp.text()
+
+			const results: Array<{ title: string, url: string, snippet: string }> = []
+			const linkRegex = /<a[^>]+rel="nofollow"[^>]+href="([^"]*)"[^>]*>\s*([\s\S]*?)\s*<\/a>/gi
+			let match: RegExpExecArray | null
+			while ((match = linkRegex.exec(html)) !== null && results.length < maxResults) {
+				const href = match[1]
+				const title = match[2].replace(/<[^>]*>/g, '').trim()
+				if (!href || !title || href.startsWith('/') || href.includes('duckduckgo.com')) continue
+				results.push({ title, url: href, snippet: '' })
+			}
+
+			const snippetRegex = /<td\s+class="result-snippet"[^>]*>([\s\S]*?)<\/td>/gi
+			let snippetIdx = 0
+			while ((match = snippetRegex.exec(html)) !== null && snippetIdx < results.length) {
+				results[snippetIdx].snippet = match[1].replace(/<[^>]*>/g, '').trim()
+				snippetIdx++
+			}
+
+			return { result: { results } }
+		},
+		git_status: async () => {
+			const { resPromise } = await this.terminalToolService.runCommand('git status --porcelain', { type: 'temporary', cwd: null, terminalId: generateUuid() })
+			const res = await resPromise
+			const status = res.result.trim() || '(clean working tree)'
+			return { result: { status } }
+		},
+		git_commit: async ({ message }) => {
+			const escaped = message.replace(/"/g, '\\"')
+			const { resPromise } = await this.terminalToolService.runCommand(`git add -A && git commit -m "${escaped}"`, { type: 'temporary', cwd: null, terminalId: generateUuid() })
+			const res = await resPromise
+			return { result: { output: res.result.trim() } }
+		},
+		git_diff: async ({ staged }) => {
+			const cmd = staged ? 'git diff --staged' : 'git diff'
+			const { resPromise } = await this.terminalToolService.runCommand(`${cmd} | cat`, { type: 'temporary', cwd: null, terminalId: generateUuid() })
+			const res = await resPromise
+			return { result: { diff: res.result.trim() || '(no diff)' } }
+		},
+		browser_screenshot: async ({ url }) => {
+			const screenshotPath = `[browser_screenshot] Not implemented: Taking a screenshot of "${url}" requires Electron BrowserWindow integration. This feature needs access to Electron's BrowserWindow API to load the URL off-screen and capture the rendered page. To enable: (1) create a BrowserWindow with offscreen rendering, (2) loadURL, (3) call webContents.capturePage(), (4) save the NativeImage to disk.`
+			return { result: { screenshotPath } }
+		},
+	}
 
 
 		const nextPageStr = (hasNextPage: boolean) => hasNextPage ? '\n\n(more on next page...)' : ''
@@ -837,8 +910,18 @@ export class ToolsService implements IToolsService {
 			get_symbol_context: (_params, result) => stringifySymbolContext(result),
 			get_call_graph: (_params, result) => stringifyCallGraph(result),
 			pack_context: (_params, result) => stringifyPackContext(result),
-			get_project_briefing: (_params, result) => stringifyProjectBriefing(result),
-		}
+		get_project_briefing: (_params, result) => stringifyProjectBriefing(result),
+
+		// --- Web & Git & Browser ---
+		web_search: (params, result) => {
+			if (result.results.length === 0) return `No results found for "${params.query}".`
+			return result.results.map((r, i) => `${i + 1}. ${r.title}\n   ${r.url}\n   ${r.snippet}`).join('\n\n')
+		},
+		git_status: (_params, result) => result.status,
+		git_commit: (_params, result) => result.output,
+		git_diff: (_params, result) => result.diff,
+		browser_screenshot: (_params, result) => result.screenshotPath,
+	}
 
 
 

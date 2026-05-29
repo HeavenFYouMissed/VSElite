@@ -1,0 +1,22 @@
+{
+  "name": "@byted-icube/ai-modules-chat",
+  "description": "Next generation of AI UI Modules",
+  "version": "0.0.1",
+  "publisher": "trae",
+  "private": false,
+  "license": "MIT",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist-types/modules/ai-chat/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "amd": "./dist/index.js",
+      "default": "./dist/index.js",
+      "types": "./dist-types/modules/ai-chat/index.d.ts"
+    },
+    "./dist/*": "./dist/*"
+  },
+  "dependencies": {}
+}
