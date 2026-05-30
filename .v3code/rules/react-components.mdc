@@ -1,0 +1,14 @@
+---
+description: Rules for editing React components in the V3Code UI
+globs: ["*.tsx"]
+alwaysApply: false
+---
+
+# React Component Rules
+
+- All React components use Tailwind CSS with `void-` prefix classes
+- CSS custom properties are defined in `void-panel/src/index.css` and `v3code-design-tokens.css`
+- The theme uses neutral greys and black — avoid bright/saturated colors
+- Green accents are limited to the V logo and active state indicators only
+- Component state lives in services (not React state) via `useService()` hook
+- Never use `useState` for data that persists across component unmounts

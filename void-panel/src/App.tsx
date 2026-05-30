@@ -7,7 +7,7 @@ import { VSkillsView, type CatalogSkill } from './components/VSkillsView'
 import { VGitView } from './components/VGitView'
 import { VQuestions, type VQuestion } from './components/VQuestions'
 import { useProjectBriefing } from './hooks/useVoidBridge'
-import { bridge, type AgentEvent } from './lib/messagePort'
+import { bridge, type AgentEvent, type AgentVerdict, type AgentSkillOffer, type AgentSkillMounted } from './lib/messagePort'
 
 // ─── Voice system ────────────────────────────────────────────────────────────
 function useVoice() {
@@ -112,6 +112,7 @@ const SLASH_COMMANDS: SlashItem[] = [
 	{ name: 'build', arg: 'thing', desc: 'V builds it (scene preview)', kind: 'command' },
 	{ name: 'skill', arg: 'task', desc: 'find or sketch a skill', kind: 'command' },
 	{ name: 'watch', desc: 'keep an eye on the agent', kind: 'command' },
+	{ name: 'direct', arg: 'on/off', desc: 'let V edit files directly (default: off — V delegates to the agent)', kind: 'command' },
 	{ name: 'clear', desc: 'clear the transcript', kind: 'command' },
 	{ name: 'help', desc: 'list commands', kind: 'command' },
 ]
@@ -162,6 +163,7 @@ export function App() {
 	const [catalogLoading, setCatalogLoading] = useState(false)
 	const [mounting, setMounting] = useState<string | null>(null)
 	const [autoPilot, setAutoPilot] = useState(false)
+	const [directEdit, setDirectEdit] = useState(false)
 	const [studioUrl, setStudioUrl] = useState<string | null>(null)
 	const [ctxUsed, setCtxUsed] = useState(0)
 	const [ctxMax, setCtxMax] = useState(0)
@@ -173,7 +175,9 @@ export function App() {
 	const streamingRef = useRef(false)
 	const lastProposed = useRef<string | null>(null)
 	const awaitingPrompt = useRef(false)
+	const autoPilotRef = useRef(false)
 	useEffect(() => { streamingRef.current = streaming }, [streaming])
+	useEffect(() => { autoPilotRef.current = autoPilot }, [autoPilot])
 	const [slashIndex, setSlashIndex] = useState(0)
 	const voice = useVoice()
 
@@ -331,6 +335,33 @@ export function App() {
 				}
 			}
 		})
+		// Drift judgment: V tells you when the agent wandered off-intent.
+		bridge.onAgentVerdict((v: AgentVerdict) => {
+			if (v.verdict === 'ok') {
+				setMessages(m => [...m, { role: 'v', text: `v: agent shipped what you asked. (${v.reason || 'intent matched'})` }])
+				return
+			}
+			const tagMap = { drift: 'drifted', laziness: 'shipped lazy', 'skipped-step': 'skipped a step', risky: 'did something risky' } as const
+			const tag = (tagMap as Record<string, string>)[v.verdict] ?? 'went sideways'
+			setMessages(m => [...m, { role: 'v', text: `v: agent ${tag} — ${v.reason}` }])
+			if (v.correction) {
+				setChoices([
+					{ label: 'send correction', onPick: () => { bridge.call('vRunAgent', { prompt: v.correction! }).catch(() => { }); setChoices([]) } },
+					{ label: 'ignore', onPick: () => setChoices([]) },
+				])
+			}
+		})
+		// Skill auto-offer: V spotted a pattern; suggest mounting.
+		bridge.onAgentSkillOffer((o: AgentSkillOffer) => {
+			setMessages(m => [...m, { role: 'v', text: `v: ${o.reason}. mount skill "${o.skillId}"?` }])
+			setChoices([
+				{ label: `mount ${o.skillId}`, onPick: () => { bridge.call('vMountSkill', { name: o.skillId }).catch(() => { }); setChoices([]) } },
+				{ label: 'no thanks', onPick: () => setChoices([]) },
+			])
+		})
+		bridge.onAgentSkillMounted((m: AgentSkillMounted) => {
+			setRecent(r => [{ when: 'now', what: `v · mounted ${m.skillId}` }, ...r].slice(0, 6))
+		})
 	}, [])
 
 	// Esc returns to the home scene (without losing the conversation)
@@ -348,9 +379,32 @@ export function App() {
 		return copy
 	})
 
-	const runMainAgent = (prompt: string) => {
-		setMessages(m => [...m, { role: 'sys', text: `· handed to the agent: ${prompt.length > 80 ? prompt.slice(0, 80) + '…' : prompt}` }])
-		bridge.call('vRunAgent', { prompt }).catch(() => setMessages(m => [...m, { role: 'sys', text: '⚠ could not reach the agent' }]))
+	const runMainAgent = (prompt: string, opts?: { skipSharpen?: boolean }) => {
+		// Direct path: caller already approved a sharpened prompt (or autopilot is on).
+		if (opts?.skipSharpen) {
+			setMessages(m => [...m, { role: 'sys', text: `· handed to the agent: ${prompt.length > 80 ? prompt.slice(0, 80) + '…' : prompt}` }])
+			bridge.call('vRunAgent', { sharpened: prompt }).catch(() => setMessages(m => [...m, { role: 'sys', text: '⚠ could not reach the agent' }]))
+			return
+		}
+		// Autopilot: skip preview, sharpen-and-fire in one shot (vRunAgent does the sharpen on the host).
+		if (autoPilotRef.current) {
+			setMessages(m => [...m, { role: 'sys', text: `· handed to the agent: ${prompt.length > 80 ? prompt.slice(0, 80) + '…' : prompt}` }])
+			bridge.call('vRunAgent', { prompt }).catch(() => setMessages(m => [...m, { role: 'sys', text: '⚠ could not reach the agent' }]))
+			return
+		}
+		// Default: ask V to sharpen, show the preview, give user "send / edit / iterate" chips.
+		setMessages(m => [...m, { role: 'v', text: 'v: sharpening your prompt…' }])
+		bridge.call<{ sharpened: string; rationale: string }>('vSharpen', { prompt })
+			.then(({ sharpened, rationale }) => {
+				setMessages(m => [...m, { role: 'v', text: `v: ${rationale}\n\n--- proposed prompt ---\n${sharpened}` }])
+				lastProposed.current = sharpened
+				setChoices([
+					{ label: 'send it', onPick: () => { runMainAgent(sharpened, { skipSharpen: true }); lastProposed.current = null; setChoices([]) } },
+					{ label: 'edit', onPick: () => { setInput(sharpened); lastProposed.current = null; setChoices([]) } },
+					{ label: 'iterate', onPick: () => { askV(`refine this prompt further — be more specific about files/paths, tighten constraints. return ONLY the improved prompt:\n\n${sharpened}`, 'iterate prompt'); setChoices([]) } },
+				])
+			})
+			.catch(() => setMessages(m => [...m, { role: 'sys', text: '⚠ could not reach v sharpener — sending raw' }]))
 	}
 
 	// Scene system: V shifts into a dedicated "level" for major work, then returns home.
@@ -430,8 +484,20 @@ export function App() {
 	// slash commands: some run locally, others reframe the message for V's brain
 	const runCommand = (name: string, arg: string): boolean => {
 		switch (name) {
-			case 'clear':
+			case 'clear': {
+				// Before wiping, ask V to digest what was said into durable memory candidates.
+				const transcript = messages.filter(x => x.role === 'me' || x.role === 'v').map(x => `${x.role}: ${x.text}`).join('\n').slice(-12000)
+				if (transcript.length > 200) {
+					bridge.call<{ staged: number; candidates?: { kind: string; text: string }[] }>('vDigestRun', { transcript })
+						.then(res => {
+							if (res?.staged && res.staged > 0) {
+								setMessages(m => [...m, { role: 'v', text: `v: digested ${res.staged} fact${res.staged === 1 ? '' : 's'} from this thread (project facts saved; user facts pending — run /memory to approve)` }])
+							}
+						})
+						.catch(() => { /* */ })
+				}
 				setMessages([{ role: 'sys', text: 'transcript cleared' }]); setChoices([]); return true
+			}
 			case 'home':
 				goHome()
 				setChoices([
@@ -458,6 +524,17 @@ export function App() {
 				openSkills(); return true
 			case 'watch':
 				setMessages(m => [...m, { role: 'v', text: "watching the agent — i'll log what it does and flag anything worth a skill or a fix." }]); return true
+			case 'direct': {
+				const want = arg === 'on' ? true : arg === 'off' ? false : null
+				if (want === null) {
+					setMessages(m => [...m, { role: 'v', text: 'v: /direct on lets me edit files directly. /direct off (default) keeps me as the supervisor — i hand single-file work to the editor agent.' }])
+					return true
+				}
+				bridge.call('vSetDirectEdit', { on: want })
+					.then(() => { setDirectEdit(want); setMessages(m => [...m, { role: 'sys', text: `· direct edit ${want ? 'enabled' : 'disabled'}` }]) })
+					.catch(() => setMessages(m => [...m, { role: 'sys', text: '⚠ could not toggle direct edit' }]))
+				return true
+			}
 			case 'build':
 				if (!arg) return false
 				setMessages(m => [...m, { role: 'you', text: `/build ${arg}` }]); runBuildScene(arg); return true
@@ -589,18 +666,33 @@ export function App() {
 	return (
 		<div className="term">
 			<div className="statusline">
-				<span><span className="dot">●</span> V</span>
+				<span style={{ fontSize: '14px', fontWeight: 700, letterSpacing: '0.02em' }}><span className="dot">●</span> V</span>
 				<span className="muted">{connected ? 'context-bridge online' : 'standalone'}</span>
 				<button
 					type="button"
 					className={`autopilot-toggle ${autoPilot ? 'on' : ''}`}
+					title={autoPilot ? 'auto: V drives — sharpens, dispatches, and corrects the agent without asking. click to turn off.' : 'auto-pilot off — V asks before each step. click to let V drive.'}
 					onClick={() => {
 						const next = !autoPilot
 						setAutoPilot(next)
 						bridge.call('vSetAutoPilot', { on: next }).catch(() => { /* */ })
+						setMessages(m => [...m, { role: 'sys', text: next ? '· auto-pilot ON — v drives' : '· auto-pilot OFF' }])
 					}}
 				>
-					auto-pilot {autoPilot ? 'on' : 'off'}
+					<span className="pip" />AUTO {autoPilot ? 'ON' : 'OFF'}
+				</button>
+				<button
+					type="button"
+					className={`direct-toggle ${directEdit ? 'on' : ''}`}
+					title={directEdit ? "V can edit files directly. click to switch back to delegate-only mode." : 'V is supervisor-only — file edits go to the agent. click to let V edit directly.'}
+					onClick={() => {
+						const next = !directEdit
+						setDirectEdit(next)
+						bridge.call('vSetDirectEdit', { on: next }).catch(() => { /* */ })
+						setMessages(m => [...m, { role: 'sys', text: next ? '· direct edit ON — v can write files' : '· direct edit OFF — v delegates to agent' }])
+					}}
+				>
+					direct {directEdit ? 'on' : 'off'}
 				</button>
 			</div>
 

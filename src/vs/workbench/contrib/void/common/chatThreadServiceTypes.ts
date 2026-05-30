@@ -76,6 +76,16 @@ export type ChatMessage =
 	| ToolMessage<ToolName>
 	| DecorativeCanceledTool
 	| CheckpointEntry
+	| SystemNotification
+
+
+// system notification — injected automatically when background work completes
+export type SystemNotification = {
+	role: 'system_notification';
+	content: string;
+	source: 'subagent' | 'terminal' | 'system';
+	timestamp: number;
+}
 
 
 // one of the square items that indicates a selection in a chat bubble

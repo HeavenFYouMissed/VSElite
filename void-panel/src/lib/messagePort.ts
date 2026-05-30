@@ -26,6 +26,9 @@ type StreamHandlers = {
 }
 
 export type AgentEvent = { kind: 'idle' | 'thinking' | 'tool' | 'awaiting'; detail?: string }
+export type AgentVerdict = { verdict: 'ok' | 'drift' | 'laziness' | 'skipped-step' | 'risky'; reason: string; correction?: string }
+export type AgentSkillOffer = { skillId: string; reason: string }
+export type AgentSkillMounted = { skillId: string }
 
 class VBridge {
 	private seq = 0
@@ -34,6 +37,9 @@ class VBridge {
 	private ready = false
 	private onInitCbs: Array<(workspaceName?: string) => void> = []
 	private agentCbs: Array<(e: AgentEvent) => void> = []
+	private verdictCbs: Array<(v: AgentVerdict) => void> = []
+	private skillOfferCbs: Array<(o: AgentSkillOffer) => void> = []
+	private skillMountedCbs: Array<(m: AgentSkillMounted) => void> = []
 	private ctxCbs: Array<(c: CtxPush) => void> = []
 
 	constructor() {
@@ -48,6 +54,18 @@ class VBridge {
 			}
 			if ((msg as any).type === 'agentEvent') {
 				this.agentCbs.forEach(cb => cb(msg as unknown as AgentEvent))
+				return
+			}
+			if ((msg as any).type === 'agentVerdict') {
+				this.verdictCbs.forEach(cb => cb(msg as unknown as AgentVerdict))
+				return
+			}
+			if ((msg as any).type === 'agentSkillOffer') {
+				this.skillOfferCbs.forEach(cb => cb(msg as unknown as AgentSkillOffer))
+				return
+			}
+			if ((msg as any).type === 'agentSkillMounted') {
+				this.skillMountedCbs.forEach(cb => cb(msg as unknown as AgentSkillMounted))
 				return
 			}
 			if (msg.type === 'ctx') {
@@ -83,6 +101,9 @@ class VBridge {
 	}
 
 	onAgentEvent(cb: (e: AgentEvent) => void) { this.agentCbs.push(cb) }
+	onAgentVerdict(cb: (v: AgentVerdict) => void) { this.verdictCbs.push(cb) }
+	onAgentSkillOffer(cb: (o: AgentSkillOffer) => void) { this.skillOfferCbs.push(cb) }
+	onAgentSkillMounted(cb: (m: AgentSkillMounted) => void) { this.skillMountedCbs.push(cb) }
 	onCtx(cb: (c: CtxPush) => void) { this.ctxCbs.push(cb) }
 
 	call<T = unknown>(method: RpcMethod, params: unknown): Promise<T> {

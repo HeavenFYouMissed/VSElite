@@ -109,6 +109,8 @@ class VCompanionViewPane extends ViewPane {
 		this._memory.compactIfNeeded().catch(() => { /* */ });
 
 		// Agent-watching: translate the coding agent's stream state into events V's UI reacts to.
+		// V also reads the agent's REASONING + tool calls into a rolling trace, judges drift on
+		// turn end, and offers/mounts matching skills BEFORE risky tool calls fire.
 		this._register(this.chatThreadService.onDidChangeStreamState(({ threadId }) => {
 			const ss: any = this.chatThreadService.streamState[threadId];
 			const running = ss?.isRunning;
@@ -118,11 +120,38 @@ class VCompanionViewPane extends ViewPane {
 			else if (running === 'tool') { kind = 'tool'; detail = ss?.toolInfo?.toolName ?? ''; }
 			else if (running === 'awaiting_user') { kind = 'awaiting'; }
 			this._post({ type: 'agentEvent', kind, detail });
-			// When agent finishes (goes idle after work), trigger background memory if enough has happened
-			if (kind === 'idle' && this._lastAgentKind !== 'idle') {
-				this._bgCognitionMsgCount += 3; // agent sessions count as multiple turns of info
+
+			// New run starting: previous state was idle/undefined, now agent is thinking.
+			// Capture the user's last message as the original intent for drift judging.
+			if (kind === 'thinking' && (this._lastAgentKind === 'idle' || this._lastAgentKind === '')) {
+				this._beginAgentTrace(threadId);
+			}
+
+			// Capture reasoning + display content live (V watches the agent THINK).
+			if (kind === 'thinking' && ss?.llmInfo) {
+				const r = String(ss.llmInfo.reasoningSoFar ?? '');
+				const d = String(ss.llmInfo.displayContentSoFar ?? '');
+				if (r.length > this._agentTrace.reasoning.length) { this._agentTrace.reasoning = r; }
+				if (d.length > this._agentTrace.displayContent.length) { this._agentTrace.displayContent = d; }
+			}
+
+			// Tool starting: log it, run skill-signal detection BEFORE it fires.
+			if (kind === 'tool' && ss?.toolInfo) {
+				const ti = ss.toolInfo;
+				const tid = String(ti.id ?? '');
+				if (!this._agentTrace.seenToolIds.has(tid)) {
+					this._agentTrace.seenToolIds.add(tid);
+					this._agentTrace.tools.push({ name: ti.toolName, params: ti.toolParams ?? ti.rawParams ?? {} });
+					this._considerSkillSignals(ti.toolName, ti.toolParams ?? ti.rawParams ?? {}).catch(() => { /* */ });
+				}
+			}
+
+			// Run finished (idle after work): judge it, then run bg memory.
+			if (kind === 'idle' && this._lastAgentKind !== 'idle' && this._lastAgentKind !== '') {
+				this._bgCognitionMsgCount += 3;
 				const { modelSelection } = this._vModelSelection();
 				if (modelSelection) this._scheduleBackgroundCognition(modelSelection);
+				this._judgeAgentRun(threadId).catch(() => { /* best effort */ });
 			}
 			this._lastAgentKind = kind;
 		}));
@@ -142,7 +171,7 @@ class VCompanionViewPane extends ViewPane {
 		super.renderBody(container);
 		this._container = container;
 		this._rootContainer = undefined;
-		container.style.background = '#0a0612';
+		container.style.background = '#0B0B0D';
 
 		// The webview is absolutely-positioned over this container. Without a ResizeObserver the
 		// overlay keeps its initial (often 0/short) size until the user manually resizes the panel,
@@ -220,7 +249,7 @@ class VCompanionViewPane extends ViewPane {
 <meta http-equiv="Content-Security-Policy"
 	content="default-src 'none'; frame-src ${frameCsp}; script-src 'unsafe-inline'; style-src 'unsafe-inline';" />
 <style>
-	html, body { margin: 0; padding: 0; height: 100%; background: #160a2b; overflow: hidden; }
+	html, body { margin: 0; padding: 0; height: 100%; background: #0B0B0D; overflow: hidden; }
 	#vframe { width: 100%; height: 100%; border: 0; display: block; }
 </style>
 </head>
@@ -275,29 +304,98 @@ class VCompanionViewPane extends ViewPane {
 	private _vRequestId: string | null = null;
 	private readonly _memory: VCompanionMemory;
 	private _autoPilot = false;
+	// Direct-edit policy: V is the supervisor, not the editor. By default V can NOT call file-write
+	// tools — he must hand work to the editor agent via run_agent. User can flip this on explicitly
+	// (slash command /direct on) when they want V to fix something single-file without bouncing.
+	private _directEdit = false;
 	private _bgCognitionLastRun = 0;
 	private _bgCognitionMsgCount = 0;
 	private _bgCognitionCooldownMs = 300_000; // 5 minutes between extractions
 	private _bgCognitionMinMessages = 6; // need at least 6 messages before first extraction
-	private _lastAgentKind: string = 'idle';
+	private _lastAgentKind: string = '';
 
-	private _vModelSelection(): { modelSelection: ModelSelection | null; modelSelectionOptions: any } {
+	// Agent-watcher state: rolling trace of one agent run (intent + reasoning + tool calls), so V
+	// can judge drift/laziness/skip when the run ends, and offer/mount skills before risky tools.
+	private _agentTrace: {
+		intent: string;
+		reasoning: string;
+		displayContent: string;
+		tools: { name: string; params: any }[];
+		seenToolIds: Set<string>;
+		proposedSkills: Set<string>;
+		threadId: string | null;
+		startedAt: number;
+	} = { intent: '', reasoning: '', displayContent: '', tools: [], seenToolIds: new Set(), proposedSkills: new Set(), threadId: null, startedAt: 0 };
+	// The last sharpened prompt V dispatched via vRunAgent; used as the run's "intent" when set.
+	private _lastDispatchedIntent: string | null = null;
+
+	// Role-based model picker. Each role has a preferred provider/model, with graceful fallback to
+	// whatever the user has configured for Chat. Roles:
+	//   supervisor — V's brain (sharpening, drift judging, digest). Prefers fast/cheap (Flash).
+	//   executor   — the coding agent's main runs. Prefers strong code model (DeepSeek V4 Pro).
+	//   judgment   — design / aesthetic / UX calls (Opus / Gemini Pro).
+	//   vision     — image / screenshot understanding (Gemini Flash).
+	//   breakglass — fresh-thread fallback after N failed retries (Opus).
+	private _pickModel(role: 'supervisor' | 'executor' | 'judgment' | 'vision' | 'breakglass' = 'supervisor'): { modelSelection: ModelSelection | null; modelSelectionOptions: any } {
 		const s = this.settingsService.state;
+		const provider = (name: string) => (s.settingsOfProvider as any)?.[name];
+		const hasModel = (providerName: string, modelName: string): boolean => {
+			const p: any = provider(providerName);
+			return !!p?._didFillInProviderSettings && Array.isArray(p?.models) && p.models.some((m: any) => m.modelName === modelName);
+		};
+		// Preferences per role, in priority order. First match wins.
+		const prefs: Record<typeof role, { providerName: string; modelName: string }[]> = {
+			supervisor: [
+				{ providerName: 'deepseek', modelName: 'deepseek-v4-flash' },
+				{ providerName: 'gemini', modelName: 'gemini-flash-latest' },
+			],
+			executor: [
+				{ providerName: 'deepseek', modelName: 'deepseek-v4-pro' },
+				{ providerName: 'deepseek', modelName: 'deepseek-coder' },
+				{ providerName: 'anthropic', modelName: 'claude-3-5-sonnet' },
+			],
+			judgment: [
+				{ providerName: 'anthropic', modelName: 'claude-opus-4' },
+				{ providerName: 'anthropic', modelName: 'claude-3-opus' },
+				{ providerName: 'gemini', modelName: 'gemini-pro' },
+			],
+			vision: [
+				{ providerName: 'gemini', modelName: 'gemini-flash-latest' },
+				{ providerName: 'openai', modelName: 'gpt-4o' },
+			],
+			breakglass: [
+				{ providerName: 'anthropic', modelName: 'claude-opus-4' },
+				{ providerName: 'anthropic', modelName: 'claude-3-opus' },
+				{ providerName: 'openai', modelName: 'gpt-4o' },
+			],
+		};
 		let modelSelection: ModelSelection | null = null;
-		const deepseek: any = (s.settingsOfProvider as any)?.['deepseek'];
-		const hasFlash = deepseek?._didFillInProviderSettings
-			&& (deepseek.models ?? []).some((m: any) => m.modelName === 'deepseek-v4-flash');
-		if (hasFlash) {
-			modelSelection = { providerName: 'deepseek', modelName: 'deepseek-v4-flash' } as ModelSelection;
-		} else {
-			// fall back to whatever the user has selected for Chat (so V still works without flash)
-			modelSelection = s.modelSelectionOfFeature['Chat'] ?? null;
+		for (const cand of prefs[role]) {
+			if (hasModel(cand.providerName, cand.modelName)) {
+				modelSelection = { providerName: cand.providerName, modelName: cand.modelName } as ModelSelection;
+				break;
+			}
 		}
+		// Graceful fallback: whatever the user picked for Chat (so V still works without any pref configured).
+		if (!modelSelection) { modelSelection = s.modelSelectionOfFeature['Chat'] ?? null; }
 		const modelSelectionOptions = modelSelection
 			? (s.optionsOfModelSelection as any)['Chat']?.[modelSelection.providerName]?.[modelSelection.modelName]
 			: undefined;
 		return { modelSelection, modelSelectionOptions };
 	}
+
+	// Backwards-compatible alias — V's brain == supervisor role. Existing call sites keep working.
+	private _vModelSelection(): { modelSelection: ModelSelection | null; modelSelectionOptions: any } {
+		return this._pickModel('supervisor');
+	}
+
+	// Tools V is forbidden from calling unless direct-edit is explicitly on.
+	private static readonly _DIRECT_EDIT_TOOLS = new Set([
+		'create_file_or_folder', 'edit_file', 'rewrite_file', 'delete_file_or_folder',
+		'run_command', 'run_persistent_command',
+	]);
+	private _isDirectEditTool(name: string): boolean { return VCompanionViewPane._DIRECT_EDIT_TOOLS.has(name); }
+	private _isDirectEditEnabled(): boolean { return this._directEdit; }
 
 	// V's eyes — a snapshot of what's on screen, so he can actually see what we're doing.
 	private _vContextBlock(): string {
@@ -403,6 +501,14 @@ class VCompanionViewPane extends ViewPane {
 			const tc = res.toolCall;
 			this._post({ type: 'rpc-stream', id: streamId, event: 'tool', payload: { name: tc.name } });
 			let resultStr = '';
+			// Friction'd direct edit: V should DELEGATE single-file writes to the editor agent, not
+			// touch them itself. If V tries a write tool while direct-edit is OFF (default), refuse
+			// and tell V to hand it to the agent.
+			if (this._isDirectEditTool(tc.name) && !this._isDirectEditEnabled()) {
+				resultStr = `direct-edit blocked: V is the supervisor, not the editor. Stop trying to call ${tc.name} yourself — instead, call run_agent with a prompt that asks the editor agent to make this change. (User can enable direct edit explicitly with /direct on if they want.)`;
+				this._vMessages.push({ role: 'tool', id: tc.id, name: tc.name, content: resultStr, rawParams: tc.rawParams });
+				continue;
+			}
 			try {
 				const validate = (this.toolsService.validateParams as any)[tc.name];
 				const typed = validate ? validate(tc.rawParams) : tc.rawParams;
@@ -491,6 +597,153 @@ ${snapshot}`;
 		} as any);
 	}
 
+	// ----- Agent watcher: drift judgment + skill auto-offer -----
+
+	private _beginAgentTrace(threadId: string): void {
+		// Reset for the new run. If V himself dispatched a sharpened prompt, use that as intent;
+		// otherwise pull the last user message from the thread (keeps drift judging grounded).
+		let intent = this._lastDispatchedIntent ?? '';
+		this._lastDispatchedIntent = null;
+		if (!intent) {
+			try {
+				const t: any = this.chatThreadService.state.allThreads[threadId];
+				const msgs: any[] = t?.messages ?? [];
+				for (let i = msgs.length - 1; i >= 0; i--) {
+					if (msgs[i]?.role === 'user') {
+						const c = msgs[i].content;
+						intent = typeof c === 'string' ? c : (c?.text ?? c?.message ?? '');
+						break;
+					}
+				}
+			} catch { /* */ }
+		}
+		this._agentTrace = {
+			intent: String(intent || '').slice(0, 4000),
+			reasoning: '',
+			displayContent: '',
+			tools: [],
+			seenToolIds: new Set(),
+			proposedSkills: new Set(),
+			threadId,
+			startedAt: Date.now(),
+		};
+	}
+
+	// Tool-name + param string-match table → skill id in the global library. Fired once per skill
+	// per run so V doesn't nag. Auto-pilot mounts; otherwise V emits an offer event the panel
+	// renders as a clickable chip.
+	private static readonly _SKILL_SIGNALS: { tools: string[]; needles: RegExp; skillId: string }[] = [
+		{ tools: ['create_file_or_folder', 'edit_file', 'rewrite_file'], needles: /(auth|login|signin|jwt|oauth|cookie|session|password|bcrypt|argon2)/i, skillId: 'security/auth-hardening' },
+		{ tools: ['create_file_or_folder', 'edit_file', 'rewrite_file'], needles: /(\.env|secret|api[-_ ]?key|credential|token)/i, skillId: 'security/secrets-management' },
+		{ tools: ['create_file_or_folder', 'edit_file', 'rewrite_file'], needles: /(migration|schema|alembic|prisma\/migrate|knex|flyway)/i, skillId: 'database/schema-migrations' },
+		{ tools: ['create_file_or_folder', 'edit_file', 'rewrite_file'], needles: /(dockerfile|docker-compose|\.dockerignore)/i, skillId: 'devops/docker-setup' },
+		{ tools: ['create_file_or_folder', 'edit_file', 'rewrite_file'], needles: /(route|router|endpoint|controller|app\.(get|post|put|delete))/i, skillId: 'api/rest-design' },
+		{ tools: ['create_file_or_folder', 'edit_file', 'rewrite_file'], needles: /(input|sanitize|validate|xss|sql injection|dompurify|zod\.)/i, skillId: 'security/input-validation' },
+		{ tools: ['create_file_or_folder'], needles: /(\.test\.|\.spec\.|__tests__|playwright|cypress|vitest|jest\.config)/i, skillId: 'testing/test-setup' },
+		{ tools: ['edit_file', 'rewrite_file', 'create_file_or_folder'], needles: /(aria-|role=|tabindex|prefers-reduced-motion)/i, skillId: 'web/accessibility' },
+	];
+
+	private async _considerSkillSignals(toolName: string, params: any): Promise<void> {
+		const blob = (() => {
+			try { return JSON.stringify(params).slice(0, 4000); } catch { return ''; }
+		})();
+		for (const sig of VCompanionViewPane._SKILL_SIGNALS) {
+			if (!sig.tools.includes(toolName)) { continue; }
+			if (!sig.needles.test(blob)) { continue; }
+			if (this._agentTrace.proposedSkills.has(sig.skillId)) { continue; }
+			this._agentTrace.proposedSkills.add(sig.skillId);
+			// Verify the skill actually exists in the library before proposing it.
+			const home = this._agentSkillsHome();
+			const resolved = await this._resolveSkillPath(home, sig.skillId).catch(() => undefined);
+			if (!resolved) { continue; }
+			if (this._autoPilot) {
+				try { await this._vMountSkill({ name: sig.skillId }); }
+				catch { /* */ }
+				this._post({ type: 'agentSkillMounted', skillId: sig.skillId });
+			} else {
+				this._post({ type: 'agentSkillOffer', skillId: sig.skillId, reason: `agent is touching ${toolName} matching ${sig.skillId}` });
+			}
+		}
+	}
+
+	private async _judgeAgentRun(threadId: string): Promise<void> {
+		const trace = this._agentTrace;
+		if (!trace.intent || (!trace.reasoning && !trace.displayContent && trace.tools.length === 0)) { return; }
+		// Pull the last assistant message (what the agent actually shipped) for full-message judging.
+		let finalText = '';
+		try {
+			const t: any = this.chatThreadService.state.allThreads[threadId];
+			const msgs: any[] = t?.messages ?? [];
+			for (let i = msgs.length - 1; i >= 0; i--) {
+				if (msgs[i]?.role === 'assistant') {
+					const c = msgs[i].content;
+					finalText = typeof c === 'string' ? c : (c?.text ?? c?.displayContent ?? '');
+					break;
+				}
+			}
+		} catch { /* */ }
+
+		const { modelSelection, modelSelectionOptions } = this._pickModel('judgment');
+		if (!modelSelection) { return; }
+
+		const toolList = trace.tools.map((t, i) => `${i + 1}. ${t.name}`).join('\n').slice(0, 1500);
+		const judgePrompt = `You are V's drift judge. Compare the agent's ACTUAL run against the user's ORIGINAL INTENT and decide whether the agent did the right thing.
+
+ORIGINAL INTENT:
+${trace.intent.slice(0, 2000)}
+
+AGENT REASONING (what it was thinking — may be empty):
+${trace.reasoning.slice(0, 3000)}
+
+TOOLS THE AGENT CALLED (in order):
+${toolList || '(none)'}
+
+AGENT FINAL MESSAGE:
+${finalText.slice(0, 2000)}
+
+Classify into ONE of: ok | drift | laziness | skipped-step | risky.
+- "ok" = stayed on intent, did the work.
+- "drift" = wandered off the original ask.
+- "laziness" = silently shipped a smaller version, rationalized work away ("they don't need this", "too complicated").
+- "skipped-step" = explicit step from intent was not done.
+- "risky" = did something destructive / out of scope / unsafe.
+
+Return ONLY a single JSON object: {"verdict":"ok|drift|laziness|skipped-step|risky","reason":"<one short sentence grounded in the trace>","correction":"<a one-paragraph re-prompt for the agent if NOT ok, else empty>"}`;
+
+		this.llmMessageService.sendLLMMessage({
+			messagesType: 'simple',
+			useProviderFor: 'Chat',
+			logging: { loggingName: 'V-judge-run' },
+			messages: { systemMessage: null, userMessages: [{ role: 'user', content: judgePrompt }] },
+			modelSelection,
+			modelSelectionOptions: { ...(modelSelectionOptions ?? {}), maxTokens: 500 },
+			chatMode: 'gather',
+			onText: () => { },
+			onFinalMessage: (response: any) => {
+				try {
+					const text = typeof response === 'string' ? response : (response?.fullText ?? '');
+					const m = text.match(/\{[\s\S]*\}/);
+					if (!m) { return; }
+					const parsed: any = JSON.parse(m[0]);
+					const verdict = String(parsed.verdict || 'ok').toLowerCase();
+					const reason = String(parsed.reason || '').slice(0, 500);
+					const correction = String(parsed.correction || '').slice(0, 2000);
+					this._post({ type: 'agentVerdict', verdict, reason, correction });
+					// Auto-pilot: if drift/laziness/skip, autonomously inject the correction.
+					if (this._autoPilot && verdict !== 'ok' && correction && trace.threadId) {
+						this._lastDispatchedIntent = correction; // re-target intent for the next run
+						const t: any = this.chatThreadService.getCurrentThread();
+						this.chatThreadService.addUserMessageAndStreamResponse({
+							userMessage: `V intervention (${verdict}): ${reason}\n\n${correction}`,
+							threadId: t.id,
+						}).catch(() => { /* */ });
+					}
+				} catch { /* malformed json — drop */ }
+			},
+			onError: () => { },
+		} as any);
+	}
+
 	private async _dispatch(method: string, params: any): Promise<unknown> {
 		switch (method) {
 			case 'getProjectBriefing': {
@@ -515,11 +768,29 @@ ${snapshot}`;
 			case 'vMountSkill':
 				return await this._vMountSkill(params);
 			case 'vRunAgent': {
-				const prompt = await this._delegationPrompt(String(params?.prompt ?? '').trim());
-				if (!prompt) { throw new Error('nothing to run'); }
+				// Two modes:
+				// 1. caller provides {sharpened}: trust it (came from a vSharpen preview the user already approved)
+				// 2. caller provides {prompt}: raw — V sharpens it on the fly, then dispatches
+				let toSend = String(params?.sharpened ?? '').trim();
+				const raw = String(params?.prompt ?? '').trim();
+				if (!toSend && raw) {
+					const sharp = await this._sharpenPrompt(raw);
+					toSend = sharp.sharpened || raw;
+				}
+				if (!toSend) { throw new Error('nothing to run'); }
+				// Record this as the run's intent so the watcher judges drift against it.
+				this._lastDispatchedIntent = toSend;
 				const thread: any = this.chatThreadService.getCurrentThread();
-				await this.chatThreadService.addUserMessageAndStreamResponse({ userMessage: prompt, threadId: thread.id });
+				await this.chatThreadService.addUserMessageAndStreamResponse({ userMessage: toSend, threadId: thread.id });
 				return { ok: true };
+			}
+			case 'vSharpen': {
+				// Preview path: return the sharpened prompt without dispatching, so the panel can
+				// show it for approval ("send" / "edit" / "iterate").
+				const raw = String(params?.prompt ?? '').trim();
+				if (!raw) { throw new Error('nothing to sharpen'); }
+				const sharp = await this._sharpenPrompt(raw);
+				return { sharpened: sharp.sharpened, rationale: sharp.rationale };
 			}
 			case 'vRemember': {
 				const scope = (params?.scope === 'user' ? 'user' : 'project') as 'user' | 'project';
@@ -538,6 +809,11 @@ ${snapshot}`;
 			case 'vSetAutoPilot':
 				this._autoPilot = !!params?.on;
 				return { on: this._autoPilot };
+			case 'vSetDirectEdit':
+				this._directEdit = !!params?.on;
+				return { on: this._directEdit };
+			case 'vGetFlags':
+				return { autoPilot: this._autoPilot, directEdit: this._directEdit };
 			case 'vSandboxStage': {
 				const rel = String(params?.path ?? '').trim().replace(/^[/\\]+/, '');
 				const content = String(params?.content ?? '');
@@ -601,6 +877,76 @@ ${snapshot}`;
 				const r = await this.toolsService.callTool['git_diff']({ staged });
 				const raw = (await r.result as any)?.diff ?? '';
 				return { diff: raw };
+			}
+			case 'vPlanGet':
+				return await this._memory.getPlan();
+			case 'vPlanSet': {
+				const phases = Array.isArray(params?.phases) ? params.phases : [];
+				const current = params?.current ?? null;
+				await this._memory.setPlan(phases, current);
+				return { ok: true };
+			}
+			case 'vTodoList':
+				return { todos: await this._memory.listTodos() };
+			case 'vTodoAdd': {
+				const text = String(params?.text ?? '').trim();
+				if (!text) { throw new Error('empty todo'); }
+				await this._memory.addTodo(text, params?.phase ? String(params.phase) : undefined);
+				return { ok: true };
+			}
+			case 'vTodoComplete': {
+				const id = String(params?.id ?? '').trim();
+				if (!id) { throw new Error('missing id'); }
+				await this._memory.completeTodo(id);
+				return { ok: true };
+			}
+			case 'vDigestRun': {
+				// Pull a digest of the recent V conversation into staged candidates. Project facts
+				// auto-write; user facts wait for explicit approval. Fires on /clear or end-of-thread.
+				const transcript = String(params?.transcript ?? '').trim();
+				if (!transcript) { return { staged: 0 }; }
+				const { modelSelection, modelSelectionOptions } = this._vModelSelection();
+				if (!modelSelection) { return { staged: 0, skipped: 'no supervisor model' }; }
+				const sys = `Extract durable facts from the conversation transcript. Output JSON only:\n{"candidates":[{"kind":"user_fact|project_fact","text":"<one sentence>"}]}\n\nRules:\n- user_fact = something about the human (preferences, hardware, workflow). Needs explicit approval later.\n- project_fact = something about THIS codebase (decisions, conventions, gotchas). Auto-saved.\n- Skip ephemeral chatter. 0-5 candidates. Each \"text\" must stand alone.`;
+				const candidates: { kind: 'user_fact' | 'project_fact'; text: string }[] = await new Promise((resolve) => {
+					this.llmMessageService.sendLLMMessage({
+						messagesType: 'simple',
+						useProviderFor: 'Chat',
+						logging: { loggingName: 'V-digest' },
+						messages: { systemMessage: sys, userMessages: [{ role: 'user', content: transcript.slice(0, 8000) }] },
+						modelSelection,
+						modelSelectionOptions: { ...(modelSelectionOptions ?? {}), maxTokens: 700 },
+						chatMode: 'gather',
+						onText: () => { },
+						onFinalMessage: (response: any) => {
+							try {
+								const text = typeof response === 'string' ? response : (response?.fullText ?? '');
+								const m = text.match(/\{[\s\S]*\}/);
+								if (!m) { return resolve([]); }
+								const parsed = JSON.parse(m[0]);
+								const arr = Array.isArray(parsed?.candidates) ? parsed.candidates : [];
+								resolve(arr.filter((c: any) => (c?.kind === 'user_fact' || c?.kind === 'project_fact') && typeof c?.text === 'string').map((c: any) => ({ kind: c.kind, text: String(c.text).trim() })));
+							} catch { resolve([]); }
+						},
+						onError: () => resolve([]),
+					} as any);
+				});
+				if (candidates.length) { await this._memory.stageDigest(candidates); }
+				return { staged: candidates.length, candidates };
+			}
+			case 'vDigestPending':
+				return { entries: await this._memory.listPendingDigest() };
+			case 'vDigestApprove': {
+				const id = String(params?.id ?? '').trim();
+				if (!id) { throw new Error('missing id'); }
+				await this._memory.approveDigest(id);
+				return { ok: true };
+			}
+			case 'vDigestReject': {
+				const id = String(params?.id ?? '').trim();
+				if (!id) { throw new Error('missing id'); }
+				await this._memory.rejectDigest(id);
+				return { ok: true };
 			}
 			default:
 				throw new Error('unknown method: ' + method);
@@ -669,20 +1015,21 @@ ${snapshot}`;
 		return { available: true, fileCount, skills, home: home.fsPath };
 	}
 
-	// ----- Editor-agent skills: .agents/skills/ (cross-agent standard). These are for the MAIN
-	// coding agent, not V. V is the concierge: he lists them and MOUNTS one onto the editor agent.
+	// ----- Skill library: GLOBAL, not workspace. Lives at userRoamingDataHome/v-skills/ so the
+	// workspace stays clean. V pulls relevant skills and MOUNTS them inline onto the editor agent
+	// (the body is injected into the agent message — no file ever lands in the user's repo unless
+	// they explicitly ask). The library is a forkable repo: starter catalog seeded on first run.
 
-	private _agentSkillsHome(): URI | undefined {
-		const folder = this.workspaceContextService.getWorkspace().folders[0]?.uri;
-		return folder ? URI.joinPath(folder, '.agents', 'skills') : undefined;
+	private _agentSkillsHome(): URI {
+		return URI.joinPath(this.environmentService.userRoamingDataHome, 'v-skills');
 	}
 
 	private async _ensureAgentSkills(): Promise<URI | undefined> {
 		const home = this._agentSkillsHome();
-		if (!home) { return undefined; }
 		try {
 			if (!(await this.fileService.exists(home))) { await this.fileService.createFolder(home); }
-			// Seed the full starter catalog. Re-seed if current count < expected (we expanded the catalog).
+			// Seed the starter catalog into the GLOBAL library (not the workspace). Re-seed when
+			// current count < expected — covers expansions across V versions.
 			const stat = await this.fileService.resolve(home);
 			let existingCount = 0;
 			for (const catDir of stat.children ?? []) {
@@ -696,6 +1043,10 @@ ${snapshot}`;
 					if (!(await this.fileService.exists(f))) {
 						await this.fileService.writeFile(f, VSBuffer.fromString(s.body));
 					}
+				}
+				const readme = URI.joinPath(home, 'README.md');
+				if (!(await this.fileService.exists(readme))) {
+					await this.fileService.writeFile(readme, VSBuffer.fromString(V_SKILLS_README));
 				}
 			}
 		} catch { /* best effort */ }
@@ -724,7 +1075,7 @@ ${snapshot}`;
 
 	private async _vListSkills(): Promise<unknown> {
 		const home = await this._ensureAgentSkills();
-		if (!home) { return { available: false, skills: [], categories: [] }; }
+		if (!home) { return { available: false, skills: [], categories: [], home: '' }; }
 		const skills: { name: string; desc: string; category: string; id: string }[] = [];
 		const categories = new Set<string>();
 		try {
@@ -756,36 +1107,39 @@ ${snapshot}`;
 		const raw = String(params?.name ?? '').trim();
 		if (!raw) { throw new Error('no skill name'); }
 		const home = this._agentSkillsHome();
-		if (!home) { throw new Error('no workspace folder'); }
 		const resolved = await this._resolveSkillPath(home, raw);
 		if (!resolved) { throw new Error('skill not found: ' + raw); }
 		const { rel, body, name } = resolved;
 		const mem = await this._memory.memoryBlock(`mount skill ${name}`);
-		const msg = `${mem ? mem + '\n\n' : ''}Adopt this skill and follow it for relevant tasks from now on. It lives at \`${rel}\`.\n\n<use_skill name="${name}" path="${rel}" />\n\n${body}`;
+		// Body is injected INLINE — the file is global (not in the workspace), so reference it as
+		// an opaque skill id rather than pretending it's a path the agent can re-read.
+		const msg = `${mem ? mem + '\n\n' : ''}V is mounting a skill from your global skill library. Adopt it and follow it for relevant tasks from now on.\n\n<use_skill name="${name}" id="${rel}" />\n\n${body}`;
 		const thread: any = this.chatThreadService.getCurrentThread();
 		await this.chatThreadService.addUserMessageAndStreamResponse({ userMessage: msg, threadId: thread.id });
 		return { ok: true, name };
 	}
 
 	private async _resolveSkillPath(home: URI, id: string): Promise<{ rel: string; body: string; name: string } | undefined> {
+		// `rel` is an opaque, stable id for the skill in the global library. It is NOT a workspace
+		// path — the agent only ever sees the body inlined; this id is for traceability/logging.
 		const parts = id.split('/').filter(Boolean);
 		if (parts.length === 2) {
 			const uri = URI.joinPath(home, parts[0], parts[1], 'SKILL.md');
 			try {
 				const body = (await this.fileService.readFile(uri)).value.toString();
-				return { rel: `.agents/skills/${parts[0]}/${parts[1]}/SKILL.md`, body, name: parts[1] };
+				return { rel: `v-skills/${parts[0]}/${parts[1]}`, body, name: parts[1] };
 			} catch { return undefined; }
 		}
 		for (const cat of await this._listSkillCategories(home)) {
 			try {
 				const uri = URI.joinPath(home, cat, id, 'SKILL.md');
 				const body = (await this.fileService.readFile(uri)).value.toString();
-				return { rel: `.agents/skills/${cat}/${id}/SKILL.md`, body, name: id };
+				return { rel: `v-skills/${cat}/${id}`, body, name: id };
 			} catch { /* try next */ }
 		}
 		try {
 			const body = (await this.fileService.readFile(URI.joinPath(home, id, 'SKILL.md'))).value.toString();
-			return { rel: `.agents/skills/${id}/SKILL.md`, body, name: id };
+			return { rel: `v-skills/${id}`, body, name: id };
 		} catch { return undefined; }
 	}
 
@@ -814,6 +1168,61 @@ ${snapshot}`;
 		if (!prompt) { return ''; }
 		const mem = await this._memory.memoryBlock(prompt);
 		return mem ? `${mem}\n\n---\n\n${prompt}` : prompt;
+	}
+
+	// V's prompt-sharpening pass: take a raw user ask and rewrite it into a tight, executable
+	// prompt for the editor agent. Returns the sharpened text + a 1-line rationale so the panel
+	// can show a preview before dispatch (the user can still "send" / "edit" / "iterate").
+	private async _sharpenPrompt(raw: string): Promise<{ sharpened: string; rationale: string }> {
+		const trimmed = String(raw || '').trim();
+		if (!trimmed) { return { sharpened: '', rationale: '' }; }
+		const { modelSelection, modelSelectionOptions } = this._vModelSelection();
+		// No supervisor model wired up — fall back to memory-prefixed raw prompt (legacy behavior).
+		if (!modelSelection) {
+			const fallback = await this._delegationPrompt(trimmed);
+			return { sharpened: fallback, rationale: 'no supervisor model — passed through as-is' };
+		}
+		const memBlock = await this._memory.memoryBlock(trimmed);
+		const sys = `You are V, a supervisor that prepares prompts for an editor coding agent. Rewrite the user's ask into a TIGHT, executable instruction the agent can follow without ambiguity. Keep the user's voice and intent; do NOT invent requirements.
+
+Rules:
+- Lead with one sentence stating the GOAL.
+- List concrete steps the agent should take, in order.
+- Call out files / paths / commands when the user implied them.
+- Note any constraint the user is likely to want enforced (no breaking changes, keep style, run tests, etc.).
+- If the user's ask is already tight, return it close to verbatim.
+- Do NOT add features the user didn't ask for. Do NOT speculate.
+
+Output JSON only: {"sharpened":"<the rewritten prompt>","rationale":"<one short sentence on what you tightened>"}`;
+		const userMsg = memBlock
+			? `Project memory the agent should consider:\n${memBlock}\n\n---\nUSER ASK:\n${trimmed}`
+			: `USER ASK:\n${trimmed}`;
+		return await new Promise<{ sharpened: string; rationale: string }>((resolve) => {
+			let resolved = false;
+			const done = (s: string, r: string) => { if (resolved) { return; } resolved = true; resolve({ sharpened: s, rationale: r }); };
+			this.llmMessageService.sendLLMMessage({
+				messagesType: 'simple',
+				useProviderFor: 'Chat',
+				logging: { loggingName: 'V-sharpen' },
+				messages: { systemMessage: sys, userMessages: [{ role: 'user', content: userMsg }] },
+				modelSelection,
+				modelSelectionOptions: { ...(modelSelectionOptions ?? {}), maxTokens: 800 },
+				chatMode: 'gather',
+				onText: () => { },
+				onFinalMessage: (response: any) => {
+					try {
+						const text = typeof response === 'string' ? response : (response?.fullText ?? '');
+						const m = text.match(/\{[\s\S]*\}/);
+						if (!m) { return done(trimmed, 'sharpener returned no json'); }
+						const parsed = JSON.parse(m[0]);
+						const s = String(parsed?.sharpened ?? '').trim() || trimmed;
+						const r = String(parsed?.rationale ?? '').trim() || 'sharpened';
+						done(s, r);
+					} catch { done(trimmed, 'sharpener parse failed'); }
+				},
+				onError: () => done(trimmed, 'sharpener errored'),
+			} as any);
+		});
 	}
 
 	private _layoutWebview(dimension?: Dimension): void {
@@ -920,6 +1329,18 @@ He keeps his stuff here:
 - files/   — scratch files V makes for you
 
 You can edit any of these. V reads them on the fly.
+`;
+
+const V_SKILLS_README = `# V's skill library (global)
+
+This is V's GLOBAL skill catalog — shared across every workspace, never written
+into your project tree. V picks relevant skills from here and mounts them onto
+the editor agent inline (the body is injected into the agent message; no file is
+copied into your repo).
+
+Layout: <category>/<skill-name>/SKILL.md  with frontmatter (name, description, category).
+
+Fork it, edit it, add your own — V re-reads on every list/mount.
 `;
 
 const V_SEED_SKILL = `# skill: watch-agent

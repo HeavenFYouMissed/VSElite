@@ -29,7 +29,7 @@ import { ChatThreadTabs } from './ChatThreadTabs.js';
 /** Inlined so the React bundle does not import common/ at runtime (tsup externalizes ../../../ paths). */
 const LEGACY_EMPTY_DISPLAY_TEXT = '(empty message)'
 const isEffectivelyEmptyAssistantText = (text: string | null | undefined) => {
-	const t = (text ?? '').trim()
+	const t = (text ?? '').replace(/[\s\u200B-\u200D\u2060\uFEFF\u00A0]/g, '')
 	return !t || t === LEGACY_EMPTY_DISPLAY_TEXT
 }
 import { approvalTypeOfBuiltinToolName, BuiltinToolCallParams, BuiltinToolName, ToolName, LintErrorItem, ToolApprovalType, toolApprovalTypes } from '../../../../common/toolsServiceTypes.js';
@@ -1269,7 +1269,7 @@ const UserMessageComponent = ({ chatMessage, messageIdx, isCheckpointGhost, curr
 
         ${isCheckpointGhost && !isMsgAfterCheckpoint ? 'opacity-50 pointer-events-none' : ''}
     `}
-		style={{ marginTop: mode === 'display' ? '8px' : undefined, marginBottom: mode === 'display' ? '4px' : undefined }}
+		style={{ marginTop: mode === 'display' ? '6px' : undefined, marginBottom: mode === 'display' ? '2px' : undefined }}
 		onMouseEnter={() => setIsHovered(true)}
 		onMouseLeave={() => setIsHovered(false)}
 	>
@@ -2729,6 +2729,8 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]?: { resultWrapper: Re
 			const total = todos.length
 			const isRunning = toolMessage.type === 'running_now'
 
+			const [isExpanded, setIsExpanded] = useState(false)
+
 			let headerText: string
 			if (inProgress > 0) {
 				const current = todos.find(t => t.status === 'in_progress')
@@ -2809,17 +2811,23 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]?: { resultWrapper: Re
 				overflow: 'hidden',
 				background: 'var(--vscode-editor-background, var(--void-bg-2))',
 			}}>
-				{/* Header — Cursor ui-todo-list-header: 28px height, 0 12px padding */}
+				{/* Header — clickable to expand/collapse */}
 				<button
 					type='button'
+					onClick={() => setIsExpanded(v => !v)}
 					style={{
 						all: 'unset', display: 'flex', alignItems: 'center', gap: '8px',
 						width: '100%', boxSizing: 'border-box',
 						height: '28px', padding: '0 12px',
-						fontSize: '13px', cursor: 'default',
+						fontSize: '13px', cursor: 'pointer',
 						color: 'var(--vscode-descriptionForeground, var(--void-fg-3))',
 					}}
 				>
+					<ChevronRight
+						size={12}
+						className={`transition-transform duration-100 ${isExpanded ? 'rotate-90' : ''}`}
+						style={{ color: 'var(--vscode-descriptionForeground)', flexShrink: 0 }}
+					/>
 					{isRunning && <IconLoading className='w-3 h-3' />}
 					{!isRunning && completed === total && total > 0 && (
 						<svg width="14" height="14" viewBox="0 0 14 14" fill="none" style={{ flexShrink: 0 }}>
@@ -2840,8 +2848,8 @@ const builtinToolNameToComponent: { [T in BuiltinToolName]?: { resultWrapper: Re
 					</span>}
 				</button>
 
-				{/* Body — Cursor ui-todo-list-container__body: 8px 16px padding, 10px gap */}
-				{todos.length > 0 && <div style={{ padding: '8px 16px', display: 'flex', flexDirection: 'column', gap: '2px' }}>
+				{/* Body — collapsed by default, expands on click */}
+				{isExpanded && todos.length > 0 && <div style={{ padding: '8px 16px', display: 'flex', flexDirection: 'column', gap: '2px', borderTop: '1px solid var(--vscode-commandCenter-inactiveBorder, rgba(128,128,128,0.15))' }}>
 					{todos.map((todo, i) => {
 						const isDone = todo.status === 'completed' || todo.status === 'cancelled'
 						return (
@@ -3570,7 +3578,7 @@ const EditToolSoFar = ({ toolCallSoFar, }: { toolCallSoFar: RawToolCallObj }) =>
 }
 
 
-export const SidebarChat = () => {
+export const SidebarChat = ({ toggleAgentPanel, showAgentPanel }: { toggleAgentPanel?: () => void, showAgentPanel?: boolean }) => {
 	const textAreaRef = useRef<HTMLTextAreaElement | null>(null)
 	const textAreaFnsRef = useRef<TextAreaFns | null>(null)
 
@@ -4069,7 +4077,7 @@ export const SidebarChat = () => {
 		ref={sidebarRef}
 		className='w-full h-full flex flex-col overflow-hidden'
 	>
-		<ChatThreadTabs />
+		<ChatThreadTabs toggleAgentPanel={toggleAgentPanel} showAgentPanel={showAgentPanel} />
 		{!activityBannerEnabled && (
 			<div className='flex justify-end items-center px-3 pt-1.5 shrink-0'>
 				<ActivityBannerToggle enabled={activityBannerEnabled} onChange={onActivityBannerChange} compact />

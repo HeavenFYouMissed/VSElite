@@ -146,6 +146,7 @@ const checkIfIsFolder = (uriStr: string) => {
 }
 
 export type SubagentLauncher = (opts: { parentThreadId: string, parentToolId: string, description: string, prompt: string, readOnly: boolean }) => Promise<{ subagentThreadId: string, result: string, status: 'completed' | 'error' }>;
+export type NotificationInjector = (threadId: string, content: string, source: 'subagent' | 'terminal' | 'system') => void;
 
 export interface IToolsService {
 	readonly _serviceBrand: undefined;
@@ -153,6 +154,7 @@ export interface IToolsService {
 	callTool: CallBuiltinTool;
 	stringOfResult: BuiltinToolResultToString;
 	setSubagentLauncher(launcher: SubagentLauncher): void;
+	setNotificationInjector(injector: NotificationInjector): void;
 	getTodosForThread(threadId: string): Array<{ id: string, content: string, status: 'pending' | 'in_progress' | 'completed' | 'cancelled' }>;
 }
 
@@ -168,6 +170,9 @@ export class ToolsService implements IToolsService {
 
 	private _subagentLauncher: SubagentLauncher | undefined;
 	setSubagentLauncher(launcher: SubagentLauncher) { this._subagentLauncher = launcher; }
+
+	private _notificationInjector: NotificationInjector | undefined;
+	setNotificationInjector(injector: NotificationInjector) { this._notificationInjector = injector; }
 
 	// Per-thread todo state
 	private _todosByThread: Map<string, Array<{ id: string, content: string, status: 'pending' | 'in_progress' | 'completed' | 'cancelled' }>> = new Map()
@@ -814,10 +819,27 @@ export class ToolsService implements IToolsService {
 			// Don't await — let the subagent run independently.
 			// The subagent's result will be visible via the agent panel and subagentState.
 			subagentPromise.then(res => {
-				// Subagent completed — result is tracked in chatThreadService.subagentState
+				// Subagent completed — inject notification into parent thread
 				console.log(`[subagent] ${desc} finished: ${res.status}`)
+				if (this._notificationInjector && parentThreadId) {
+					const truncatedResult = res.result.length > 4000
+						? res.result.slice(0, 4000) + '\n\n...truncated (see agent panel for full output)'
+						: res.result;
+					this._notificationInjector(
+						parentThreadId,
+						`[Background subagent "${desc}" ${res.status}]\n${truncatedResult}`,
+						'subagent'
+					)
+				}
 			}).catch(err => {
 				console.error(`[subagent] ${desc} error:`, err)
+				if (this._notificationInjector && parentThreadId) {
+					this._notificationInjector(
+						parentThreadId,
+						`[Background subagent "${desc}" failed]\nError: ${err instanceof Error ? err.message : String(err)}`,
+						'subagent'
+					)
+				}
 			})
 			return { result: { subagentThreadId: `(launching)`, result: `Subagent "${desc}" launched in background. Continue with your main task — you will see results in the agent panel.`, status: 'completed' as const } }
 		},

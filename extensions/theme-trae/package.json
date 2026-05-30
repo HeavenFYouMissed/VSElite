@@ -1,7 +1,7 @@
 {
   "name": "theme-trae",
-  "displayName": "Trae Themes",
-  "description": "Trae Dark, Deep Blue, and Light themes",
+  "displayName": "V3Code Themes",
+  "description": "V3Code Slate, Deep Blue, and Light Modern themes",
   "version": "1.0.0",
   "publisher": "v3code",
   "license": "MIT",
@@ -12,28 +12,28 @@
   "contributes": {
     "themes": [
       {
-        "id": "Trae Dark",
-        "label": "Trae Dark",
+        "id": "V3Code Slate",
+        "label": "V3Code Slate",
         "uiTheme": "vs-dark",
         "path": "./themes/dark_plus.json"
       },
       {
-        "id": "Trae Deep Blue",
-        "label": "Trae Deep Blue",
+        "id": "V3Code Deep Blue",
+        "label": "V3Code Deep Blue",
         "uiTheme": "vs-dark",
         "path": "./themes/dark_blue.json"
       },
       {
-        "id": "Trae Light",
-        "label": "Trae Light",
+        "id": "V3Code Light Modern",
+        "label": "V3Code Light Modern",
         "uiTheme": "vs",
         "path": "./themes/light.json"
       }
     ],
     "iconThemes": [
       {
-        "id": "trae-minimal",
-        "label": "Trae Minimal (File Icons)",
+        "id": "v3code-minimal",
+        "label": "V3Code Minimal (File Icons)",
         "path": "./fileicons/vs_minimal-icon-theme.json"
       }
     ]

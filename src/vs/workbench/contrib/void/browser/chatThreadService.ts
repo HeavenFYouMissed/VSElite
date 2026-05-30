@@ -380,6 +380,11 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 		// Wire subagent launcher into ToolsService (avoids circular DI)
 		this._toolsService.setSubagentLauncher((opts) => this.launchSubagent(opts))
 
+		// Wire notification injector — allows background processes to inject system_notification messages
+		this._toolsService.setNotificationInjector((threadId, content, source) => {
+			this._injectSystemNotification(threadId, content, source)
+		})
+
 		// keep track of user-modified files
 		// const disposablesOfModelId: { [modelId: string]: IDisposable[] } = {}
 		// this._register(
@@ -1837,6 +1842,15 @@ We only need to do it for files that were edited since `from`, ie files between 
 		}
 		this._storeAllThreads(newThreads)
 		this._setState({ allThreads: newThreads }) // the current thread just changed (it had a message added to it)
+	}
+
+	private _injectSystemNotification(threadId: string, content: string, source: 'subagent' | 'terminal' | 'system') {
+		this._addMessageToThread(threadId, {
+			role: 'system_notification',
+			content,
+			source,
+			timestamp: Date.now(),
+		})
 	}
 
 	// sets the currently selected message (must be undefined if no message is selected)

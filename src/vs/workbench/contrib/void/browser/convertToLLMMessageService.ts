@@ -5,6 +5,7 @@ import { registerSingleton, InstantiationType } from '../../../../platform/insta
 import { createDecorator } from '../../../../platform/instantiation/common/instantiation.js';
 import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
 import { IEditorService } from '../../../services/editor/common/editorService.js';
+import { EditorsOrder } from '../../../common/editor.js';
 import { ChatMessage } from '../common/chatThreadServiceTypes.js';
 import { getIsReasoningEnabledState, getReservedOutputTokenSpace, getModelCapabilities } from '../common/modelCapabilities.js';
 import { reParsedToolXMLString, chat_systemMessage } from '../common/prompt/prompts.js';
@@ -19,6 +20,8 @@ import { EndOfLinePreference } from '../../../../editor/common/model.js';
 import { ToolName } from '../common/toolsServiceTypes.js';
 import { IMCPService } from '../common/mcpService.js';
 import { ISemanticIndexService } from '../common/semanticIndex/semanticIndexTypes.js';
+import { IWorkspaceRulesService } from './workspaceRulesService.js';
+import { ISkillsService } from './skillsService.js';
 
 import { LLM_EMPTY_TEXT_PLACEHOLDER } from '../common/chatMessageContent.js'
 
@@ -311,6 +314,58 @@ const prepareOpenAIOrAnthropicMessages = ({
 
 	messages.unshift({ role: 'system', content: combinedSystemMessage })
 
+	// ================ conversation summary (condense long history) ================
+	// If conversation exceeds 60% of context, compress middle messages into a summary.
+	// Preserves: system message (idx 0), first user message (idx 1), and last 6 messages.
+	const totalCharsBefore = messages.reduce((sum, m) => sum + m.content.length, 0)
+	const contextBudgetChars = (contextWindow - (reservedOutputTokenSpace ?? 4096)) * CHARS_PER_TOKEN
+	if (totalCharsBefore > contextBudgetChars * 0.6 && messages.length > 10) {
+		const preserveStart = 2 // system + first user
+		const preserveEnd = 6
+		const middleStart = preserveStart
+		const middleEnd = messages.length - preserveEnd
+
+		if (middleEnd > middleStart + 2) {
+			// Look for a Status Block in the middle section (most recent one)
+			let statusBlockSummary: string | null = null
+			for (let si = middleEnd - 1; si >= middleStart; si--) {
+				const content = messages[si].content
+				if (content.includes('## Status') && content.includes('**Task:**')) {
+					statusBlockSummary = content
+					break
+				}
+			}
+
+			// Build condensed summary of dropped messages
+			const droppedCount = middleEnd - middleStart
+			const summaryParts: string[] = [
+				`[Conversation condensed: ${droppedCount} messages summarized to save context]`,
+			]
+			if (statusBlockSummary) {
+				summaryParts.push(`Last known state:\n${statusBlockSummary.slice(0, 2000)}`)
+			} else {
+				// Extract key info from dropped messages
+				const keyPoints: string[] = []
+				for (let si = middleStart; si < middleEnd; si++) {
+					const m = messages[si]
+					if (m.role === 'user' && m.content.length > 10) {
+						keyPoints.push(`- User: "${m.content.slice(0, 100)}..."`)
+					}
+				}
+				if (keyPoints.length > 0) {
+					summaryParts.push(`Key requests in condensed section:\n${keyPoints.slice(0, 8).join('\n')}`)
+				}
+			}
+
+			const summaryMessage = { role: 'system' as const, content: summaryParts.join('\n\n') }
+			messages = [
+				...messages.slice(0, preserveStart),
+				summaryMessage,
+				...messages.slice(middleEnd),
+			]
+		}
+	}
+
 	// ================ trim ================
 	messages = messages.map(m => ({ ...m, content: m.role !== 'tool' ? m.content.trim() : m.content }))
 
@@ -576,6 +631,8 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 		@IVoidModelService private readonly voidModelService: IVoidModelService,
 		@IMCPService private readonly mcpService: IMCPService,
 		@ISemanticIndexService private readonly semanticIndexService: ISemanticIndexService,
+		@IWorkspaceRulesService private readonly workspaceRulesService: IWorkspaceRulesService,
+		@ISkillsService private readonly skillsService: ISkillsService,
 	) {
 		super()
 		// Eagerly load workspace instruction files (AGENTS.md, copilot-instructions, CLAUDE.md, .voidrules)
@@ -593,8 +650,11 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 	private static readonly WORKSPACE_INSTRUCTION_PATHS: ReadonlyArray<string> = [
 		'AGENTS.md',
 		'.github/copilot-instructions.md',
+		'.github/AGENTS.md',
 		'CLAUDE.md',
 		'.voidrules',
+		'.v3coderules',
+		'.cursorrules',
 	];
 
 	// Per-instruction-file hard cap (chars) — total cap enforced in chat_systemMessage via prepareMessages budgeting.
@@ -694,11 +754,49 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 	}
 
 	// system message
-	private _generateChatMessagesSystemMessage = async (chatMode: ChatMode, specialToolFormat: 'openai-style' | 'anthropic-style' | 'gemini-style' | undefined) => {
+	private _generateChatMessagesSystemMessage = async (chatMode: ChatMode, specialToolFormat: 'openai-style' | 'anthropic-style' | 'gemini-style' | undefined, modelIdentity?: { providerName: string, modelName: string }) => {
 		const workspaceFolders = this.workspaceContextService.getWorkspace().folders.map(f => f.uri.fsPath)
 
 		const openedURIs = this.modelService.getModels().filter(m => m.isAttachedToEditor()).map(m => m.uri.fsPath) || [];
 		const activeURI = this.editorService.activeEditor?.resource?.fsPath;
+
+		// Rich context: recently viewed files (ordered by recency), cursor position, line counts
+		const recentlyViewedFiles: Array<{ path: string; totalLines: number }> = [];
+		try {
+			const editors = this.editorService.getEditors(EditorsOrder.MOST_RECENTLY_ACTIVE);
+			for (const { editor } of editors) {
+				if (recentlyViewedFiles.length >= 10) break;
+				const uri = editor.resource;
+				if (!uri) continue;
+				const fsPath = uri.fsPath;
+				if (recentlyViewedFiles.some(f => f.path === fsPath)) continue;
+				const model = this.modelService.getModel(uri);
+				const totalLines = model?.getLineCount() ?? 0;
+				recentlyViewedFiles.push({ path: fsPath, totalLines });
+			}
+		} catch { /* graceful fallback — editor APIs may not be available in all contexts */ }
+
+		// Cursor position in active file
+		let cursorInfo: { line: number; column: number; selectedText?: string } | undefined;
+		try {
+			const control = this.editorService.activeTextEditorControl;
+			if (control && 'getPosition' in control) {
+				const pos = (control as any).getPosition?.();
+				if (pos) {
+					cursorInfo = { line: pos.lineNumber, column: pos.column };
+					const sel = (control as any).getSelection?.();
+					if (sel && !sel.isEmpty()) {
+						const model = (control as any).getModel?.();
+						if (model) {
+							const selectedText = model.getValueInRange(sel);
+							if (selectedText && selectedText.length <= 200) {
+								cursorInfo.selectedText = selectedText;
+							}
+						}
+					}
+				}
+			}
+		} catch { /* graceful fallback */ }
 
 		const directoryStr = await this.directoryStrService.getAllDirectoriesStr({
 			cutOffMessage: chatMode === 'agent' || chatMode === 'gather' ?
@@ -711,7 +809,7 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 		const mcpTools = this.mcpService.getMCPTools()
 
 		const persistentTerminalIDs = this.terminalToolService.listPersistentTerminalIds()
-		const systemMessage = chat_systemMessage({ workspaceFolders, openedURIs, directoryStr, activeURI, persistentTerminalIDs, chatMode, mcpTools, includeXMLToolDefinitions })
+		const systemMessage = chat_systemMessage({ workspaceFolders, openedURIs, directoryStr, activeURI, persistentTerminalIDs, chatMode, mcpTools, includeXMLToolDefinitions, modelIdentity, recentlyViewedFiles, cursorInfo })
 		return systemMessage
 	}
 
@@ -726,6 +824,13 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 		for (const m of chatMessages) {
 			if (m.role === 'checkpoint') continue
 			if (m.role === 'interrupted_streaming_tool') continue
+			if (m.role === 'system_notification') {
+				simpleLLMMessages.push({
+					role: 'user',
+					content: `<system_notification>\n${m.content}\n</system_notification>`,
+				})
+				continue
+			}
 			if (m.role === 'assistant') {
 				simpleLLMMessages.push({
 					role: m.role,
@@ -801,15 +906,25 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 		} = getModelCapabilities(providerName, modelName, overridesOfModel)
 
 		const { disableSystemMessage } = this.voidSettingsService.state.globalSettings;
-		const fullSystemMessage = await this._generateChatMessagesSystemMessage(chatMode, specialToolFormat)
+		const fullSystemMessage = await this._generateChatMessagesSystemMessage(chatMode, specialToolFormat, modelSelection)
 		const systemMessage = disableSystemMessage ? '' : fullSystemMessage;
 
 		const modelSelectionOptions = this.voidSettingsService.state.optionsOfModelSelection['Chat'][modelSelection.providerName]?.[modelSelection.modelName]
 
 		// Make sure AGENTS.md / copilot-instructions / CLAUDE.md / .voidrules have been loaded before reading them.
 		await this._ensureInstructionWarmup();
-		// Get combined AI instructions
-		const aiInstructions = this._getCombinedAIInstructions();
+		// Get combined AI instructions + workspace rules (.v3code/rules/*.mdc) + skills (.v3code/skills/)
+		let aiInstructions = this._getCombinedAIInstructions();
+		const rulesActiveURI = this.editorService.activeEditor?.resource?.fsPath;
+		const rulesOpenURIs = this.modelService.getModels().filter(m => m.isAttachedToEditor()).map(m => m.uri.fsPath) || [];
+		const workspaceRules = await this.workspaceRulesService.getMatchingRules(rulesActiveURI, rulesOpenURIs);
+		if (workspaceRules) aiInstructions = aiInstructions + workspaceRules;
+
+		// Load matching skills based on active file + latest user message
+		const latestUserMsg = [...chatMessages].reverse().find(m => m.role === 'user');
+		const userMsgContent = latestUserMsg && 'content' in latestUserMsg ? (latestUserMsg as any).content || '' : '';
+		const activeSkills = await this.skillsService.getMatchingSkills(rulesActiveURI, userMsgContent);
+		if (activeSkills) aiInstructions = aiInstructions + activeSkills;
 		const isReasoningEnabled = getIsReasoningEnabledState('Chat', providerName, modelName, modelSelectionOptions, overridesOfModel)
 		const reservedOutputTokenSpace = getReservedOutputTokenSpace(providerName, modelName, { isReasoningEnabled, overridesOfModel })
 		const llmMessages = this._chatMessagesToSimpleMessages(chatMessages)

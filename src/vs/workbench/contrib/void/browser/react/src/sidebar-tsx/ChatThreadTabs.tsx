@@ -3,7 +3,7 @@
  *  Constrained width so they never overflow into sibling header buttons.
  *--------------------------------------------------------------------------------------*/
 
-import { Plus, X } from 'lucide-react'
+import { Plus, X, PanelRight } from 'lucide-react'
 import { useMemo } from 'react'
 import { useAccessor, useChatThreadsState, useFullChatThreadsStreamState } from '../util/services.js'
 import { ThreadType } from '../../../chatThreadService.js'
@@ -25,7 +25,7 @@ const ThinkingDot = () => (
 	/>
 )
 
-export const ChatThreadTabs = () => {
+export const ChatThreadTabs = ({ toggleAgentPanel, showAgentPanel }: { toggleAgentPanel?: () => void, showAgentPanel?: boolean }) => {
 	const accessor = useAccessor()
 	const chatThreadsService = accessor.get('IChatThreadService')
 	const { allThreads, currentThreadId } = useChatThreadsState()
@@ -115,13 +115,13 @@ export const ChatThreadTabs = () => {
 					)
 				})}
 			</div>
-			{/* New tab button — always visible, never pushed off */}
+			{/* New tab button — wider rectangle for easier clicking */}
 			<button
 				type='button'
 				className='flex items-center justify-center shrink-0 opacity-60 hover:opacity-100 transition-opacity'
 				style={{
 					color: 'var(--fg, #ECECEE)',
-					width: '32px', height: '32px',
+					width: '56px', height: '32px',
 					borderLeft: '1px solid var(--border, #2A2A30)',
 				}}
 				onClick={() => chatThreadsService.openNewThread()}
@@ -130,6 +130,26 @@ export const ChatThreadTabs = () => {
 			>
 				<Plus className='w-3.5 h-3.5' strokeWidth={2} />
 			</button>
+			{/* Agent panel toggle — always visible, never pushed off */}
+			{toggleAgentPanel && (
+				<button
+					type='button'
+					className='flex items-center justify-center shrink-0 opacity-60 hover:opacity-100 transition-opacity'
+					style={{
+						color: showAgentPanel
+							? 'var(--accent, #8FD96A)'
+							: 'var(--fg-muted, #A0A0A8)',
+						width: '32px', height: '32px',
+						borderLeft: '1px solid var(--border, #2A2A30)',
+						opacity: showAgentPanel ? 1 : undefined,
+					}}
+					onClick={toggleAgentPanel}
+					title={showAgentPanel ? 'Hide agents panel' : 'Show agents panel'}
+					aria-label='Toggle agents panel'
+				>
+					<PanelRight className='w-3.5 h-3.5' strokeWidth={2} />
+				</button>
+			)}
 		</div>
 	)
 }

@@ -455,6 +455,7 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 				}}>
 					<button
 						onClick={onClose}
+						className='v3-panel-btn'
 						style={{
 							background: 'none', border: 'none', cursor: 'pointer',
 							padding: '2px 6px', borderRadius: '6px',
@@ -470,6 +471,7 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 				<div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
 					<button
 						onClick={handleNewAgent}
+						className='v3-panel-btn'
 						style={{
 							display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
 							width: '100%', minHeight: '28px', padding: '6px 12px',
@@ -487,6 +489,7 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 
 					<button
 						onClick={() => setShowMarketplace(v => !v)}
+						className='v3-panel-btn'
 						style={{
 							display: 'flex', alignItems: 'center', gap: '6px',
 							width: '100%', minHeight: '28px', padding: '6px 12px',

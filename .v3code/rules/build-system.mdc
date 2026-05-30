@@ -1,0 +1,13 @@
+---
+description: Build system rules for the V3Code project
+globs: ["*.ts", "*.tsx", "*.js"]
+alwaysApply: true
+---
+
+# V3Code Build System
+
+- After editing files under `common/` or `electron-main/`, a full rebuild is required: `powershell -File dev.ps1 -FullGulp`
+- After editing only `browser/` files (non-React), use: `powershell -File dev.ps1 -Once`
+- After editing React files under `react/src/`, the dev server handles hot reload automatically
+- The TypeScript check is: `npx tsc -p src/tsconfig.json --noEmit`
+- Never import Node builtins (path, fs, os, crypto) in browser-side code — it will crash the renderer ESM loader

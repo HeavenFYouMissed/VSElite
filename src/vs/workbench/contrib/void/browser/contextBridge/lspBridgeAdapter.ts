@@ -188,6 +188,21 @@ export class LspBridgeAdapter extends Disposable implements ILspBridgeAdapter {
 		if (folders.length === 0) {
 			return null;
 		}
+		// Try each folder — skip any that look like an IDE install directory
+		for (const folder of folders) {
+			const root = normalizePath(folder.uri.fsPath);
+			const lower = root.toLowerCase();
+			const isIdeInstall =
+				(lower.includes('/cursor') && (lower.includes('programs') || lower.includes('app-') || lower.includes('resources')))
+				|| lower.includes('/appdata/local/programs/')
+				|| lower.endsWith('/cursor')
+				|| lower.includes('.vscode/')
+				|| lower.includes('/visual studio code/');
+			if (!isIdeInstall) {
+				return root;
+			}
+		}
+		// All folders look like IDE dirs — return first one anyway as last resort
 		return normalizePath(folders[0].uri.fsPath);
 	}
 

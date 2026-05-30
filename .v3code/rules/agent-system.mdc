@@ -1,0 +1,14 @@
+---
+description: Agent prompt and tool system conventions
+globs: ["**/prompt/prompts.ts", "**/toolsService.ts", "**/convertToLLMMessageService.ts"]
+alwaysApply: false
+---
+
+# Agent System Rules
+
+- The system prompt is assembled per-turn (architecture B) in `convertToLLMMessageService.ts`
+- Tool definitions are in `prompts.ts` under `builtinTools`
+- MCP tools are dynamically loaded and deduplicated (native builtins take priority)
+- The `edit_file` sequential re-read rule is critical — never remove it from the prompt
+- Model identity is injected from `modelSelection` to help the agent self-calibrate
+- Workspace rules, skills, and rich context are appended to `aiInstructions` before being passed to `prepareMessages`

@@ -203,4 +203,113 @@ export class VCompanionMemory {
 		} catch { /* */ }
 		return { profileLines, journalEntries: journal.length, projectId: await this.projectId() };
 	}
+
+	// ----- Plan / phase / todo store (per-project, persists across agent sessions) -----
+
+	private _projectDir(pid: string): URI {
+		return URI.joinPath(this.globalHome(), 'projects', pid);
+	}
+
+	private async _ensureProjectDir(pid: string): Promise<URI> {
+		await this.ensureGlobal();
+		const dir = this._projectDir(pid);
+		if (!(await this.fileService.exists(dir))) { await this.fileService.createFolder(dir); }
+		return dir;
+	}
+
+	async getPlan(): Promise<{ phases: { id: string; title: string; status: 'todo' | 'active' | 'done' }[]; current: string | null }> {
+		const pid = await this.projectId();
+		const dir = await this._ensureProjectDir(pid);
+		const u = URI.joinPath(dir, 'plan.json');
+		try {
+			const text = (await this.fileService.readFile(u)).value.toString();
+			const parsed = JSON.parse(text);
+			return { phases: parsed.phases ?? [], current: parsed.current ?? null };
+		} catch { return { phases: [], current: null }; }
+	}
+
+	async setPlan(phases: { id: string; title: string; status: 'todo' | 'active' | 'done' }[], current: string | null): Promise<void> {
+		const pid = await this.projectId();
+		const dir = await this._ensureProjectDir(pid);
+		const u = URI.joinPath(dir, 'plan.json');
+		await this.fileService.writeFile(u, VSBuffer.fromString(JSON.stringify({ phases, current }, null, 2)));
+	}
+
+	async listTodos(): Promise<{ id: string; text: string; done: boolean; phase?: string; ts: string }[]> {
+		const pid = await this.projectId();
+		const dir = await this._ensureProjectDir(pid);
+		const u = URI.joinPath(dir, 'todos.jsonl');
+		try {
+			const text = (await this.fileService.readFile(u)).value.toString();
+			return text.split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+		} catch { return []; }
+	}
+
+	async addTodo(text: string, phase?: string): Promise<void> {
+		const pid = await this.projectId();
+		const dir = await this._ensureProjectDir(pid);
+		const u = URI.joinPath(dir, 'todos.jsonl');
+		const id = 't_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 6);
+		const entry = { id, text: text.trim(), done: false, phase, ts: new Date().toISOString() };
+		let prev = '';
+		try { prev = (await this.fileService.readFile(u)).value.toString(); } catch { /* */ }
+		await this.fileService.writeFile(u, VSBuffer.fromString(prev + JSON.stringify(entry) + '\n'));
+	}
+
+	async completeTodo(id: string): Promise<void> {
+		const pid = await this.projectId();
+		const dir = await this._ensureProjectDir(pid);
+		const u = URI.joinPath(dir, 'todos.jsonl');
+		const all = await this.listTodos();
+		const updated = all.map(t => t.id === id ? { ...t, done: true } : t);
+		await this.fileService.writeFile(u, VSBuffer.fromString(updated.map(t => JSON.stringify(t)).join('\n') + (updated.length ? '\n' : '')));
+	}
+
+	// Digest candidates: take a transcript chunk and pull out things WORTH remembering. Anything
+	// labeled "user_fact" needs explicit approval; "project_fact" can be auto-written. The caller
+	// (vCompanionPane) provides an LLM and we just store/return the candidates.
+	async stageDigest(candidates: { kind: 'user_fact' | 'project_fact'; text: string }[]): Promise<void> {
+		const pid = await this.projectId();
+		const dir = await this._ensureProjectDir(pid);
+		const u = URI.joinPath(dir, 'digest-pending.jsonl');
+		let prev = '';
+		try { prev = (await this.fileService.readFile(u)).value.toString(); } catch { /* */ }
+		const lines = candidates.map(c => JSON.stringify({ ...c, ts: new Date().toISOString(), id: 'd_' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5) }));
+		await this.fileService.writeFile(u, VSBuffer.fromString(prev + lines.join('\n') + (lines.length ? '\n' : '')));
+		// Auto-write project facts immediately (they don't need approval).
+		for (const c of candidates) {
+			if (c.kind === 'project_fact') { await this.remember('project', c.text, ['digest']); }
+		}
+	}
+
+	async listPendingDigest(): Promise<{ id: string; kind: 'user_fact' | 'project_fact'; text: string; ts: string }[]> {
+		const pid = await this.projectId();
+		const dir = await this._ensureProjectDir(pid);
+		const u = URI.joinPath(dir, 'digest-pending.jsonl');
+		try {
+			const text = (await this.fileService.readFile(u)).value.toString();
+			return text.split('\n').filter(Boolean).map(l => { try { return JSON.parse(l); } catch { return null; } }).filter(Boolean);
+		} catch { return []; }
+	}
+
+	async approveDigest(id: string): Promise<void> {
+		const pending = await this.listPendingDigest();
+		const target = pending.find(p => p.id === id);
+		if (!target) { return; }
+		await this.remember(target.kind === 'user_fact' ? 'user' : 'project', target.text, ['digest', 'approved']);
+		const remaining = pending.filter(p => p.id !== id);
+		const pid = await this.projectId();
+		const dir = await this._ensureProjectDir(pid);
+		const u = URI.joinPath(dir, 'digest-pending.jsonl');
+		await this.fileService.writeFile(u, VSBuffer.fromString(remaining.map(r => JSON.stringify(r)).join('\n') + (remaining.length ? '\n' : '')));
+	}
+
+	async rejectDigest(id: string): Promise<void> {
+		const pending = await this.listPendingDigest();
+		const remaining = pending.filter(p => p.id !== id);
+		const pid = await this.projectId();
+		const dir = await this._ensureProjectDir(pid);
+		const u = URI.joinPath(dir, 'digest-pending.jsonl');
+		await this.fileService.writeFile(u, VSBuffer.fromString(remaining.map(r => JSON.stringify(r)).join('\n') + (remaining.length ? '\n' : '')));
+	}
 }

@@ -84,6 +84,12 @@ import '../common/contextBridge/contextBridgeService.js'
 // register LSP Bridge Adapter (in-process VS Code language feature wrapper used by CB tools)
 import './contextBridge/lspBridgeAdapter.js'
 
+// register Workspace Rules Service (.v3code/rules/*.mdc + .v3coderules)
+import './workspaceRulesService.js'
+
+// register Skills Service (.v3code/skills/ + ~/.v3code/skills/)
+import './skillsService.js'
+
 // register Semantic Index (codebase indexing + retrieval)
 // Full pipeline: tree-sitter chunker → @xenova/transformers embedder → sqlite-vec + FTS5 →
 // RRF hybrid retrieval. Falls back to lexical-only if native deps aren't available at runtime.
