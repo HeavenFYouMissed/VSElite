@@ -39,6 +39,7 @@
 		"resourceUrlTemplate": "https://open-vsx.org/vscode/unpkg/{publisher}/{name}/{version}/{path}"
 	},
 	"builtInExtensions": [],
+	"builtInExtensionsEnabledWithAutoUpdates": [],
 	"linkProtectionTrustedDomains": [
 		"https://v3code.dev",
 		"https://github.com/KandDLabs/v3code",
