@@ -33,7 +33,7 @@ $reactDir    = "$root\src\vs\workbench\contrib\void\browser\react"
 $reactOut    = "$reactDir\out\sidebar-tsx\index.js"
 $reactOutDir = "$reactDir\out"
 $hostOutDir  = "$root\out\vs\workbench\contrib\void\browser\react\out"
-$electronExe = "$root\.build\electron\V3Code.exe"
+$electronExe = "$root\node_modules\electron\dist\electron.exe"
 $nlsFile     = "$root\out\nls.messages.json"
 
 # CRITICAL: gulp compile-client wipes out/ and compiles with build=false, which does NOT

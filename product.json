@@ -5,6 +5,7 @@
 	"voidRelease": "0044",
 	"applicationName": "v3code",
 	"dataFolderName": ".v3code",
+	"sharedDataFolderName": ".v3code-shared",
 	"win32MutexName": "v3code",
 	"licenseName": "MIT",
 	"licenseUrl": "https://github.com/KandDLabs/v3code/blob/main/LICENSE.txt",
@@ -42,5 +43,17 @@
 		"https://v3code.dev",
 		"https://github.com/KandDLabs/v3code",
 		"https://ollama.com"
-	]
+	],
+	"defaultChatAgent": {
+		"extensionId": "v3code.v3code",
+		"chatExtensionId": "v3code.chat",
+		"termsStatementUrl": "https://v3code.dev/terms",
+		"privacyStatementUrl": "https://v3code.dev/privacy",
+		"publicCodeMatchesUrl": "https://v3code.dev/public-code",
+		"providerUriSetting": "v3code.chat.providerUri",
+		"provider": {
+			"default": { "name": "V3Code", "id": "v3code" },
+			"enterprise": { "name": "V3Code Enterprise", "id": "v3code-enterprise" }
+		}
+	}
 }
