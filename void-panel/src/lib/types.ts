@@ -46,11 +46,10 @@ export type RpcMethod =
 	| 'vSandboxStage'
 	| 'vSandboxList'
 	| 'vSandboxApprove'
-	| 'sendLLMMessage'
-	| 'abort'
-	| 'addUserMessageAndStreamResponse'
-	| 'approveLatestToolRequest'
-	| 'rejectLatestToolRequest'
+	| 'vGitStatus'
+	| 'vGitLog'
+	| 'vGitBranch'
+	| 'vGitDiff'
 
 export type ProjectBriefing = {
 	workspaceRoot: string | null

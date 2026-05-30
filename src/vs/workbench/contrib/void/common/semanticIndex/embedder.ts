@@ -16,9 +16,9 @@
  * `v3code.semanticIndex.modelDownloadHost`.
  */
 
-import { totalmem, homedir } from 'os';
-import { join } from 'path';
-import { mkdir } from 'fs/promises';
+import { totalmem, homedir } from 'node:os';
+import { join } from 'node:path';
+import { mkdir } from 'node:fs/promises';
 
 export type EmbedModelHint = 'auto' | 'jina-code' | 'minilm';
 

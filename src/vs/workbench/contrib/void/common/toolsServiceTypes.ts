@@ -96,7 +96,13 @@ export type BuiltinToolCallParams = {
 	'git_status': {},
 	'git_commit': { message: string },
 	'git_diff': { staged: boolean },
+	'git_log': { count: number },
+	'git_branch': {},
 	'browser_screenshot': { url: string },
+	// --- Background Subagent ---
+	'launch_subagent': { description: string, prompt: string, readOnly: boolean },
+	// --- Todo List ---
+	'update_plan': { todos: Array<{ id: string, content: string, status: 'pending' | 'in_progress' | 'completed' | 'cancelled' }>, merge: boolean },
 }
 
 // RESULT OF TOOL CALL
@@ -111,7 +117,7 @@ export type BuiltinToolResultType = {
 	// ---
 	'rewrite_file': Promise<{ lintErrors: LintErrorItem[] | null }>,
 	'edit_file': Promise<{ lintErrors: LintErrorItem[] | null }>,
-	'create_file_or_folder': {},
+	'create_file_or_folder': { alreadyExists: boolean },
 	'delete_file_or_folder': {},
 	// ---
 	'run_command': { result: string; resolveReason: TerminalResolveReason; },
@@ -135,7 +141,11 @@ export type BuiltinToolResultType = {
 	'git_status': { status: string },
 	'git_commit': { output: string },
 	'git_diff': { diff: string },
+	'git_log': { log: string },
+	'git_branch': { branch: string, branches: string },
 	'browser_screenshot': { screenshotPath: string },
+	'launch_subagent': { subagentThreadId: string, result: string, status: 'completed' | 'error' },
+	'update_plan': { todos: Array<{ id: string, content: string, status: 'pending' | 'in_progress' | 'completed' | 'cancelled' }> },
 }
 
 

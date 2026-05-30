@@ -20,9 +20,8 @@
  * directly. This keeps the chunker free of FS plumbing and trivially testable.
  */
 
-import type Parser from 'web-tree-sitter';
-type TSLanguageCls = Parser.Language;
-type SyntaxNode = Parser.SyntaxNode;
+type TSLanguageCls = any;
+type SyntaxNode = { type: string; text: string; startPosition: { row: number; column: number }; endPosition: { row: number; column: number }; namedChildren: SyntaxNode[]; childForFieldName(name: string): SyntaxNode | null };
 import { Chunk } from './semanticIndexTypes.js';
 import { chunkId, contentHash, toPosix } from './hashing.js';
 import { LanguageProfile, profileFor } from './chunkerLanguages.js';
@@ -51,7 +50,7 @@ export class Chunker {
 	// languages via setLanguage() and parsing is synchronous on the main thread
 	// (runWithConcurrency interleaves async file I/O, not parse calls), so one
 	// instance is safe and avoids per-file GC churn.
-	private sharedParser: Parser | null = null;
+	private sharedParser: any = null;
 	private sharedParserLang: string | null = null;
 
 	constructor(private readonly opts: ChunkerOptions) {}

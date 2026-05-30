@@ -1,42 +1,321 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>V · alien sprite</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VSElite — Sprite Studio</title>
 <style>
-body { margin: 0; background: #0a0612; color: #c8bbe0; font-family: ui-monospace, monospace; padding: 12px; }
-canvas { image-rendering: pixelated; border: 1px solid #5fd35f; display: block; margin: 12px 0; }
-button { font-family: inherit; cursor: pointer; background: #5fd35f; color: #0a0612; border: none; padding: 6px 12px; border-radius: 4px; margin-right: 8px; }
+  :root{--bg:#0c1016;--panel:#11161f;--line:#1f2733;--ink:#c7d2dd;--dim:#5d6b7a;--accent:#e07a4a;--green:#4ea03b}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:"DM Mono","JetBrains Mono",ui-monospace,Menlo,monospace;
+    min-height:100vh;padding:22px 14px 70px;
+    background-image:radial-gradient(circle at 50% -10%,rgba(224,122,74,.10),transparent 55%),repeating-linear-gradient(0deg,rgba(255,255,255,.013) 0 1px,transparent 1px 3px)}
+  .wrap{max-width:840px;margin:0 auto}
+  h1{font-size:13px;letter-spacing:.3em;text-transform:uppercase;color:var(--dim);font-weight:500;margin-bottom:3px}
+  .sub{font-size:12px;color:var(--dim);margin-bottom:18px}.sub b{color:var(--accent)}
+
+  .bar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px}
+  button,.btn{font-family:inherit;font-size:12px;cursor:pointer;background:#171e29;color:var(--ink);
+    border:1px solid var(--line);border-radius:7px;padding:7px 11px;transition:.14s;user-select:none}
+  button:hover,.btn:hover{border-color:var(--accent);color:#fff}
+  button.on{background:var(--accent);border-color:var(--accent);color:#0c1016;font-weight:600}
+  .vh{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+  input[type=number]{width:52px;font-family:inherit;background:#0c1016;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px 6px;font-size:12px}
+  input[type=text]{flex:1;min-width:120px;font-family:inherit;background:#0c1016;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:7px 9px;font-size:13px}
+  input[type=color]{width:34px;height:30px;border:1px solid var(--line);border-radius:6px;background:none;cursor:pointer;padding:2px}
+  input[type=range]{accent-color:var(--accent);vertical-align:middle}
+  label.inl{font-size:11px;color:var(--dim);display:inline-flex;gap:6px;align-items:center}
+
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px 12px;margin-bottom:12px}
+  .panel .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  .sectlabel{font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:8px}
+
+  /* tools */
+  .tools button{min-width:42px}
+  /* palette */
+  .swatches{display:flex;gap:6px;flex-wrap:wrap;align-items:center}
+  .sw{width:26px;height:26px;border-radius:6px;border:2px solid transparent;cursor:pointer;position:relative}
+  .sw.on{border-color:#fff}
+  .sw.trans{background:repeating-conic-gradient(#444 0% 25%,#222 0% 50%) 50%/10px 10px}
+
+  /* canvas */
+  #stage{display:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:10px;margin-bottom:12px;overflow:auto;max-height:62vh}
+  #stage.show{display:block}
+  #cv{image-rendering:pixelated;touch-action:none;display:block;margin:0 auto;background:transparent;cursor:crosshair}
+  .meta{font-size:11px;color:var(--dim);margin-top:6px;text-align:center}.meta b{color:var(--green)}
+
+  .codehead{display:none;justify-content:space-between;align-items:center;margin:18px 0 8px}
+  .codehead.show{display:flex}
+  .codehead h2{font-size:11px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim);font-weight:500}
+  .tabs{display:flex;gap:6px}
+  pre{display:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:14px;overflow:auto;font-size:11.5px;line-height:1.5;color:#a9b6c4;max-height:300px}
+  pre.show{display:block}
+  .hint{font-size:11px;color:var(--dim);margin-top:9px;line-height:1.5}
 </style>
 </head>
 <body>
-<p>alien sprite generator (compact)</p>
-<canvas id="c" width="128" height="128"></canvas>
-<button id="done">done</button>
+<div class="wrap">
+  <h1>VSElite · Sprite Studio</h1>
+  <p class="sub">Upload an image (auto-pixelated), or load the alien — then <b>paint, fill, stamp text</b>, and export into your renderer.</p>
+
+  <!-- SOURCE -->
+  <div class="bar">
+    <label class="btn" for="file">⬆ Upload image</label>
+    <input type="file" id="file" accept="image/*" class="vh">
+    <button id="bAlien">👾 Load alien</button>
+    <span class="row" style="gap:6px">
+      <button id="bBlank">＋ Blank</button>
+      <label class="inl">w<input type="number" id="bw" value="24" min="4" max="96"></label>
+      <label class="inl">h<input type="number" id="bh" value="24" min="4" max="96"></label>
+    </span>
+  </div>
+
+  <!-- IMAGE CONVERT CONTROLS (shown after upload) -->
+  <div class="panel" id="conv" style="display:none">
+    <div class="sectlabel">Image → sprite</div>
+    <div class="row">
+      <label class="inl">res <input type="range" id="cres" min="8" max="64" value="28"><span id="cresv" style="color:var(--accent)">28</span></label>
+      <label class="inl">flatten <input type="range" id="clvl" min="2" max="8" value="4"><span id="clvlv" style="color:var(--accent)">4</span></label>
+      <button id="cbg" class="on">drop bg</button>
+      <button id="capply">↻ reconvert</button>
+    </div>
+  </div>
+
+  <!-- TOOLS -->
+  <div class="panel" id="toolpanel" style="display:none">
+    <div class="sectlabel">Tools</div>
+    <div class="row tools">
+      <button id="tPaint" class="on">✎ Paint</button>
+      <button id="tErase">⌫ Erase</button>
+      <button id="tFill">🪣 Fill</button>
+      <button id="tPick">⊙ Pick</button>
+      <button id="tText">T Text</button>
+      <span style="width:10px"></span>
+      <button id="undo">↶ Undo</button>
+      <button id="clear">✕ Clear</button>
+      <span style="width:10px"></span>
+      <label class="inl">zoom <input type="range" id="zoom" min="3" max="26" value="14"></label>
+      <button id="grid" class="on">▦ grid</button>
+    </div>
+
+    <div class="sectlabel" style="margin-top:12px">Colors</div>
+    <div class="row">
+      <div class="swatches" id="swatches"></div>
+      <span style="width:6px"></span>
+      <input type="color" id="newcol" value="#9fff3d">
+      <button id="addcol">+ add</button>
+    </div>
+
+    <div class="row" id="textrow" style="display:none;margin-top:12px">
+      <input type="text" id="ttext" placeholder="type text — then tap the canvas to place it" maxlength="40">
+      <label class="inl">size <select id="tscale" style="font-family:inherit;background:#0c1016;color:var(--ink);border:1px solid var(--line);border-radius:6px;padding:5px"><option>1</option><option>2</option><option>3</option></select></label>
+    </div>
+  </div>
+
+  <!-- CANVAS -->
+  <div id="stage"><canvas id="cv"></canvas><div class="meta" id="meta"></div></div>
+
+  <!-- EXPORT -->
+  <div class="codehead" id="codehead">
+    <h2>Export</h2>
+    <div class="tabs">
+      <button id="xPng" class="on">PNG</button>
+      <button id="xData">Sprite data</button>
+      <button id="xReact">React</button>
+    </div>
+  </div>
+  <pre id="code"></pre>
+  <p class="hint" id="hint"></p>
+</div>
+
 <script>
-const PALETTE = ['#00000000', '#5fd35f', '#202327', '#cfd6db'];
-const SPRITE = [
-  [0,0,0,2,2,0,0,0],
-  [0,0,2,1,1,2,0,0],
-  [0,2,1,1,1,1,2,0],
-  [2,1,1,3,3,1,1,2],
-  [0,2,1,1,1,1,2,0],
-  [0,0,2,2,2,2,0,0],
-];
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
-const cell = 16;
-PALETTE.forEach((col, i) => {
-  for (let y = 0; y < SPRITE.length; y++)
-    for (let x = 0; x < SPRITE[y].length; x++)
-      if (SPRITE[y][x] === i && col !== '#00000000') {
-        ctx.fillStyle = col;
-        ctx.fillRect(x * cell, y * cell, cell, cell);
-      }
-});
-document.getElementById('done').onclick = () => {
-  window.parent.postMessage({ type: 'vStudioExport', kind: 'sprite', data: { PALETTE, SPRITE, png: canvas.toDataURL('image/png') } }, '*');
+const $=id=>document.getElementById(id);
+const state={grid:null,palette:[],tool:"paint",colorIdx:0,zoom:14,showGrid:true,
+             dropBg:true,img:null,painting:false,last:null,hist:[]};
+
+/* ---------- 3x5 pixel font ---------- */
+const FONT={
+ "A":["111","101","111","101","101"],"B":["110","101","110","101","110"],"C":["111","100","100","100","111"],
+ "D":["110","101","101","101","110"],"E":["111","100","110","100","111"],"F":["111","100","110","100","100"],
+ "G":["111","100","101","101","111"],"H":["101","101","111","101","101"],"I":["111","010","010","010","111"],
+ "J":["001","001","001","101","111"],"K":["101","101","110","101","101"],"L":["100","100","100","100","111"],
+ "M":["101","111","111","101","101"],"N":["101","111","111","111","101"],"O":["111","101","101","101","111"],
+ "P":["111","101","111","100","100"],"Q":["111","101","101","111","001"],"R":["111","101","110","101","101"],
+ "S":["111","100","111","001","111"],"T":["111","010","010","010","010"],"U":["101","101","101","101","111"],
+ "V":["101","101","101","101","010"],"W":["101","101","111","111","101"],"X":["101","101","010","101","101"],
+ "Y":["101","101","010","010","010"],"Z":["111","001","010","100","111"],
+ "0":["111","101","101","101","111"],"1":["010","110","010","010","111"],"2":["111","001","111","100","111"],
+ "3":["111","001","111","001","111"],"4":["101","101","111","001","001"],"5":["111","100","111","001","111"],
+ "6":["111","100","111","101","111"],"7":["111","001","010","010","010"],"8":["111","101","111","101","111"],
+ "9":["111","101","111","001","111"]," ":["000","000","000","000","000"],
+ ".":["000","000","000","000","010"],"!":["010","010","010","000","010"],"-":["000","000","111","000","000"],
+ ":":["000","010","000","010","000"],"/":["001","001","010","100","100"]};
+
+/* ---------- alien grid (char form) ---------- */
+const ALIEN=["....ggggggg....","..ggggggggggg..",".ggggggggggggg.","ggggggggggggggg","ggggggggggggggg",
+ "ggddgggggggddgg","ggddgggggggddgg","ggggggggggggggg",".gggggdddggggg.","..ggggggggggg..",
+ "gg.ggggggggg.gg","gg.ggggggggg.gg","...ggrgggrgg...","...gggrgrggg...","...ggggrgggg...",
+ "...gg.....gg...","...gg.....gg..."];
+
+/* ---------- helpers ---------- */
+const hex=(r,g,b)=>"#"+[r,g,b].map(v=>v.toString(16).padStart(2,"0")).join("");
+function colorIndex(h){let i=state.palette.indexOf(h);if(i<0){state.palette.push(h);i=state.palette.length-1;}return i;}
+function snapshot(){state.hist.push(JSON.stringify({g:state.grid,p:state.palette}));if(state.hist.length>30)state.hist.shift();}
+function blank(w,h){state.grid=Array.from({length:h},()=>Array(w).fill(-1));}
+
+/* ---------- load sources ---------- */
+$("bAlien").onclick=()=>{
+  state.palette=["#4ea03b","#0c1016","#d6392c","#9fff3d"];
+  const map={g:0,d:1,r:2,".":-1};
+  state.grid=ALIEN.map(row=>[...row].map(c=>map[c]));
+  state.colorIdx=0; afterLoad(); $("conv").style.display="none";
 };
+$("bBlank").onclick=()=>{
+  const w=Math.max(4,Math.min(96,+$("bw").value)), h=Math.max(4,Math.min(96,+$("bh").value));
+  if(!state.palette.length) state.palette=["#9fff3d","#0c1016","#d6392c"];
+  blank(w,h); state.colorIdx=0; afterLoad(); $("conv").style.display="none";
+};
+
+/* image upload + conversion */
+$("file").onchange=e=>{const f=e.target.files[0];if(!f)return;const r=new FileReader();
+  r.onload=()=>{const im=new Image();im.onload=()=>{state.img=im;$("conv").style.display="block";convert();afterLoad();};im.src=r.result;};
+  r.readAsDataURL(f);};
+$("cres").oninput=e=>{$("cresv").textContent=e.target.value;};
+$("clvl").oninput=e=>{$("clvlv").textContent=e.target.value;};
+$("cbg").onclick=e=>{state.dropBg=!state.dropBg;e.target.classList.toggle("on",state.dropBg);};
+$("capply").onclick=()=>{convert();fitZoom();render();updateCode();};
+function posterize(v,l){const s=255/(l-1);return Math.round(Math.round(v/s)*s);}
+function convert(){
+  const cols=+$("cres").value, levels=+$("clvl").value;
+  const ratio=state.img.height/state.img.width, rows=Math.max(1,Math.round(cols*ratio));
+  const c=document.createElement("canvas");c.width=cols;c.height=rows;
+  const ctx=c.getContext("2d");ctx.imageSmoothingEnabled=true;ctx.drawImage(state.img,0,0,cols,rows);
+  const d=ctx.getImageData(0,0,cols,rows).data;
+  const corner=(x,y)=>{const i=(y*cols+x)*4;return[d[i],d[i+1],d[i+2]];};
+  const bgs=[corner(0,0),corner(cols-1,0),corner(0,rows-1),corner(cols-1,rows-1)];
+  const bg=[0,1,2].map(k=>Math.round(bgs.reduce((s,c)=>s+c[k],0)/4));
+  state.palette=[]; const grid=[];
+  for(let y=0;y<rows;y++){const row=[];for(let x=0;x<cols;x++){const i=(y*cols+x)*4;const a=d[i+3];
+    let r=d[i],g=d[i+1],b=d[i+2];
+    const mbg=state.dropBg && Math.abs(r-bg[0])+Math.abs(g-bg[1])+Math.abs(b-bg[2])<46;
+    if(a<90||mbg){row.push(-1);continue;}
+    r=posterize(r,levels);g=posterize(g,levels);b=posterize(b,levels);
+    row.push(colorIndex(hex(r,g,b)));}
+    grid.push(row);}
+  state.grid=grid; state.colorIdx=0;
+}
+
+function afterLoad(){
+  ["toolpanel"].forEach(id=>$(id).style.display="block");
+  $("stage").classList.add("show"); $("codehead").classList.add("show");
+  state.hist=[]; buildSwatches(); fitZoom(); render(); updateCode();
+}
+
+/* ---------- swatches ---------- */
+function buildSwatches(){
+  const wrap=$("swatches");wrap.innerHTML="";
+  // transparent (erase) chip
+  state.palette.forEach((c,i)=>{
+    const d=document.createElement("div");d.className="sw"+(i===state.colorIdx?" on":"");
+    d.style.background=c;d.title=c;d.onclick=()=>{state.colorIdx=i;state.tool="paint";setTool("tPaint");buildSwatches();};
+    wrap.appendChild(d);
+  });
+}
+$("addcol").onclick=()=>{const h=$("newcol").value;state.colorIdx=colorIndex(h);buildSwatches();};
+
+/* ---------- tools ---------- */
+function setTool(id){state.tool={tPaint:"paint",tErase:"erase",tFill:"fill",tPick:"pick",tText:"text"}[id];
+  ["tPaint","tErase","tFill","tPick","tText"].forEach(b=>$(b).classList.toggle("on",b===id));
+  $("textrow").style.display=state.tool==="text"?"flex":"none";}
+["tPaint","tErase","tFill","tPick","tText"].forEach(id=>$(id).onclick=()=>setTool(id));
+$("zoom").oninput=e=>{state.zoom=+e.target.value;render();};
+$("grid").onclick=e=>{state.showGrid=!state.showGrid;e.target.classList.toggle("on",state.showGrid);render();};
+$("undo").onclick=()=>{if(state.hist.length){const s=JSON.parse(state.hist.pop());state.grid=s.g;state.palette=s.p;buildSwatches();render();updateCode();}};
+$("clear").onclick=()=>{snapshot();state.grid=state.grid.map(r=>r.map(()=>-1));render();updateCode();};
+
+function fitZoom(){const cols=state.grid[0].length;const avail=Math.min(800,$("stage").clientWidth-24);
+  state.zoom=Math.max(3,Math.min(26,Math.floor(avail/cols)));$("zoom").value=state.zoom;}
+
+/* ---------- render ---------- */
+const cv=$("cv"),cx=cv.getContext("2d");
+function render(){
+  const {grid,zoom}=state;if(!grid)return;
+  const cols=grid[0].length,rows=grid.length;
+  cv.width=cols*zoom;cv.height=rows*zoom;
+  // transparent checkerboard
+  for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){
+    const idx=grid[y][x];
+    if(idx<0){cx.fillStyle=((x+y)&1)?"#1a212c":"#141a23";cx.fillRect(x*zoom,y*zoom,zoom,zoom);}
+    else{cx.fillStyle=state.palette[idx];cx.fillRect(x*zoom,y*zoom,zoom,zoom);}
+  }
+  if(state.showGrid&&zoom>=8){cx.strokeStyle="rgba(255,255,255,.06)";cx.lineWidth=1;
+    for(let x=0;x<=cols;x++){cx.beginPath();cx.moveTo(x*zoom+.5,0);cx.lineTo(x*zoom+.5,rows*zoom);cx.stroke();}
+    for(let y=0;y<=rows;y++){cx.beginPath();cx.moveTo(0,y*zoom+.5);cx.lineTo(cols*zoom,y*zoom+.5);cx.stroke();}}
+  $("meta").innerHTML=`<b>${cols}×${rows}</b> · ${state.palette.length} colors · tool: <b>${state.tool}</b>`;
+}
+
+/* ---------- pointer / painting ---------- */
+function cellAt(ev){const r=cv.getBoundingClientRect();
+  const x=Math.floor((ev.clientX-r.left)/state.zoom),y=Math.floor((ev.clientY-r.top)/state.zoom);
+  if(x<0||y<0||y>=state.grid.length||x>=state.grid[0].length)return null;return[x,y];}
+function applyAt(x,y){
+  if(state.tool==="paint")state.grid[y][x]=state.colorIdx;
+  else if(state.tool==="erase")state.grid[y][x]=-1;
+  else if(state.tool==="pick"){const v=state.grid[y][x];if(v>=0){state.colorIdx=v;setTool("tPaint");buildSwatches();}}
+  else if(state.tool==="fill")flood(x,y);
+  else if(state.tool==="text")stampText(x,y);
+}
+function flood(x,y){const tgt=state.grid[y][x];const rep=state.colorIdx;if(tgt===rep)return;
+  const st=[[x,y]],g=state.grid,W=g[0].length,H=g.length;
+  while(st.length){const[cxp,cyp]=st.pop();if(cxp<0||cyp<0||cxp>=W||cyp>=H)continue;if(g[cyp][cxp]!==tgt)continue;
+    g[cyp][cxp]=rep;st.push([cxp+1,cyp],[cxp-1,cyp],[cxp,cyp+1],[cxp,cyp-1]);}}
+function stampText(x,y){
+  const txt=($("ttext").value||"").toUpperCase();const sc=+$("tscale").value;
+  let cxp=x;
+  for(const ch of txt){const gl=FONT[ch]||FONT[" "];
+    for(let gy=0;gy<5;gy++)for(let gx=0;gx<3;gx++){
+      if(gl[gy][gx]==="1"){for(let sy=0;sy<sc;sy++)for(let sx=0;sx<sc;sx++){
+        const px=cxp+gx*sc+sx,py=y+gy*sc+sy;
+        if(py>=0&&px>=0&&py<state.grid.length&&px<state.grid[0].length)state.grid[py][px]=state.colorIdx;}}}
+    cxp+=4*sc;}
+}
+cv.addEventListener("pointerdown",e=>{const c=cellAt(e);if(!c)return;
+  if(state.tool!=="pick")snapshot();
+  state.painting=true;state.last=null;applyAt(c[0],c[1]);state.last=c.join();render();updateCode();});
+cv.addEventListener("pointermove",e=>{if(!state.painting)return;if(state.tool==="fill"||state.tool==="text"||state.tool==="pick")return;
+  const c=cellAt(e);if(!c)return;const k=c.join();if(k===state.last)return;state.last=k;applyAt(c[0],c[1]);render();});
+addEventListener("pointerup",()=>{if(state.painting){state.painting=false;updateCode();}});
+
+/* ---------- export ---------- */
+function pngExport(scale){const g=state.grid,cols=g[0].length,rows=g.length;
+  const c=document.createElement("canvas");c.width=cols*scale;c.height=rows*scale;const ctx=c.getContext("2d");
+  for(let y=0;y<rows;y++)for(let x=0;x<cols;x++){const i=g[y][x];if(i<0)continue;ctx.fillStyle=state.palette[i];ctx.fillRect(x*scale,y*scale,scale,scale);}
+  const a=document.createElement("a");a.download="vselite-sprite.png";a.href=c.toDataURL("image/png");a.click();}
+function dataCode(){return "const PALETTE = "+JSON.stringify(state.palette)+";\nconst SPRITE = [\n"+
+  state.grid.map(r=>"  ["+r.join(",")+"]").join(",\n")+"\n];";}
+function reactCode(){return [
+ 'import React from "react";','',
+ 'const PALETTE = '+JSON.stringify(state.palette)+';','const SPRITE = [',
+ state.grid.map(r=>"  ["+r.join(",")+"]").join(",\n"),'];','',
+ 'export function PixelSprite({ cell = 8 }) {',
+ '  const rows = SPRITE.length, cols = SPRITE[0].length;',
+ '  const rects = [];',
+ '  SPRITE.forEach((row, y) => row.forEach((idx, x) => {',
+ '    if (idx < 0) return;',
+ '    rects.push(<rect key={x+"-"+y} x={x*cell} y={y*cell} width={cell} height={cell} fill={PALETTE[idx]} />);',
+ '  }));',
+ '  return (',
+ '    <svg width={cols*cell} height={rows*cell} viewBox={`0 0 ${cols*cell} ${rows*cell}`}',
+ '         shapeRendering="crispEdges" style={{ imageRendering: "pixelated" }}>{rects}</svg>',
+ '  );',
+ '}'].join("\n");}
+function updateCode(){if(!state.grid)return;const w=document.querySelector(".tabs .on").id;$("code").classList.add("show");
+  if(w==="xPng"){$("code").textContent="// transparent PNG export";
+    $("hint").innerHTML='Download: <button onclick="pngExport(8)">8×</button> <button onclick="pngExport(16)">16×</button> <button onclick="pngExport(32)">32×</button>';}
+  else if(w==="xData"){$("code").textContent=dataCode();$("hint").textContent="Raw grid + palette. -1 = transparent. Same format the image-to-sprite tool exports.";}
+  else{$("code").textContent=reactCode();$("hint").textContent="Drop-in <PixelSprite>. Set cell once, renders crisp everywhere in VSElite.";}}
+function setX(id,b){document.querySelectorAll(".tabs .on").forEach(x=>x.classList.remove("on"));b.classList.add("on");updateCode();}
+$("xPng").onclick=e=>setX("xPng",e.target);$("xData").onclick=e=>setX("xData",e.target);$("xReact").onclick=e=>setX("xReact",e.target);
 </script>
 </body>
 </html>

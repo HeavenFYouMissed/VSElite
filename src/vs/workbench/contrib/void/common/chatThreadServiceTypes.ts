@@ -63,6 +63,8 @@ export type ChatMessage =
 		state: {
 			stagingSelections: StagingSelectionItem[];
 			isBeingEdited: boolean;
+			/** True while the agent is still running — message is queued (VS Code–style). */
+			isQueued?: boolean;
 		}
 	} | {
 		role: 'assistant';

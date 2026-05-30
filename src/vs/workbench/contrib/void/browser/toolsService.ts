@@ -43,7 +43,8 @@ import {
 
 // tool use for AI
 type ValidateBuiltinParams = { [T in BuiltinToolName]: (p: RawToolParamsObj) => BuiltinToolCallParams[T] }
-type CallBuiltinTool = { [T in BuiltinToolName]: (p: BuiltinToolCallParams[T]) => Promise<{ result: BuiltinToolResultType[T] | Promise<BuiltinToolResultType[T]>, interruptTool?: () => void }> }
+export type ToolCallContext = { threadId?: string, toolId?: string }
+type CallBuiltinTool = { [T in BuiltinToolName]: (p: BuiltinToolCallParams[T], ctx?: ToolCallContext) => Promise<{ result: BuiltinToolResultType[T] | Promise<BuiltinToolResultType[T]>, interruptTool?: () => void }> }
 type BuiltinToolResultToString = { [T in BuiltinToolName]: (p: BuiltinToolCallParams[T], result: Awaited<BuiltinToolResultType[T]>) => string }
 
 
@@ -144,11 +145,15 @@ const checkIfIsFolder = (uriStr: string) => {
 	return false
 }
 
+export type SubagentLauncher = (opts: { parentThreadId: string, parentToolId: string, description: string, prompt: string, readOnly: boolean }) => Promise<{ subagentThreadId: string, result: string, status: 'completed' | 'error' }>;
+
 export interface IToolsService {
 	readonly _serviceBrand: undefined;
 	validateParams: ValidateBuiltinParams;
 	callTool: CallBuiltinTool;
 	stringOfResult: BuiltinToolResultToString;
+	setSubagentLauncher(launcher: SubagentLauncher): void;
+	getTodosForThread(threadId: string): Array<{ id: string, content: string, status: 'pending' | 'in_progress' | 'completed' | 'cancelled' }>;
 }
 
 export const IToolsService = createDecorator<IToolsService>('ToolsService');
@@ -160,6 +165,13 @@ export class ToolsService implements IToolsService {
 	public validateParams: ValidateBuiltinParams;
 	public callTool: CallBuiltinTool;
 	public stringOfResult: BuiltinToolResultToString;
+
+	private _subagentLauncher: SubagentLauncher | undefined;
+	setSubagentLauncher(launcher: SubagentLauncher) { this._subagentLauncher = launcher; }
+
+	// Per-thread todo state
+	private _todosByThread: Map<string, Array<{ id: string, content: string, status: 'pending' | 'in_progress' | 'completed' | 'cancelled' }>> = new Map()
+	getTodosForThread(threadId: string) { return this._todosByThread.get(threadId) ?? [] }
 
 	constructor(
 		@IFileService fileService: IFileService,
@@ -416,9 +428,34 @@ export class ToolsService implements IToolsService {
 			const staged = validateBoolean(params.staged, { default: false })
 			return { staged }
 		},
+		git_log: (params: RawToolParamsObj) => {
+			const count = validateNumber(params.count, { default: 10 }) ?? 10
+			return { count }
+		},
+		git_branch: (_params: RawToolParamsObj) => {
+			return {}
+		},
 		browser_screenshot: (params: RawToolParamsObj) => {
 			const url = validateStr('url', params.url)
 			return { url }
+		},
+		launch_subagent: (params: RawToolParamsObj) => {
+			const description = validateStr('description', params.description)
+			const prompt = validateStr('prompt', params.prompt)
+			const readOnly = params.read_only === undefined ? true : !!params.read_only
+			return { description, prompt, readOnly }
+		},
+		update_plan: (params: RawToolParamsObj) => {
+			let todos: Array<{ id: string, content: string, status: 'pending' | 'in_progress' | 'completed' | 'cancelled' }>
+			if (typeof params.todos === 'string') {
+				todos = JSON.parse(params.todos)
+			} else if (Array.isArray(params.todos)) {
+				todos = params.todos as any
+			} else {
+				throw new Error('todos must be a JSON array')
+			}
+			const merge = params.merge === undefined ? false : !!params.merge
+			return { todos, merge }
 		},
 
 	}
@@ -548,16 +585,22 @@ export class ToolsService implements IToolsService {
 			// ---
 
 			create_file_or_folder: async ({ uri, isFolder }) => {
+				let alreadyExists = false;
+				try {
+					await fileService.resolve(uri);
+					alreadyExists = true;
+				} catch { /* does not exist */ }
 				if (isFolder)
 					await fileService.createFolder(uri)
 				else {
 					await fileService.createFile(uri)
 				}
-				return { result: {} }
+				return { result: { alreadyExists } }
 			},
 
 			delete_file_or_folder: async ({ uri, isRecursive }) => {
 				await fileService.del(uri, { recursive: isRecursive })
+				voidModelService.disposeModel(uri)
 				return { result: {} }
 			},
 
@@ -718,9 +761,54 @@ export class ToolsService implements IToolsService {
 			const res = await resPromise
 			return { result: { diff: res.result.trim() || '(no diff)' } }
 		},
+		git_log: async ({ count }) => {
+			const { resPromise } = await this.terminalToolService.runCommand(`git log --oneline --no-decorate -n ${count}`, { type: 'temporary', cwd: null, terminalId: generateUuid() })
+			const res = await resPromise
+			return { result: { log: res.result.trim() || '(no commits)' } }
+		},
+		git_branch: async () => {
+			const { resPromise: branchRes } = await this.terminalToolService.runCommand('git branch --show-current', { type: 'temporary', cwd: null, terminalId: generateUuid() })
+			const br = await branchRes
+			const { resPromise: allRes } = await this.terminalToolService.runCommand('git branch -a --no-color', { type: 'temporary', cwd: null, terminalId: generateUuid() })
+			const all = await allRes
+			return { result: { branch: br.result.trim(), branches: all.result.trim() } }
+		},
 		browser_screenshot: async ({ url }) => {
 			const screenshotPath = `[browser_screenshot] Not implemented: Taking a screenshot of "${url}" requires Electron BrowserWindow integration. This feature needs access to Electron's BrowserWindow API to load the URL off-screen and capture the rendered page. To enable: (1) create a BrowserWindow with offscreen rendering, (2) loadURL, (3) call webContents.capturePage(), (4) save the NativeImage to disk.`
 			return { result: { screenshotPath } }
+		},
+		update_plan: async ({ todos, merge }, ctx) => {
+			const threadId = ctx?.threadId ?? '__default__'
+			let currentTodos = this._todosByThread.get(threadId) ?? []
+			if (merge) {
+				for (const todo of todos) {
+					const idx = currentTodos.findIndex(t => t.id === todo.id)
+					if (idx >= 0) {
+						currentTodos[idx] = { ...currentTodos[idx], ...todo }
+					} else {
+						currentTodos.push(todo)
+					}
+				}
+			} else {
+				currentTodos = [...todos]
+			}
+			this._todosByThread.set(threadId, currentTodos)
+			return { result: { todos: currentTodos } }
+		},
+		launch_subagent: async ({ description, prompt, readOnly }, ctx) => {
+			const parentThreadId = ctx?.threadId
+			const parentToolId = ctx?.toolId
+			if (!parentThreadId || !parentToolId || !this._subagentLauncher) {
+				return { result: { subagentThreadId: '', result: 'Error: subagent launch requires a parent thread context and the subagent launcher must be registered.', status: 'error' as const } }
+			}
+			const res = await this._subagentLauncher({
+				parentThreadId,
+				parentToolId,
+				description: description || 'Background task',
+				prompt: prompt || '(no prompt)',
+				readOnly: readOnly ?? true,
+			})
+			return { result: res }
 		},
 	}
 
@@ -768,7 +856,9 @@ export class ToolsService implements IToolsService {
 			},
 			// ---
 			create_file_or_folder: (params, result) => {
-				return `URI ${params.uri.fsPath} successfully created.`
+				return result.alreadyExists
+					? `URI ${params.uri.fsPath} already existed (no changes made).`
+					: `URI ${params.uri.fsPath} successfully created.`
 			},
 			delete_file_or_folder: (params, result) => {
 				return `URI ${params.uri.fsPath} successfully deleted.`
@@ -901,18 +991,45 @@ export class ToolsService implements IToolsService {
 		git_status: (_params, result) => result.status,
 		git_commit: (_params, result) => result.output,
 		git_diff: (_params, result) => result.diff,
+		git_log: (_params, result) => result.log,
+		git_branch: (_params, result) => `current: ${result.branch}\n${result.branches}`,
 		browser_screenshot: (_params, result) => result.screenshotPath,
+		launch_subagent: (_params, result) => `Subagent [${result.status}]: ${result.result}`,
+		update_plan: (_params, result) => {
+			const total = result.todos.length
+			const done = result.todos.filter(t => t.status === 'completed').length
+			const inProg = result.todos.filter(t => t.status === 'in_progress').length
+			return `Plan updated: ${done}/${total} completed${inProg ? `, ${inProg} in progress` : ''}`
+		},
 	}
 
 
 
 	}
 
+
+	private static readonly _TS_ONLY_CODES = new Set([
+		'1005', '1011', '1029', '1064', '1109', '1184', '1219', '1235', '1340',
+		'2307', '2304', '2503', '2580', '2686', '2792', '7026', '7044', '8010', '8017',
+		'17004', '17009',
+	]);
 
 	private _getLintErrors(uri: URI): { lintErrors: LintErrorItem[] | null } {
+		const isJS = /\.(js|mjs|cjs|jsx)$/i.test(uri.fsPath);
 		const lintErrors = this.markerService
 			.read({ resource: uri })
-			.filter(l => l.severity === MarkerSeverity.Error || l.severity === MarkerSeverity.Warning)
+			.filter(l => {
+				if (l.severity !== MarkerSeverity.Error && l.severity !== MarkerSeverity.Warning) return false;
+				if (isJS) {
+					const code = typeof l.code === 'string' ? l.code : l.code?.value || '';
+					if (l.source === 'ts' || l.source === 'typescript') {
+						if (ToolsService._TS_ONLY_CODES.has(String(code))) return false;
+						if (/can only be used in typescript/i.test(l.message)) return false;
+						if (/decorators are not valid here/i.test(l.message)) return false;
+					}
+				}
+				return true;
+			})
 			.slice(0, 100)
 			.map(l => ({
 				code: typeof l.code === 'string' ? l.code : l.code?.value || '',

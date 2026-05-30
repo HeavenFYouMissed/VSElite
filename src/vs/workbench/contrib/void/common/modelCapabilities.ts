@@ -1314,6 +1314,24 @@ const liteLLMSettings: VoidStaticProviderInfo = { // https://docs.litellm.ai/doc
 
 // ---------------- OPENROUTER ----------------
 const openRouterModelOptions_assumingOpenAICompat = {
+	'deepseek/deepseek-v4-pro': {
+		contextWindow: 1_000_000,
+		reservedOutputTokenSpace: 384_000,
+		cost: { input: 2.19, output: 8.76 },
+		downloadable: false,
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role',
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: true },
+	},
+	'deepseek/deepseek-v4-flash': {
+		contextWindow: 1_000_000,
+		reservedOutputTokenSpace: 384_000,
+		cost: { input: 0.10, output: 0.39 },
+		downloadable: false,
+		supportsFIM: false,
+		supportsSystemMessage: 'system-role',
+		reasoningCapabilities: { supportsReasoning: true, canIOReasoning: true, canTurnOffReasoning: true },
+	},
 	'qwen/qwen3-235b-a22b': {
 		contextWindow: 40_960,
 		reservedOutputTokenSpace: null,

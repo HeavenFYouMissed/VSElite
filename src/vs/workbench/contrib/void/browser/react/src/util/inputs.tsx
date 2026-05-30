@@ -18,7 +18,7 @@ import { inputBackground, inputForeground } from '../../../../../../../platform/
 import { useFloating, autoUpdate, offset, flip, shift, size, autoPlacement } from '@floating-ui/react';
 import { URI } from '../../../../../../../base/common/uri.js';
 import { getBasename, getFolderName } from '../sidebar-tsx/SidebarChat.js';
-import { ChevronRight, File, Folder, FolderClosed, LucideProps } from 'lucide-react';
+import { ChevronRight, Code2, Database, File, Folder, FolderClosed, LucideProps } from 'lucide-react';
 import { StagingSelectionItem } from '../../../../common/chatThreadServiceTypes.js';
 import { DiffEditorWidget } from '../../../../../../../editor/browser/widget/diffEditor/diffEditorWidget.js';
 import { extractSearchReplaceBlocks, ExtractedSearchReplaceBlock } from '../../../../common/helpers/extractCodeFromResult.js';
@@ -283,6 +283,71 @@ const getOptionsAtPath = async (accessor: ReturnType<typeof useAccessor>, path: 
 	};
 
 
+	const searchCodebase = async (t: string): Promise<Option[]> => {
+		if (!t.trim()) return [];
+		try {
+			const result = await toolsService.callTool.semantic_search({
+				query: t,
+				topK: 15,
+				includeFile: null,
+				includeFiles: null,
+			});
+			const hits = (await result).result.hits;
+			const seenFiles = new Set<string>();
+			const opts: Option[] = [];
+			const workspaceFolders = accessor.get('IWorkspaceContextService').getWorkspace().folders;
+			const baseUri = workspaceFolders[0]?.uri;
+			if (!baseUri) return [];
+			for (const hit of hits) {
+				const filePath = hit.chunk.file;
+				if (seenFiles.has(filePath)) continue;
+				seenFiles.add(filePath);
+				const fileUri = URI.joinPath(baseUri, filePath);
+				opts.push({
+					leafNodeType: 'File',
+					uri: fileUri,
+					iconInMenu: File,
+					fullName: filePath,
+					abbreviatedName: getAbbreviatedName(filePath),
+				});
+			}
+			return opts;
+		} catch {
+			return [];
+		}
+	};
+
+	const searchSymbols = async (t: string): Promise<Option[]> => {
+		if (!t.trim()) return [];
+		try {
+			const result = await toolsService.callTool.find_text({
+				query: t,
+				isRegex: false,
+				includePattern: null,
+				pageNumber: 1,
+			});
+			const matches = (await result).result.matches;
+			const seenFiles = new Set<string>();
+			const opts: Option[] = [];
+			for (const match of matches) {
+				const uriStr = match.uri.toString();
+				if (seenFiles.has(uriStr)) continue;
+				seenFiles.add(uriStr);
+				const relativePath = getRelativeWorkspacePath(accessor, match.uri);
+				opts.push({
+					leafNodeType: 'File',
+					uri: match.uri,
+					iconInMenu: File,
+					fullName: relativePath,
+					abbreviatedName: getAbbreviatedName(relativePath),
+				});
+			}
+			return opts;
+		} catch {
+			return [];
+		}
+	};
+
 	const allOptions: Option[] = [
 		{
 			fullName: 'files',
@@ -295,6 +360,18 @@ const getOptionsAtPath = async (accessor: ReturnType<typeof useAccessor>, path: 
 			abbreviatedName: 'folders',
 			iconInMenu: Folder,
 			generateNextOptions: async (t) => (await searchForFilesOrFolders(t, 'folders')) || [],
+		},
+		{
+			fullName: 'codebase',
+			abbreviatedName: 'codebase',
+			iconInMenu: Database,
+			generateNextOptions: searchCodebase,
+		},
+		{
+			fullName: 'symbol',
+			abbreviatedName: 'symbol',
+			iconInMenu: Code2,
+			generateNextOptions: searchSymbols,
 		},
 	]
 
@@ -319,10 +396,20 @@ const getOptionsAtPath = async (accessor: ReturnType<typeof useAccessor>, path: 
 
 		nextOptionsAtPath = await generateNextOptionsAtPath(optionText)
 	}
-	else if (path.length === 0 && optionText.trim().length > 0) { // (special case): directly search for both files and folders if optionsPath is empty and there's a search term
-		const filesResults = await searchForFilesOrFolders(optionText, 'files') || [];
-		const foldersResults = await searchForFilesOrFolders(optionText, 'folders') || [];
-		nextOptionsAtPath = [...foldersResults, ...filesResults,]
+	else if (path.length === 0 && optionText.trim().length > 0) {
+		const [filesResults, foldersResults, codebaseResults] = await Promise.all([
+			searchForFilesOrFolders(optionText, 'files').catch(() => []),
+			searchForFilesOrFolders(optionText, 'folders').catch(() => []),
+			searchCodebase(optionText).catch(() => []),
+		]);
+		const seenPaths = new Set<string>();
+		const deduped: Option[] = [];
+		for (const opt of [...(foldersResults || []), ...(filesResults || []), ...(codebaseResults || [])]) {
+			if (seenPaths.has(opt.fullName)) continue;
+			seenPaths.add(opt.fullName);
+			deduped.push(opt);
+		}
+		nextOptionsAtPath = deduped;
 	}
 
 	const optionsAtPath = nextOptionsAtPath

@@ -28,6 +28,9 @@ import './quickEditActions.js'
 // register Autocomplete
 import './autocompleteService.js'
 
+// register Next-edit prediction (rename-pattern Tab completion)
+import './nextEditPredictionService.js'
+
 // register Context services
 // import './contextGatheringService.js'
 // import './contextUserChangesService.js'
@@ -82,11 +85,14 @@ import '../common/contextBridge/contextBridgeService.js'
 import './contextBridge/lspBridgeAdapter.js'
 
 // register Semantic Index (codebase indexing + retrieval)
-// The renderer-side impl walks the workspace via IFileService, hashes via Web Crypto,
-// and stores chunks in-memory. Lexical + optional embeddings (bge-small) retrieval is wired
-// so the meter has real progress and the agent's semantic_search gets non-empty results.
+// Full pipeline: tree-sitter chunker → @xenova/transformers embedder → sqlite-vec + FTS5 →
+// RRF hybrid retrieval. Falls back to lexical-only if native deps aren't available at runtime.
+// NOTE: The full common/semanticIndex/semanticIndexService.ts imports Node builtins (path/fs/os/crypto)
+// which crash the renderer ESM loader. Until it's behind an IPC boundary, use the browser impl
+// which does the same work via IFileService + Web Crypto (no Node deps).
 import '../common/semanticIndex/semanticIndexConfiguration.js'
 import './semanticIndexBrowserImpl.js'
+import './semanticIndexAutoStart.js'
 import './semanticIndexActions.js'
 import './semanticIndexStatusBar.js'
 

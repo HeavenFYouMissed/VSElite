@@ -21,6 +21,7 @@ import { IToolsService } from './toolsService.js';
 import { CancellationToken } from '../../../../base/common/cancellation.js';
 import { ILanguageFeaturesService } from '../../../../editor/common/services/languageFeatures.js';
 import { ChatMessage, CheckpointEntry, CodespanLocationLink, ImageAttachment, StagingSelectionItem, ToolMessage } from '../common/chatThreadServiceTypes.js';
+import { shouldPersistAssistantTurn } from '../common/chatMessageContent.js';
 import { Position } from '../../../../editor/common/core/position.js';
 import { IMetricsService } from '../common/metricsService.js';
 import { shorten } from '../../../../base/common/labels.js';
@@ -205,6 +206,21 @@ export type ThreadStreamState = {
 	}
 }
 
+// Subagent tracking — a background agent running on a separate thread
+export type SubagentInfo = {
+	subagentThreadId: string;
+	parentThreadId: string;
+	parentToolId: string;
+	description: string;
+	status: 'running' | 'completed' | 'error';
+	result?: string;
+	error?: string;
+}
+
+export type SubagentState = {
+	[subagentThreadId: string]: SubagentInfo;
+}
+
 const newThreadObject = () => {
 	const now = new Date().toISOString()
 	return {
@@ -232,6 +248,7 @@ export interface IChatThreadService {
 
 	readonly state: ThreadsState;
 	readonly streamState: ThreadStreamState; // not persistent
+	readonly subagentState: SubagentState;
 
 	onDidChangeCurrentThread: Event<void>;
 	onDidChangeStreamState: Event<{ threadId: string }>
@@ -291,6 +308,11 @@ export interface IChatThreadService {
 
 	focusCurrentChat: () => Promise<void>
 	blurCurrentChat: () => Promise<void>
+
+	// subagent
+	launchSubagent(opts: { parentThreadId: string, parentToolId: string, description: string, prompt: string, readOnly: boolean }): Promise<{ subagentThreadId: string, result: string, status: 'completed' | 'error' }>;
+	getSubagentsForThread(threadId: string): SubagentInfo[];
+	onDidChangeSubagentState: Event<{ subagentThreadId: string }>;
 }
 
 export const IChatThreadService = createDecorator<IChatThreadService>('voidChatThreadService');
@@ -304,8 +326,15 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 	private readonly _onDidChangeStreamState = new Emitter<{ threadId: string }>();
 	readonly onDidChangeStreamState: Event<{ threadId: string }> = this._onDidChangeStreamState.event;
 
+	private readonly _onDidChangeSubagentState = new Emitter<{ subagentThreadId: string }>();
+	readonly onDidChangeSubagentState: Event<{ subagentThreadId: string }> = this._onDidChangeSubagentState.event;
+
 	readonly streamState: ThreadStreamState = {}
+	readonly subagentState: SubagentState = {}
 	state: ThreadsState // allThreads is persisted, currentThread is not
+
+	/** User sent a follow-up while the agent is still running — finish current step, then continue with new context. */
+	private readonly _steerMessageCount = new Map<string, number>()
 
 	// used in checkpointing
 	// private readonly _userModifiedFilesToCheckInCheckpoints = new LRUCache<string, null>(50)
@@ -342,6 +371,8 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 		// always be in a thread
 		this.openNewThread()
 
+		// Wire subagent launcher into ToolsService (avoids circular DI)
+		this._toolsService.setSubagentLauncher((opts) => this.launchSubagent(opts))
 
 		// keep track of user-modified files
 		// const disposablesOfModelId: { [modelId: string]: IDisposable[] } = {}
@@ -561,7 +592,9 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 		// add assistant message
 		if (this.streamState[threadId]?.isRunning === 'LLM') {
 			const { displayContentSoFar, reasoningSoFar, toolCallSoFar } = this.streamState[threadId].llmInfo
-			this._addMessageToThread(threadId, { role: 'assistant', displayContent: displayContentSoFar, reasoning: reasoningSoFar, anthropicReasoning: null })
+			if (shouldPersistAssistantTurn(displayContentSoFar, reasoningSoFar)) {
+				this._addMessageToThread(threadId, { role: 'assistant', displayContent: displayContentSoFar, reasoning: reasoningSoFar, anthropicReasoning: null })
+			}
 			if (toolCallSoFar) this._addMessageToThread(threadId, { role: 'interrupted_streaming_tool', name: toolCallSoFar.name, mcpServerName: this._computeMCPServerOfToolName(toolCallSoFar.name) })
 		}
 		// add tool that's running
@@ -675,7 +708,7 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 			this._setStreamState(threadId, { isRunning: 'tool', interrupt: interruptorPromise, toolInfo: { toolName, toolParams, id: toolId, content: 'interrupted...', rawParams: opts.unvalidatedToolParams, mcpServerName } })
 
 			if (isBuiltInTool) {
-				const { result, interruptTool } = await this._toolsService.callTool[toolName](toolParams as any)
+				const { result, interruptTool } = await this._toolsService.callTool[toolName](toolParams as any, { threadId, toolId })
 				const interruptor = () => { interrupted = true; interruptTool?.() }
 				resolveInterruptor(interruptor)
 
@@ -790,6 +823,8 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 
 			this._setStreamState(threadId, { isRunning: 'idle', interrupt: idleInterruptor })
 
+			this._clearUserMessageQueuedFlags(threadId)
+
 			const chatMessages = this.state.allThreads[threadId]?.messages ?? []
 			const { messages, separateSystemMessage } = await this._convertToLLMMessagesService.prepareLLMChatMessages({
 				chatMessages,
@@ -850,15 +885,19 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 				this._setStreamState(threadId, { isRunning: 'LLM', llmInfo: { displayContentSoFar: '', reasoningSoFar: '', toolCallSoFar: null }, interrupt: Promise.resolve(() => this._llmMessageService.abort(llmCancelToken)) })
 				const llmRes = await messageIsDonePromise // wait for message to complete
 
-				// if something else started running in the meantime
-				if (this.streamState[threadId]?.isRunning !== 'LLM') {
-					// console.log('Chat thread interrupted by a newer chat thread', this.streamState[threadId]?.isRunning)
+				// llm res aborted (check before isRunning guard — steer clears stream state early)
+				if (llmRes.type === 'llmAborted') {
+					if (this._consumeSteerIfAny(threadId)) {
+						shouldSendAnotherMessage = true
+						this._setStreamState(threadId, { isRunning: 'idle', interrupt: idleInterruptor })
+						break
+					}
+					this._setStreamState(threadId, undefined)
 					return
 				}
 
-				// llm res aborted
-				if (llmRes.type === 'llmAborted') {
-					this._setStreamState(threadId, undefined)
+				// if something else started running in the meantime
+				if (this.streamState[threadId]?.isRunning !== 'LLM') {
 					return
 				}
 				// llm res error
@@ -881,7 +920,7 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 						const { displayContentSoFar, reasoningSoFar, toolCallSoFar } = this.streamState[threadId].llmInfo
 						// Only commit an assistant message when we actually have something to show.
 						// Otherwise we add an empty bubble ("fake line") on top of the streamState.error toast.
-						if (displayContentSoFar || reasoningSoFar) {
+						if (shouldPersistAssistantTurn(displayContentSoFar, reasoningSoFar)) {
 							this._addMessageToThread(threadId, { role: 'assistant', displayContent: displayContentSoFar, reasoning: reasoningSoFar, anthropicReasoning: null })
 						}
 						if (toolCallSoFar) this._addMessageToThread(threadId, { role: 'interrupted_streaming_tool', name: toolCallSoFar.name, mcpServerName: this._computeMCPServerOfToolName(toolCallSoFar.name) })
@@ -895,7 +934,9 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 				// llm res success
 				const { toolCall, info } = llmRes
 
-				this._addMessageToThread(threadId, { role: 'assistant', displayContent: info.fullText, reasoning: info.fullReasoning, anthropicReasoning: info.anthropicReasoning })
+				if (shouldPersistAssistantTurn(info.fullText, info.fullReasoning)) {
+					this._addMessageToThread(threadId, { role: 'assistant', displayContent: info.fullText, reasoning: info.fullReasoning, anthropicReasoning: info.anthropicReasoning })
+				}
 
 				this._setStreamState(threadId, { isRunning: 'idle', interrupt: 'not_needed' }) // just decorative for clarity
 
@@ -906,13 +947,20 @@ class ChatThreadService extends Disposable implements IChatThreadService {
 
 					const { awaitingUserApproval, interrupted } = await this._runToolCall(threadId, toolCall.name, toolCall.id, mcpTool?.mcpServerName, { preapproved: false, unvalidatedToolParams: toolCall.rawParams })
 					if (interrupted) {
-						this._setStreamState(threadId, undefined)
-						return
+						if (this._consumeSteerIfAny(threadId)) {
+							shouldSendAnotherMessage = true
+						} else {
+							this._setStreamState(threadId, undefined)
+							return
+						}
 					}
-					if (awaitingUserApproval) { isRunningWhenEnd = 'awaiting_user' }
+					else if (awaitingUserApproval) { isRunningWhenEnd = 'awaiting_user' }
 					else { shouldSendAnotherMessage = true }
 
 					this._setStreamState(threadId, { isRunning: 'idle', interrupt: 'not_needed' }) // just decorative, for clarity
+				}
+				else if (this._consumeSteerIfAny(threadId)) {
+					shouldSendAnotherMessage = true
 				}
 
 			} // end while (attempts)
@@ -1249,14 +1297,53 @@ We only need to do it for files that were edited since `from`, ie files between 
 	}
 
 
+	private async _interruptCurrentStep(threadId: string) {
+		const st = this.streamState[threadId]
+		if (!st?.isRunning) return
+		const interrupt = st.interrupt
+		if (!interrupt || interrupt === 'not_needed') return
+		try {
+			const fn = typeof interrupt === 'function' ? interrupt : await interrupt
+			if (typeof fn === 'function') fn()
+		} catch { /* ignore */ }
+	}
+
+	private _queueSteer(threadId: string) {
+		this._steerMessageCount.set(threadId, (this._steerMessageCount.get(threadId) ?? 0) + 1)
+	}
+
+	private _clearUserMessageQueuedFlags(threadId: string) {
+		const thread = this.state.allThreads[threadId]
+		if (!thread) return
+		let changed = false
+		const messages = thread.messages.map(m => {
+			if (m.role === 'user' && m.state.isQueued) {
+				changed = true
+				return { ...m, state: { ...m.state, isQueued: false } }
+			}
+			return m
+		})
+		if (!changed) return
+		const newThreads = {
+			...this.state.allThreads,
+			[threadId]: { ...thread, messages },
+		}
+		this._storeAllThreads(newThreads)
+		this._setState({ allThreads: newThreads })
+	}
+
+	private _consumeSteerIfAny(threadId: string): boolean {
+		const n = this._steerMessageCount.get(threadId) ?? 0
+		if (n <= 0) return false
+		this._steerMessageCount.set(threadId, n - 1)
+		return true
+	}
+
 	private async _addUserMessageAndStreamResponse({ userMessage, _chatSelections, threadId, images }: { userMessage: string, _chatSelections?: StagingSelectionItem[], threadId: string, images?: ImageAttachment[] }) {
 		const thread = this.state.allThreads[threadId]
 		if (!thread) return // should never happen
 
-		// interrupt existing stream
-		if (this.streamState[threadId]?.isRunning) {
-			await this.abortRunning(threadId)
-		}
+		const wasRunning = !!this.streamState[threadId]?.isRunning
 
 		// add dummy before this message to keep checkpoint before user message idea consistent
 		if (thread.messages.length === 0) {
@@ -1269,15 +1356,28 @@ We only need to do it for files that were edited since `from`, ie files between 
 		const currSelns: StagingSelectionItem[] = _chatSelections ?? thread.state.stagingSelections
 
 		const userMessageContent = await chat_userMessageContent(instructions, currSelns, { directoryStrService: this._directoryStringService, fileService: this._fileService }) // user message + names of files (NOT content)
-		const userHistoryElt: ChatMessage = { role: 'user', content: userMessageContent, displayContent: instructions, selections: currSelns, state: defaultMessageState, ...(images && images.length > 0 ? { images } : {}) }
+		const userHistoryElt: ChatMessage = {
+			role: 'user',
+			content: userMessageContent,
+			displayContent: instructions,
+			selections: currSelns,
+			state: { ...defaultMessageState, ...(wasRunning ? { isQueued: true } : {}) },
+			...(images && images.length > 0 ? { images } : {}),
+		}
 		this._addMessageToThread(threadId, userHistoryElt)
 
 		this._setThreadState(threadId, { currCheckpointIdx: null }) // no longer at a checkpoint because started streaming
 
-		this._wrapRunAgentToNotify(
-			this._runChatAgent({ threadId, ...this._currentModelSelectionProps(), }),
-			threadId,
-		)
+		if (wasRunning) {
+			// Steer: queue follow-up (VS Code / Continue style) — do not tear down the whole agent run
+			this._queueSteer(threadId)
+			await this._interruptCurrentStep(threadId)
+		} else {
+			this._wrapRunAgentToNotify(
+				this._runChatAgent({ threadId, ...this._currentModelSelectionProps(), }),
+				threadId,
+			)
+		}
 
 		// scroll to bottom
 		this.state.allThreads[threadId]?.state.mountedInfo?.whenMounted.then(m => {
@@ -1896,6 +1996,84 @@ We only need to do it for files that were edited since `from`, ie files between 
 	}
 
 
+	// ── Subagent (background agent) support ──
+
+	getSubagentsForThread(threadId: string): SubagentInfo[] {
+		return Object.values(this.subagentState).filter(s => s.parentThreadId === threadId)
+	}
+
+	private _setSubagentState(subagentThreadId: string, info: SubagentInfo) {
+		this.subagentState[subagentThreadId] = info
+		this._onDidChangeSubagentState.fire({ subagentThreadId })
+	}
+
+	async launchSubagent({ parentThreadId, parentToolId, description, prompt, readOnly }: {
+		parentThreadId: string,
+		parentToolId: string,
+		description: string,
+		prompt: string,
+		readOnly: boolean,
+	}): Promise<{ subagentThreadId: string, result: string, status: 'completed' | 'error' }> {
+
+		const subThread = newThreadObject()
+		const subThreadId = subThread.id
+
+		// Add subagent thread to allThreads (but don't switch to it)
+		const newThreads = { ...this.state.allThreads, [subThreadId]: subThread }
+		this._storeAllThreads(newThreads)
+		this._setState({ allThreads: newThreads })
+
+		// Register subagent tracking
+		this._setSubagentState(subThreadId, {
+			subagentThreadId: subThreadId,
+			parentThreadId,
+			parentToolId,
+			description,
+			status: 'running',
+		})
+
+		// Add the prompt as a user message on the subagent thread
+		const subagentSystemPrompt = `You are a background subagent performing a focused task. Complete the task below and return a concise summary of your findings.\n\nTask: ${prompt}`
+		this._addMessageToThread(subThreadId, {
+			role: 'user',
+			content: subagentSystemPrompt,
+			displayContent: prompt,
+			selections: null,
+			state: { stagingSelections: [], isBeingEdited: false },
+		})
+
+		// Run the chat agent loop on the subagent thread
+		try {
+			await this._runChatAgent({
+				threadId: subThreadId,
+				...this._currentModelSelectionProps(),
+			})
+
+			// Collect the subagent's response
+			const subMessages = this.state.allThreads[subThreadId]?.messages ?? []
+			const assistantMessages = subMessages.filter(m => m.role === 'assistant')
+			const lastAssistant = assistantMessages[assistantMessages.length - 1]
+			const result = lastAssistant && 'displayContent' in lastAssistant
+				? (lastAssistant.displayContent || '(subagent completed with no text output)')
+				: '(subagent completed with no text output)'
+
+			this._setSubagentState(subThreadId, {
+				...this.subagentState[subThreadId],
+				status: 'completed',
+				result,
+			})
+
+			return { subagentThreadId: subThreadId, result, status: 'completed' }
+		} catch (err) {
+			const errorMsg = err instanceof Error ? err.message : String(err)
+			this._setSubagentState(subThreadId, {
+				...this.subagentState[subThreadId],
+				status: 'error',
+				error: errorMsg,
+			})
+			return { subagentThreadId: subThreadId, result: `Subagent error: ${errorMsg}`, status: 'error' }
+		}
+	}
 
 }
 

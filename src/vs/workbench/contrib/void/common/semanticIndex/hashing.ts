@@ -11,7 +11,7 @@
  * renderer/worker context, so requiring `crypto` is fine.
  */
 
-import { createHash } from 'crypto';
+import { createHash } from 'node:crypto';
 
 /** Normalize any FS path to POSIX form. All chunk.file values use POSIX. */
 export function toPosix(p: string): string {

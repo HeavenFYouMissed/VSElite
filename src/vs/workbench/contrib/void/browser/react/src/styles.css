@@ -85,17 +85,19 @@
 	--void-border-1: var(--vscode-panel-border, var(--vscode-widget-border));
 	--void-border-2: var(--vscode-panel-border, var(--vscode-widget-border));
 	/* Muted, non-bright border for chat cards/dividers. The bright accent line is
-	   reserved for the composer (input box) only -- everything else stays subtle. */
-	--void-border-3: rgba(255, 255, 255, 0.08);
+	   reserved for the composer (input box) only -- everything else stays subtle.
+	   Derived from the theme foreground so it stays visible in light AND dark themes. */
+	--void-border-3: color-mix(in srgb, var(--vscode-foreground) 12%, transparent);
 	--void-border-4: var(--vscode-panel-border, var(--vscode-widget-border));
 
 	--void-ring-color: var(--v3-amethyst);
 	--void-link-color: var(--v3-amethyst-glow);
 
 	/* Composer + accepted-user-message surface: a lighter muted purple that lifts the
-	   input/user bubbles off the near-black chat background for depth (Cursor's "mocha"
-	   effect). Tune this single value to taste. */
-	--v3-input-surface: #2a1f47;
+	   input/user bubbles off the chat background for depth (Cursor's "mocha" effect).
+	   Mixed against the active theme background so it adapts to light/dark/high-contrast
+	   while keeping the amethyst brand tint. */
+	--v3-input-surface: color-mix(in srgb, var(--vscode-sideBar-background) 82%, var(--v3-amethyst) 18%);
 }
 
 .select-child-restyle select {
@@ -221,4 +223,52 @@ textarea.void-bg-transparent:hover {
 .v3-focus-ring:focus-visible {
 	outline: 2px solid var(--v3-amethyst);
 	outline-offset: 1px;
+}
+
+/* Continue-style composer pills — class names match scope-tailwind output (void-* prefix) */
+.void-continue-composer-control {
+	border: none !important;
+	border-left: none !important;
+	border-right: none !important;
+	box-shadow: none !important;
+	outline: none !important;
+	background-image: none !important;
+}
+.void-continue-composer-control:focus,
+.void-continue-composer-control:focus-visible {
+	outline: 1px solid var(--vscode-focusBorder) !important;
+	outline-offset: 0;
+	box-shadow: none !important;
+}
+
+.void-continue-composer-menu .void-continue-composer-control {
+	border-radius: 0 !important;
+	background: transparent !important;
+}
+.void-continue-composer-control svg {
+	width: 10px;
+	height: 10px;
+	flex-shrink: 0;
+}
+
+/* Chat composer wrapper — use chat-composer in TSX so scoped class is void-chat-composer */
+.void-chat-composer {
+	transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.void-chat-composer:focus-within,
+.void-chat-composer.void-chat-composer--focused {
+	border-color: var(--vscode-focusBorder) !important;
+	box-shadow: 0 0 0 1px var(--vscode-focusBorder);
+}
+.void-chat-composer.void-chat-composer--streaming:not(:focus-within):not(.void-chat-composer--focused) {
+	border-color: var(--vscode-widget-border);
+}
+
+/* Tool chain — tight vertical spacing, override negative margins from tool bubbles */
+.void-tool-chain > div > div {
+	margin-top: 0 !important;
+	margin-bottom: 0 !important;
+}
+.void-tool-chain div[class*="-mt-"] {
+	margin-top: 0 !important;
 }

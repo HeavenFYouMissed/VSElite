@@ -2,6 +2,7 @@ import { VScreensaver } from './VScreensaver'
 
 export type Activity = { when: string; what: string }
 export type Skill = { name: string; desc?: string }
+export type GitSummary = { branch: string; dirty: boolean; fileCount: number }
 
 export function VSidePanel({
 	connected,
@@ -13,6 +14,8 @@ export function VSidePanel({
 	memorySummary,
 	sandboxFiles,
 	onApproveSandbox,
+	gitSummary,
+	onGitClick,
 }: {
 	connected: boolean
 	recent: Activity[]
@@ -23,6 +26,8 @@ export function VSidePanel({
 	memorySummary?: string
 	sandboxFiles?: { path: string; bytes: number }[]
 	onApproveSandbox?: (path: string) => void
+	gitSummary?: GitSummary | null
+	onGitClick?: () => void
 }) {
 	const pct = ctxMax ? Math.min(100, Math.round((ctxUsed ?? 0) / ctxMax * 100)) : 0
 	const filled = Math.round(pct / 10)
@@ -41,6 +46,22 @@ export function VSidePanel({
 						[{ '█'.repeat(filled) }{ '░'.repeat(10 - filled) }] {pct}%
 					</div>
 					<div className="panel-row"><span className="when">tokens</span><span className="what">~{ctxUsed} / {ctxMax}</span></div>
+				</section>
+			)}
+
+			{gitSummary && (
+				<section className="panel panel-clickable" onClick={onGitClick}>
+					<div className="panel-label">git</div>
+					<div className="panel-row">
+						<span className="when">branch</span>
+						<span className="what git-branch-text">{gitSummary.branch}</span>
+					</div>
+					<div className="panel-row">
+						<span className="when">status</span>
+						<span className={`what ${gitSummary.dirty ? 'git-dirty' : 'git-clean-text'}`}>
+							{gitSummary.dirty ? `${gitSummary.fileCount} changed` : 'clean'}
+						</span>
+					</div>
 				</section>
 			)}
 

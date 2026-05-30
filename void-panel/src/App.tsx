@@ -1,16 +1,74 @@
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState, useCallback } from 'react'
 import { VStage, type Choice } from './components/VStage'
 import { VSidePanel, type Activity, type Skill } from './components/VSidePanel'
 import { BuildingView, type BuildStep } from './components/BuildingView'
 import { VSlashMenu, type SlashItem } from './components/VSlashMenu'
 import { VSkillsView, type CatalogSkill } from './components/VSkillsView'
+import { VGitView } from './components/VGitView'
 import { VQuestions, type VQuestion } from './components/VQuestions'
 import { useProjectBriefing } from './hooks/useVoidBridge'
 import { bridge, type AgentEvent } from './lib/messagePort'
 
+// ─── Voice system ────────────────────────────────────────────────────────────
+function useVoice() {
+	const [enabled, setEnabled] = useState(() => localStorage.getItem('v.voice') === 'on')
+	const speakingRef = useRef(false)
+
+	const toggle = useCallback((on?: boolean) => {
+		const next = on ?? !enabled
+		setEnabled(next)
+		localStorage.setItem('v.voice', next ? 'on' : 'off')
+		if (!next) stop()
+	}, [enabled])
+
+	const chooseVoice = useCallback(async (): Promise<SpeechSynthesisVoice | null> => {
+		if (!('speechSynthesis' in window)) return null
+		let voices = speechSynthesis.getVoices()
+		if (!voices.length) {
+			await new Promise<void>(r => { speechSynthesis.onvoiceschanged = () => r(); setTimeout(r, 2000) })
+			voices = speechSynthesis.getVoices()
+		}
+		return voices.find(v => /Google UK English Male/i.test(v.name)) ||
+			voices.find(v => /Daniel/i.test(v.name)) ||
+			voices.find(v => /Microsoft Mark/i.test(v.name)) ||
+			voices.find(v => /Microsoft David/i.test(v.name)) ||
+			voices.find(v => /Alex/i.test(v.name)) ||
+			voices.find(v => /Google US English/i.test(v.name)) ||
+			voices.find(v => /^en[-_]/i.test(v.lang) && /male/i.test(v.name)) ||
+			voices.find(v => /^en[-_]/i.test(v.lang)) ||
+			voices[0] || null
+	}, [])
+
+	const speak = useCallback(async (text: string) => {
+		if (!enabled || !('speechSynthesis' in window)) return
+		const clean = text.replace(/[·•▸╱#*`\[\]]/g, '').replace(/\n+/g, '. ').trim()
+		if (!clean || clean.length < 3) return
+		const utter = new SpeechSynthesisUtterance(clean)
+		const voice = await chooseVoice()
+		if (voice) { utter.voice = voice; utter.lang = voice.lang || 'en-US' }
+		else { utter.lang = 'en-US' }
+		utter.pitch = 0.95
+		utter.rate = 1.05
+		utter.volume = 0.85
+		utter.onstart = () => { speakingRef.current = true }
+		utter.onend = () => { speakingRef.current = false }
+		utter.onerror = () => { speakingRef.current = false }
+		speechSynthesis.cancel()
+		speechSynthesis.speak(utter)
+	}, [enabled, chooseVoice])
+
+	const stop = useCallback(() => {
+		if ('speechSynthesis' in window) speechSynthesis.cancel()
+		speakingRef.current = false
+	}, [])
+
+	return { enabled, toggle, speak, stop, speakingRef }
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 type Role = 'v' | 'you' | 'sys'
 type Msg = { role: Role; text: string }
-type VView = 'home' | 'building' | 'skills'
+type VView = 'home' | 'building' | 'skills' | 'git'
 type BuildState = { title: string; steps: BuildStep[]; pct: number }
 type MemInfo = { profileLines?: number; journalEntries?: number; projectId?: string }
 type SandboxFile = { path: string; bytes: number }
@@ -34,10 +92,16 @@ const humanizeTool = (name: string): string => {
 }
 
 const SLASH_COMMANDS: SlashItem[] = [
+	{ name: 'home', desc: 'back to V main menu', kind: 'command' },
+	{ name: 'voice', desc: 'toggle V voice on/off', kind: 'command' },
 	{ name: 'skills', desc: 'browse + mount skills onto the agent', kind: 'command' },
 	{ name: 'skill-create', arg: 'task', desc: 'author a new skill for the agent', kind: 'command' },
 	{ name: 'start', arg: 'idea', desc: 'start a project — structured intake', kind: 'command' },
 	{ name: 'project', arg: 'idea', desc: 'start a project (alias)', kind: 'command' },
+	{ name: 'git', desc: 'open git panel — branch, status, log', kind: 'command' },
+	{ name: 'diff', desc: 'show uncommitted changes', kind: 'command' },
+	{ name: 'commit', arg: 'msg', desc: 'compose + run a git commit', kind: 'command' },
+	{ name: 'pr', arg: 'context', desc: 'draft a PR description', kind: 'command' },
 	{ name: 'sprite', desc: 'open image → sprite studio', kind: 'command' },
 	{ name: 'asset', desc: 'open alien sprite studio', kind: 'command' },
 	{ name: 'prompt', arg: 'prompt', desc: 'sharpen a prompt for the agent', kind: 'command' },
@@ -111,6 +175,7 @@ export function App() {
 	const awaitingPrompt = useRef(false)
 	useEffect(() => { streamingRef.current = streaming }, [streaming])
 	const [slashIndex, setSlashIndex] = useState(0)
+	const voice = useVoice()
 
 	const goHome = () => { setView('home'); setBuild(null) }
 
@@ -128,6 +193,23 @@ export function App() {
 		bridge.call<{ files?: SandboxFile[] }>('vSandboxList', {})
 			.then(r => setSandboxFiles(r?.files ?? []))
 			.catch(() => { /* none */ })
+	}
+
+	// Git state
+	const [gitInfo, setGitInfo] = useState<{ branch: string; status: string; log: string; branches: string } | null>(null)
+	const refreshGit = () => {
+		Promise.all([
+			bridge.call<{ branch: string; branches: string }>('vGitBranch', {}),
+			bridge.call<{ status: string }>('vGitStatus', {}),
+			bridge.call<{ log: string }>('vGitLog', { count: 10 }),
+		]).then(([br, st, lg]) => {
+			setGitInfo({
+				branch: br?.branch ?? '(unknown)',
+				status: st?.status ?? '(clean)',
+				log: lg?.log ?? '',
+				branches: br?.branches ?? '',
+			})
+		}).catch(() => setGitInfo(null))
 	}
 
 	// Skills page: list editor-agent skills (categorised), then mount the chosen one onto the agent.
@@ -182,6 +264,7 @@ export function App() {
 		setChoices([
 			{ label: 'sharpen a prompt' },
 			{ label: 'start a project' },
+			{ label: 'git status' },
 			{ label: 'watch the agent' },
 			{ label: 'browse skills' },
 			{ label: 'make an asset' },
@@ -197,6 +280,7 @@ export function App() {
 			.catch(() => { /* standalone / no folder */ })
 		refreshMemorySummary()
 		refreshSandbox()
+		refreshGit()
 	}, [connected, briefing])
 
 	// Context-window meter: the host pushes {used,max} after each V turn.
@@ -308,13 +392,25 @@ export function App() {
 			lastProposed.current = body
 			awaitingPrompt.current = false
 		}
-		upsertV(body || '…')
+		upsertV(body || '')
+		// don't leave a blank V bubble — if body is empty (tool-only turn), remove the trailing empty V message
+		if (!body) {
+			setMessages(m => {
+				const copy = m.slice()
+				if (copy.length && copy[copy.length - 1].role === 'v' && !copy[copy.length - 1].text) copy.pop()
+				return copy
+			})
+		}
 		const extra: Choice[] = [...parsed]
 		if (lastProposed.current && !extra.some(c => /send to agent/i.test(c.label))) extra.unshift({ label: 'send to agent' })
+		if (lastProposed.current && !extra.some(c => /refine/i.test(c.label))) extra.push({ label: 'refine' })
+		if (!extra.some(c => /watch.*chat/i.test(c.label))) extra.push({ label: 'watch the chat' })
 		if (!extra.some(c => /save this/i.test(c.label))) extra.push({ label: 'save this' })
 		setChoices(extra)
 		setStreaming(false)
 		refreshMemorySummary()
+		// Speak V's reply if voice is enabled
+		if (body) voice.speak(body)
 		refreshSandbox()
 	}
 
@@ -336,8 +432,28 @@ export function App() {
 		switch (name) {
 			case 'clear':
 				setMessages([{ role: 'sys', text: 'transcript cleared' }]); setChoices([]); return true
+			case 'home':
+				goHome()
+				setChoices([
+					{ label: 'sharpen a prompt' },
+					{ label: 'start a project' },
+					{ label: 'git status' },
+					{ label: 'watch the agent' },
+					{ label: 'browse skills' },
+					{ label: 'make an asset' },
+					{ label: 'help' },
+				])
+				return true
 			case 'help':
 				setMessages(m => [...m, { role: 'sys', text: 'commands: ' + SLASH_COMMANDS.map(c => '/' + c.name).join('  ') }]); return true
+			case 'voice': {
+				const next = arg === 'off' ? false : arg === 'on' ? true : !voice.enabled
+				voice.toggle(next)
+				setMessages(m => [...m, { role: 'sys', text: `· voice ${next ? 'on' : 'off'}` }])
+				return true
+			}
+			case 'stop':
+				voice.stop(); return true
 			case 'skills':
 				openSkills(); return true
 			case 'watch':
@@ -385,6 +501,32 @@ export function App() {
 			case 'skill':
 				if (!arg) return false
 				askV(`act as my skill concierge for this task: "${arg}". tell me if an existing skill fits, or sketch a new SKILL.md (name + description + category + steps). keep it tight.`, `/skill ${arg}`); return true
+			case 'git':
+			case 'repo': {
+				setMessages(m => [...m, { role: 'you', text: '/git' }])
+				setView('git')
+				refreshGit()
+				return true
+			}
+			case 'diff':
+				setMessages(m => [...m, { role: 'you', text: '/diff' }])
+				bridge.call<{ diff: string }>('vGitDiff', { staged: !!arg?.includes('staged') })
+					.then(r => {
+						const d = r?.diff ?? '(no changes)'
+						setMessages(m => [...m, { role: 'sys', text: d.length > 2000 ? d.slice(0, 2000) + '\n... (truncated)' : d }])
+					})
+					.catch(() => setMessages(m => [...m, { role: 'sys', text: '⚠ git diff failed' }]))
+				return true
+			case 'commit':
+				if (!arg) {
+					askV('look at the current git diff and status, then compose a good commit message. return ONLY the message, no preamble. add a trailer line: "Assisted-by: V via DeepSeek"', '/commit'); return true
+				}
+				bridge.call<{ output: string }>('callTool', { toolName: 'git_commit', params: { message: arg + '\n\nAssisted-by: V via DeepSeek' } })
+					.then(r => setMessages(m => [...m, { role: 'sys', text: `· committed: ${r?.output ?? 'done'}` }]))
+					.catch(e => setMessages(m => [...m, { role: 'sys', text: `⚠ commit failed: ${e}` }]))
+				return true
+			case 'pr':
+				askV(`read the git log (last 10 commits) and git diff against main. then draft a PR title and description in markdown format. the description should have: ## Summary (1-3 bullet points), ## Changes (list of files), ## Test plan. return ONLY the PR body.${arg ? ` context: ${arg}` : ''}`, '/pr'); return true
 			default:
 				return false
 		}
@@ -396,6 +538,13 @@ export function App() {
 		if (norm === 'send to agent' && lastProposed.current) {
 			runMainAgent(lastProposed.current); lastProposed.current = null; setChoices([]); return
 		}
+		if (norm === 'refine' && lastProposed.current) {
+			askV(`the user wants you to refine this prompt further. improve clarity, be more specific about files/paths, add constraints, tighten scope. return ONLY the improved prompt:\n\n${lastProposed.current}`, 'refine the prompt')
+			return
+		}
+		if (norm === 'watch the chat') {
+			runCommand('watch', ''); setChoices([]); return
+		}
 		if (norm === 'save this') {
 			const lastV = [...messages].reverse().find(m => m.role === 'v')
 			if (lastV?.text) bridge.call('vRemember', { text: lastV.text }).then(refreshMemorySummary).catch(() => { /* */ })
@@ -406,6 +555,7 @@ export function App() {
 			case 'browse skills': openSkills(); return
 			case 'make a skill': setInput('/skill-create '); return
 			case 'start a project': runCommand('start', ''); setChoices([]); return
+			case 'git status': runCommand('git', ''); setChoices([]); return
 			case 'sharpen a prompt': setInput('/prompt '); return
 			case 'security rephrase': setInput('/security '); return
 			case 'watch the agent': runCommand('watch', ''); setChoices([]); return
@@ -417,7 +567,14 @@ export function App() {
 
 	const send = (text: string) => {
 		const t = text.trim()
-		if (!t || streaming) return
+		if (!t) return
+		// If V is streaming, abort it first then send the new message
+		if (streaming) {
+			bridge.call('vAbort', {}).catch(() => { /* best effort */ })
+			setStreaming(false)
+			voice.stop()
+			setMessages(m => [...m, { role: 'sys', text: '· interrupted' }])
+		}
 		const slash = t.match(/^\/(\w[\w-]*)\s*(.*)$/)
 		if (slash) {
 			const handled = runCommand(slash[1].toLowerCase(), slash[2].trim())
@@ -465,6 +622,8 @@ export function App() {
 					onMake={() => { goHome(); setInput('/skill-create ') }}
 					onBack={goHome}
 				/>
+			) : view === 'git' ? (
+				<VGitView info={gitInfo} onRefresh={refreshGit} onBack={goHome} onCommand={(cmd) => { goHome(); send(cmd) }} />
 			) : (
 			<div className="main">
 				<div className="col-left">
@@ -505,6 +664,12 @@ export function App() {
 								.then(() => { refreshSandbox(); setMessages(m => [...m, { role: 'sys', text: `· applied ${path}` }]) })
 								.catch(() => setMessages(m => [...m, { role: 'sys', text: `⚠ could not apply ${path}` }]))
 						}}
+						gitSummary={gitInfo ? {
+							branch: gitInfo.branch,
+							dirty: !gitInfo.status.includes('clean') && gitInfo.status.trim().length > 0,
+							fileCount: gitInfo.status.split('\n').filter(Boolean).length,
+						} : null}
+						onGitClick={() => { setView('git'); refreshGit() }}
 					/>
 				</div>
 			</div>
@@ -529,6 +694,14 @@ export function App() {
 						placeholder="talk to V…  (/ for commands)"
 						autoFocus
 					/>
+					<button
+						type="button"
+						className={`voice-pill ${voice.enabled ? 'voice-pill--on' : ''}`}
+						onClick={() => voice.toggle()}
+						title={voice.enabled ? 'voice on — click to mute' : 'voice off — click to enable'}
+					>
+						{voice.enabled ? '🔊' : '🔇'}
+					</button>
 					<span className="cursor">▋</span>
 				</div>
 			</div>

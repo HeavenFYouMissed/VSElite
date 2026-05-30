@@ -20,8 +20,8 @@
  * Both are rare in practice; add when a real workspace surfaces the need.
  */
 
-import { promises as fs } from 'fs';
-import { join } from 'path';
+import { promises as fs } from 'node:fs';
+import { join } from 'node:path';
 
 export interface IgnoreRule {
 	readonly re: RegExp;

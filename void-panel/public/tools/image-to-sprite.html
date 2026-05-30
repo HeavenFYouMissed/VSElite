@@ -1,61 +1,309 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8" />
-<title>V · image to sprite</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VSElite — image → pixel sprite</title>
 <style>
-body { margin: 0; background: #0a0612; color: #c8bbe0; font-family: ui-monospace, monospace; }
-header { display: flex; gap: 8px; padding: 8px; border-bottom: 1px solid #3a2a5a; align-items: center; }
-canvas { image-rendering: pixelated; border: 1px solid #5fd35f; margin: 12px; }
-button { font-family: inherit; cursor: pointer; background: #5fd35f; color: #0a0612; border: none; padding: 6px 12px; border-radius: 4px; }
-input[type=file] { color: #c8bbe0; }
+  :root{
+    --bg:#0c1016; --panel:#11161f; --line:#1f2733;
+    --ink:#c7d2dd; --dim:#5d6b7a; --accent:#e07a4a; --green:#4ea03b;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    background:var(--bg);color:var(--ink);
+    font-family:"DM Mono","JetBrains Mono",ui-monospace,Menlo,monospace;
+    min-height:100vh;padding:26px 16px 70px;
+    background-image:
+      radial-gradient(circle at 50% -10%, rgba(224,122,74,.10), transparent 55%),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.013) 0 1px, transparent 1px 3px);
+  }
+  .wrap{max-width:780px;margin:0 auto}
+  h1{font-size:13px;letter-spacing:.32em;text-transform:uppercase;color:var(--dim);font-weight:500;margin-bottom:4px}
+  .sub{font-size:12px;color:var(--dim);margin-bottom:22px}
+  .sub b{color:var(--accent)}
+
+  /* drop zone */
+  #drop{
+    display:block;
+    border:1.5px dashed var(--line);border-radius:14px;
+    padding:30px 20px;text-align:center;cursor:pointer;transition:.18s;
+    background:var(--panel);
+  }
+  #drop.drag{border-color:var(--accent);background:#151c27}
+  #drop p{font-size:13px;color:var(--ink)}
+  #drop small{font-size:11px;color:var(--dim);display:block;margin-top:6px}
+  /* visually hide the input but keep it tappable/interactive on mobile */
+  .vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;pointer-events:none}
+
+  /* stage */
+  .stage{
+    display:none;margin-top:18px;
+    grid-template-columns:1fr 1fr;gap:14px;
+  }
+  .stage.show{display:grid}
+  .card{
+    background:radial-gradient(circle at 50% 35%, #161d28, var(--panel) 72%);
+    border:1px solid var(--line);border-radius:14px;
+    min-height:240px;display:flex;align-items:center;justify-content:center;
+    overflow:hidden;position:relative;
+  }
+  .card .tag{position:absolute;top:9px;left:11px;font-size:9px;letter-spacing:.2em;text-transform:uppercase;color:var(--dim)}
+  .card::after{content:"";position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,rgba(0,0,0,.14) 0 2px,transparent 2px 4px);mix-blend-mode:multiply;opacity:.45}
+  #orig{max-width:90%;max-height:200px;image-rendering:auto;border-radius:4px}
+  #out{image-rendering:pixelated}
+
+  .controls{display:none;margin-top:16px;gap:12px;grid-template-columns:1fr 1fr}
+  .controls.show{display:grid}
+  .ctl{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:12px 14px}
+  .ctl label{display:flex;justify-content:space-between;font-size:10px;letter-spacing:.16em;text-transform:uppercase;color:var(--dim);margin-bottom:9px}
+  .ctl label .val{color:var(--accent);letter-spacing:0}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+  .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+  button{font-family:inherit;font-size:12px;cursor:pointer;background:#171e29;color:var(--ink);border:1px solid var(--line);border-radius:7px;padding:7px 12px;transition:.15s}
+  button:hover{border-color:var(--accent);color:#fff}
+  button.on{background:var(--accent);border-color:var(--accent);color:#0c1016;font-weight:600}
+  .meta{font-size:11px;color:var(--dim);margin-top:4px}
+  .meta b{color:var(--green)}
+
+  .codehead{display:none;justify-content:space-between;align-items:center;margin:24px 0 10px}
+  .codehead.show{display:flex}
+  .codehead h2{font-size:11px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);font-weight:500}
+  .tabs{display:flex;gap:6px}
+  pre{display:none;background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:16px;overflow:auto;font-size:11.5px;line-height:1.55;color:#a9b6c4;max-height:320px}
+  pre.show{display:block}
+  .hint{font-size:11px;color:var(--dim);margin-top:10px;line-height:1.5}
+  @media(max-width:560px){.controls.show,.stage.show{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-<header>
-  <input type="file" id="file" accept="image/*" />
-  <label>grid <input type="range" id="grid" min="8" max="64" value="32" /></label>
-  <button id="done">done</button>
-</header>
-<canvas id="c" width="256" height="256"></canvas>
+<div class="wrap">
+  <h1>VSElite · image → pixel sprite</h1>
+  <p class="sub">Drop any image — it gets <b>downscaled + flattened</b> into the same chunky retro grid, renders crisp as SVG, and exports straight into your alien renderer.</p>
+
+  <label id="drop" for="file">
+    <p>Tap to choose an image</p>
+    <small>png · jpg · webp · gif — everything stays on your device</small>
+    <input type="file" id="file" accept="image/*" class="vh">
+  </label>
+
+  <div class="stage" id="stage">
+    <div class="card"><span class="tag">source</span><img id="orig" alt=""></div>
+    <div class="card"><span class="tag">pixel render</span><svg id="out" shape-rendering="crispEdges"></svg></div>
+  </div>
+
+  <div class="controls" id="controls">
+    <div class="ctl">
+      <label>Resolution <span class="val" id="resv">28 wide</span></label>
+      <input type="range" id="res" min="8" max="64" value="28">
+    </div>
+    <div class="ctl">
+      <label>Color flatten <span class="val" id="lvlv">4 levels</span></label>
+      <input type="range" id="lvl" min="2" max="8" value="4">
+    </div>
+    <div class="ctl">
+      <label>Display zoom <span class="val" id="zoomv">8px</span></label>
+      <input type="range" id="zoom" min="3" max="16" value="8">
+    </div>
+    <div class="ctl">
+      <label>Cleanup</label>
+      <div class="row">
+        <button id="bBg" class="on">Drop background</button>
+        <button id="bBob">Idle bob</button>
+      </div>
+      <div class="meta" id="meta"></div>
+    </div>
+  </div>
+
+  <div class="codehead" id="codehead">
+    <h2>Export</h2>
+    <div class="tabs">
+      <button id="tPng" class="on">PNG</button>
+      <button id="tData">Sprite data</button>
+      <button id="tReact">React</button>
+    </div>
+  </div>
+  <pre id="code"></pre>
+  <p class="hint" id="hint"></p>
+</div>
+
 <script>
-const canvas = document.getElementById('c');
-const ctx = canvas.getContext('2d');
-let img = null;
-function draw() {
-  if (!img) return;
-  const g = +document.getElementById('grid').value;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.drawImage(img, 0, 0, g, g);
-  ctx.drawImage(canvas, 0, 0, g, g, 0, 0, canvas.width, canvas.height);
+const $=id=>document.getElementById(id);
+const state={res:28,levels:4,zoom:8,dropBg:true,bob:false,
+             img:null, grid:null, palette:null, cols:0, rows:0};
+
+/* ---------- upload wiring ---------- */
+const drop=$("drop"), file=$("file");
+// tapping the <label> opens the picker natively — no JS .click() needed (mobile-safe)
+file.onchange=e=>{ if(e.target.files[0]) loadFile(e.target.files[0]); };
+["dragenter","dragover"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add("drag");}));
+["dragleave","drop"].forEach(ev=>drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove("drag");}));
+drop.addEventListener("drop",e=>{ const f=e.dataTransfer.files[0]; if(f) loadFile(f); });
+
+function loadFile(f){
+  const r=new FileReader();
+  r.onload=()=>{
+    const im=new Image();
+    im.onload=()=>{ state.img=im; $("orig").src=im.src; reveal(); process(); };
+    im.src=r.result;
+  };
+  r.readAsDataURL(f);
 }
-document.getElementById('file').onchange = e => {
-  const f = e.target.files[0]; if (!f) return;
-  const url = URL.createObjectURL(f);
-  img = new Image();
-  img.onload = () => { draw(); URL.revokeObjectURL(url); };
-  img.src = url;
-};
-document.getElementById('grid').oninput = draw;
-document.getElementById('done').onclick = () => {
-  const dataUrl = canvas.toDataURL('image/png');
-  const w = +document.getElementById('grid').value;
-  const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
-  const PALETTE = ['#00000000'];
-  const SPRITE = [];
-  for (let y = 0; y < w; y++) {
-    const row = [];
-    for (let x = 0; x < w; x++) {
-      const i = (y * canvas.width + x) * 4;
-      const hex = '#' + [d[i], d[i+1], d[i+2]].map(v => v.toString(16).padStart(2,'0')).join('');
-      let idx = PALETTE.indexOf(hex);
-      if (idx < 0) { idx = PALETTE.length; PALETTE.push(hex); }
-      row.push(idx);
+function reveal(){
+  ["stage","controls","codehead"].forEach(id=>$(id).classList.add("show"));
+  drop.querySelector("p").textContent="Tap to choose another image";
+}
+
+/* ---------- the conversion ---------- */
+const hex=(r,g,b)=>"#"+[r,g,b].map(v=>v.toString(16).padStart(2,"0")).join("");
+function posterize(v,levels){
+  const step=255/(levels-1);
+  return Math.round(Math.round(v/step)*step);
+}
+function process(){
+  if(!state.img) return;
+  const cols=state.res;
+  const ratio=state.img.height/state.img.width;
+  const rows=Math.max(1,Math.round(cols*ratio));
+  state.cols=cols; state.rows=rows;
+
+  // downscale with averaging
+  const c=document.createElement("canvas");
+  c.width=cols; c.height=rows;
+  const ctx=c.getContext("2d");
+  ctx.imageSmoothingEnabled=true;
+  ctx.drawImage(state.img,0,0,cols,rows);
+  const data=ctx.getImageData(0,0,cols,rows).data;
+
+  // sample corners for background color
+  const corner=(x,y)=>{const i=(y*cols+x)*4;return [data[i],data[i+1],data[i+2]];};
+  const bgs=[corner(0,0),corner(cols-1,0),corner(0,rows-1),corner(cols-1,rows-1)];
+  const bg=[0,1,2].map(k=>Math.round(bgs.reduce((s,c)=>s+c[k],0)/4));
+  const tol=46; // bg match tolerance
+
+  const grid=[]; const palMap=new Map(); const palette=[];
+  for(let y=0;y<rows;y++){
+    const row=[];
+    for(let x=0;x<cols;x++){
+      const i=(y*cols+x)*4;
+      const a=data[i+3];
+      let r=data[i],g=data[i+1],b=data[i+2];
+      // transparency: existing alpha OR matches sampled background
+      const matchBg=state.dropBg && Math.abs(r-bg[0])+Math.abs(g-bg[1])+Math.abs(b-bg[2])<tol;
+      if(a<90 || matchBg){ row.push(-1); continue; }
+      r=posterize(r,state.levels); g=posterize(g,state.levels); b=posterize(b,state.levels);
+      const key=hex(r,g,b);
+      if(!palMap.has(key)){ palMap.set(key,palette.length); palette.push(key); }
+      row.push(palMap.get(key));
     }
-    SPRITE.push(row);
+    grid.push(row);
   }
-  window.parent.postMessage({ type: 'vStudioExport', kind: 'sprite', data: { PALETTE, SPRITE, png: dataUrl } }, '*');
-};
+  state.grid=grid; state.palette=palette;
+  $("meta").innerHTML=`<b>${cols}×${rows}</b> cells · <b>${palette.length}</b> colors`;
+  render(); updateCode();
+}
+
+/* ---------- crisp SVG render ---------- */
+let t=0,raf;
+function render(){
+  const {grid,palette,cols,rows,zoom}=state;
+  if(!grid) return;
+  let rects="";
+  for(let y=0;y<rows;y++) for(let x=0;x<cols;x++){
+    const idx=grid[y][x];
+    if(idx<0) continue;
+    rects+=`<rect x="${x*zoom}" y="${y*zoom}" width="${zoom}" height="${zoom}" fill="${palette[idx]}"/>`;
+  }
+  const svg=$("out");
+  svg.setAttribute("width",cols*zoom);
+  svg.setAttribute("height",rows*zoom);
+  svg.setAttribute("viewBox",`0 0 ${cols*zoom} ${rows*zoom}`);
+  svg.style.maxWidth="92%"; svg.style.maxHeight="210px";
+  svg.innerHTML=rects;
+  let dy=0; if(state.bob) dy=Math.round(Math.sin(t/22))*zoom*0.18;
+  svg.style.transform=`translateY(${dy}px)`;
+}
+function loop(){ t++; render(); raf=requestAnimationFrame(loop); }
+function setBob(on){ state.bob=on; cancelAnimationFrame(raf); if(on) loop(); else render(); }
+
+/* ---------- controls ---------- */
+$("res").oninput=e=>{state.res=+e.target.value;$("resv").textContent=state.res+" wide";process();};
+$("lvl").oninput=e=>{state.levels=+e.target.value;$("lvlv").textContent=state.levels+" levels";process();};
+$("zoom").oninput=e=>{state.zoom=+e.target.value;$("zoomv").textContent=state.zoom+"px";render();};
+$("bBg").onclick=e=>{state.dropBg=!state.dropBg;e.target.classList.toggle("on",state.dropBg);process();};
+$("bBob").onclick=e=>{const on=!state.bob;e.target.classList.toggle("on",on);setBob(on);};
+
+/* ---------- export ---------- */
+function pngExport(scale){
+  const {grid,palette,cols,rows}=state;
+  const c=document.createElement("canvas");
+  c.width=cols*scale; c.height=rows*scale;
+  const ctx=c.getContext("2d");
+  for(let y=0;y<rows;y++) for(let x=0;x<cols;x++){
+    const idx=grid[y][x]; if(idx<0) continue;
+    ctx.fillStyle=palette[idx]; ctx.fillRect(x*scale,y*scale,scale,scale);
+  }
+  const a=document.createElement("a"); a.download="vselite-sprite.png"; a.href=c.toDataURL("image/png"); a.click();
+}
+function dataLiteral(){
+  const g=state.grid.map(r=>"  ["+r.join(",")+"]").join(",\n");
+  const p=state.palette.map(c=>`"${c}"`).join(", ");
+  return `// -1 = transparent · other numbers index into PALETTE\nconst PALETTE = [${p}];\nconst SPRITE = [\n${g}\n];`;
+}
+function reactLiteral(){
+return `import React from "react";
+
+${dataLiteral()}
+
+// Renders the sprite crisp at any size. cell = px per pixel-cell.
+export function PixelSprite({ cell = 8, sprite = SPRITE, palette = PALETTE }) {
+  const rows = sprite.length, cols = sprite[0].length;
+  const rects = [];
+  sprite.forEach((row, y) =>
+    row.forEach((idx, x) => {
+      if (idx < 0) return; // transparent
+      rects.push(
+        <rect key={x + "-" + y} x={x * cell} y={y * cell}
+              width={cell} height={cell} fill={palette[idx]} />
+      );
+    })
+  );
+  return (
+    <svg width={cols * cell} height={rows * cell}
+         viewBox={\`0 0 \${cols * cell} \${rows * cell}\`}
+         shapeRendering="crispEdges" style={{ imageRendering: "pixelated" }}>
+      {rects}
+    </svg>
+  );
+}
+
+// usage:  <PixelSprite cell={10} />`;
+}
+function updateCode(){
+  const which=document.querySelector(".tabs .on").id;
+  $("code").classList.add("show");
+  if(which==="tPng"){
+    $("code").textContent=
+`// Two ways to grab a PNG:
+// 1) click a size below  2) or call from console.
+
+function exportPNG(scale){ /* wired to the buttons */ }`;
+    $("hint").innerHTML='Download a transparent PNG: '+
+      '<button onclick="pngExport(8)">8×</button> '+
+      '<button onclick="pngExport(16)">16×</button> '+
+      '<button onclick="pngExport(32)">32×</button> &nbsp; scaled crisp, background dropped.';
+  } else if(which==="tData"){
+    $("code").textContent=dataLiteral();
+    $("hint").textContent="Pure data — pairs with the same renderer as your alien. Edit any number to recolor a cell; -1 punches a transparent hole.";
+  } else {
+    $("code").textContent=reactLiteral();
+    $("hint").textContent="Drop-in component, same shape as <PixelAlien>. Set cell once and it renders identically everywhere in VSElite.";
+  }
+}
+function setTab(id,btn){ document.querySelectorAll(".tabs .on").forEach(b=>b.classList.remove("on")); btn.classList.add("on"); updateCode(); }
+$("tPng").onclick=e=>setTab("tPng",e.target);
+$("tData").onclick=e=>setTab("tData",e.target);
+$("tReact").onclick=e=>setTab("tReact",e.target);
 </script>
 </body>
 </html>

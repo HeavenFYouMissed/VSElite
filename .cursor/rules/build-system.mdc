@@ -1,0 +1,26 @@
+---
+description: V3Code build system rules — MUST read before running any build command
+globs: ["src/vs/workbench/contrib/void/**"]
+alwaysApply: true
+---
+
+# V3Code Build Rules
+
+## Which build command to use
+
+| What you changed | Command | Notes |
+|---|---|---|
+| `.tsx` / `.css` in `react/src/` | `.\dev.ps1 -Once` | Fast (~15s). Ctrl+R reloads UI. |
+| `.ts` in `browser/` or `common/` | `.\dev.ps1 -FullGulp` | Full compile (~3 min). Ctrl+R reloads. |
+| `.ts` in `electron-main/` | `.\dev.ps1 -FullGulp` + full restart | Main process loads code ONCE at launch. Ctrl+R does NOT reload main process. |
+
+## Common mistakes that waste time
+
+1. **Editing `electron-main/*.ts` and running `-Once`** — the fast path only builds the React bundle. Your changes won't compile.
+2. **Editing `electron-main/*.ts`, running `-FullGulp`, then only doing Ctrl+R** — main process keeps OLD code in memory. Must fully quit and relaunch V3Code.
+3. **Editing `common/prompt/prompts.ts` or `browser/toolsService.ts` and running `-Once`** — these are NOT in the React bundle. Need `-FullGulp`.
+
+## Rule of thumb
+
+If the file is under `void/browser/react/src/` → fast path works.
+Everything else under `void/` → needs `-FullGulp`.

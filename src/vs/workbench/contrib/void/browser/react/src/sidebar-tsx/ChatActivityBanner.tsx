@@ -4,10 +4,9 @@
  *--------------------------------------------------------------------------------------*/
 
 import React, { useMemo } from 'react';
+import { X } from 'lucide-react';
 import { PixelAlien } from './V3AlienHeader.js';
 import { IsRunningType } from '../../../chatThreadService.js';
-
-const BASE_PHRASES = ['planning', 'v3code', 'working', 'indexing', 'reading'] as const;
 
 const toolPhrase = (name: string | null | undefined): string | undefined => {
 	if (!name) return undefined;
@@ -31,44 +30,56 @@ export function ChatActivityBanner({
 	visible,
 	isRunning,
 	activeToolName,
+	onClose,
 }: {
 	visible: boolean;
 	isRunning?: IsRunningType;
 	activeToolName?: string | null;
+	onClose?: () => void;
 }) {
-	const phrases = useMemo(() => {
-		const primary = toolPhrase(activeToolName) ?? runPhrase(isRunning);
-		const rest = BASE_PHRASES.filter(p => p !== primary);
-		return [primary, ...rest];
+	const phrase = useMemo(() => {
+		return toolPhrase(activeToolName) ?? runPhrase(isRunning);
 	}, [isRunning, activeToolName]);
 
 	const agentBusy = !!isRunning && isRunning !== 'idle';
 
 	return (
 		<div
-			className={`v-chat-activity-banner${visible ? ' v-chat-activity-banner--visible' : ''}`}
+			className="overflow-hidden flex-shrink-0 transition-all duration-300 ease-out"
+			style={{ maxHeight: visible ? 34 : 0, opacity: visible ? 1 : 0 }}
 			aria-hidden={!visible}
 		>
-			<div className="v-chat-activity-banner__inner">
-				<div className="v-chat-activity-banner__alien">
-					<PixelAlien cell={3} mode={agentBusy ? 'walk' : 'idle'} />
+			<div className="flex items-center gap-2 h-[34px] px-3 border-b border-[var(--v3-amethyst-muted,rgba(124,58,237,0.18))] bg-[var(--v3-amethyst-wash,rgba(139,92,246,0.06))]">
+				{/* sprite */}
+				<div className="flex items-center flex-shrink-0">
+					<PixelAlien cell={2} mode={agentBusy ? 'walk' : 'idle'} />
 				</div>
-				<div className="v-chat-activity-status">
-					<div className="v-chat-activity-status__frame">┌ status ┐</div>
-					<div className="v-chat-activity-phrases">
-						{phrases.map((p, i) => (
-							<span
-								key={p}
-								className="v-chat-activity-phrase"
-								data-accent={p === 'v3code' ? 'brand' : p === 'planning' ? 'amethyst' : 'green'}
-								style={{ animationDelay: `${i * (10 / phrases.length)}s` }}
-							>
-								{'>'} {p}
-							</span>
-						))}
-					</div>
-					<div className="v-chat-activity-status__frame v-chat-activity-status__frame--bottom">└────────┘</div>
-				</div>
+
+				{/* subtle pulse dot */}
+				<span className="relative flex h-1.5 w-1.5 flex-shrink-0">
+					{agentBusy &&
+						<span className="absolute inline-flex h-full w-full rounded-full bg-[#A78BFA] opacity-50 animate-ping" />
+					}
+					<span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-[#A78BFA]" />
+				</span>
+
+				{/* status word */}
+				<span className="text-xs font-medium tracking-wide lowercase text-void-fg-2">
+					{phrase}…
+				</span>
+
+				<div className="flex-1" />
+
+				{/* real close button — slides the banner up */}
+				<button
+					type="button"
+					onClick={onClose}
+					title="Hide activity banner"
+					aria-label="Hide activity banner"
+					className="flex items-center justify-center h-5 w-5 rounded text-void-fg-4 hover:text-void-fg-1 hover:bg-void-bg-3 transition-colors duration-150"
+				>
+					<X className="h-3.5 w-3.5" />
+				</button>
 			</div>
 		</div>
 	);
@@ -106,26 +117,25 @@ export function ActivityBannerToggle({
 		return (
 			<button
 				type="button"
-				className="v-activity-banner-dot"
-				data-on={enabled ? 'true' : 'false'}
 				onClick={() => onChange(!enabled)}
 				title={enabled ? 'Activity banner on — click to hide' : 'Activity banner off — click to show'}
 				aria-pressed={enabled}
+				className={`h-2 w-2 rounded-full border-none p-0 cursor-pointer transition-colors duration-150 ${enabled ? 'bg-[#A78BFA]' : 'bg-void-fg-4 opacity-40 hover:opacity-70'}`}
 			/>
 		);
 	}
 	return (
-		<label className="v-activity-banner-pill">
-			<input
-				type="checkbox"
-				className="v-activity-banner-pill__input"
-				checked={enabled}
-				onChange={e => onChange(e.target.checked)}
-			/>
-			<span className="v-activity-banner-pill__track">
-				<span className="v-activity-banner-pill__thumb" />
+		<button
+			type="button"
+			onClick={() => onChange(!enabled)}
+			aria-pressed={enabled}
+			title={enabled ? 'Hide activity banner' : 'Show activity banner'}
+			className="group inline-flex items-center gap-1.5 cursor-pointer select-none text-[11px] px-2 py-0.5 rounded-full bg-void-bg-2/40 border border-void-border-3/60 hover:border-[var(--v3-amethyst-muted,rgba(124,58,237,0.4))] transition-colors duration-150"
+		>
+			<span className={`relative w-[22px] h-[12px] rounded-full transition-colors duration-200 ${enabled ? 'bg-[var(--v3-amethyst-muted,rgba(139,92,246,0.45))]' : 'bg-void-fg-4/30'}`}>
+				<span className={`absolute top-[2px] h-2 w-2 rounded-full transition-all duration-200 ${enabled ? 'left-[12px] bg-[#A78BFA]' : 'left-[2px] bg-void-fg-4'}`} />
 			</span>
-			<span className="v-activity-banner-pill__label">activity banner</span>
-		</label>
+			<span className={enabled ? 'text-void-fg-3' : 'text-void-fg-4'}>v active</span>
+		</button>
 	);
 }

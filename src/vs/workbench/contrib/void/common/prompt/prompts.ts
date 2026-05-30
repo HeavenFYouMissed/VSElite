@@ -352,9 +352,9 @@ export const builtinTools: {
 
 	forget: {
 		name: 'forget',
-		description: `Delete a previously-saved symbol note by its id. Get note ids from list_notes.`,
+		description: `Delete a previously-saved symbol note. You MUST pass the note_id parameter (get note_id values from list_notes). Do NOT pass "id" — the parameter is named "note_id".`,
 		params: {
-			note_id: { description: `The id of the note to delete.` },
+			note_id: { description: `The note_id of the note to delete (string, from list_notes output).` },
 		},
 	},
 
@@ -379,7 +379,7 @@ export const builtinTools: {
 
 	semantic_search: {
 		name: 'semantic_search',
-		description: `Lexical codebase search backed by the V3Code local index. Returns up to topK chunks (functions/classes/blocks) scored by token-overlap matching between the query and indexed content. Use this when you need to find code by concept or when grep-style keyword matching isn't enough — the token-overlap scorer finds related identifiers even when they don't match the literal query string. Note: the current index uses lexical token matching (not embeddings); for exact string matches, prefer find_text.`,
+		description: `Semantic codebase search backed by the V3Code local index. Uses hybrid retrieval: vector embeddings (jina-embeddings-v2-base-code or MiniLM) + FTS5 lexical search, merged via Reciprocal Rank Fusion (RRF). Returns up to topK chunks (functions/classes/blocks) ranked by combined semantic + lexical similarity. Significantly stronger than grep: finds conceptually related code even when identifiers differ. Use for "how does X work", "find code that handles Y", "what implements Z". Falls back to lexical-only if embeddings aren't loaded yet. For exact string matches, prefer find_text.`,
 		params: {
 			query: { description: `Natural-language description of what you're looking for. Full sentences work better than keywords.` },
 			top_k: { description: `Optional. Default 15, max 50. Number of chunks to return.` },
@@ -449,9 +449,16 @@ export const builtinTools: {
 
 	web_search: {
 		name: 'web_search',
-		description: `Search the web using DuckDuckGo. Returns a list of results with title, URL, and snippet. Use this when the user needs up-to-date information from the internet, documentation lookups, or to verify current facts.`,
+		description: `Search the web. Returns a list of results with title, URL, and snippet. Use this when the user needs up-to-date information from the internet, documentation lookups, or to verify current facts.
+
+IMPORTANT query guidelines:
+- Use SHORT queries (2-5 words). Example: "react useEffect cleanup" not "how does the useEffect cleanup function work in React when a component unmounts"
+- Use keywords, not natural language sentences
+- If a query returns no results, try a shorter/simpler rephrasing
+- One concept per query — split complex topics into multiple searches
+- Prefer well-known terms: "typescript generics" not "TS type parameter constraints advanced usage"`,
 		params: {
-			query: { description: 'The search query string.' },
+			query: { description: 'Short keyword query (2-5 words). Use keywords not natural language.' },
 			max_results: { description: 'Optional. Maximum number of results to return. Default is 5.' },
 		},
 	},
@@ -478,11 +485,55 @@ export const builtinTools: {
 		},
 	},
 
+	git_log: {
+		name: 'git_log',
+		description: `Shows the recent git commit history as one-line entries (hash + message). Returns up to \`count\` entries.`,
+		params: {
+			count: { description: 'Number of recent commits to show (default 10, max 50).' },
+		},
+	},
+
+	git_branch: {
+		name: 'git_branch',
+		description: `Shows the current branch name and lists all local and remote branches.`,
+		params: {},
+	},
+
 	browser_screenshot: {
 		name: 'browser_screenshot',
 		description: `Takes a screenshot of a given URL. Note: this feature requires Electron BrowserWindow integration and is currently a placeholder.`,
 		params: {
 			url: { description: 'The full URL to take a screenshot of.' },
+		},
+	},
+
+	// --- Background Subagent ---
+	launch_subagent: {
+		name: 'launch_subagent',
+		description: `Launch a background subagent to perform a task autonomously in parallel. The subagent runs in a separate thread with its own context and tool access, and returns a result when done. Use this when you need to:
+- Explore multiple parts of the codebase simultaneously
+- Research a topic while continuing to work on the main task
+- Delegate an independent subtask (e.g. "find all usages of X" while you work on Y)
+The subagent has access to all read-only tools (read_file, search, semantic_search, etc.) and optionally write tools. You will receive the subagent's result as this tool's output once it completes.`,
+		params: {
+			description: { description: 'Short title for this subagent task (shown in UI). Example: "Find authentication flow"' },
+			prompt: { description: 'Detailed instructions for the subagent. Be specific about what to search for, analyze, or produce. The subagent does NOT have access to the parent conversation history.' },
+			read_only: { description: 'Optional. Default true. If true, the subagent can only use read/search tools (no file edits, no terminal). Set to false to allow write operations.' },
+		},
+	},
+
+	// --- Todo / Plan ---
+	update_plan: {
+		name: 'update_plan',
+		description: `Create or update a structured task list to track progress on multi-step work. Use proactively when:
+- The task has 3+ distinct steps
+- You need to track progress across a complex task
+- You're delegating work to subagents
+- The user explicitly requests a plan or todo list
+Each todo item has an id, content, and status (pending/in_progress/completed/cancelled). Set merge=true to update existing items by id while keeping others; merge=false replaces the entire list.`,
+		params: {
+			todos: { description: 'JSON array of todo items. Each: { "id": "unique-id", "content": "task description", "status": "pending"|"in_progress"|"completed"|"cancelled" }' },
+			merge: { description: 'If true, merges by id into existing list. If false, replaces the entire list.' },
 		},
 	},
 
@@ -612,7 +663,7 @@ You have access to Context Bridge tools built into V3Code. These give you struct
   - Input: \`{ file }\`
 
 **Tier 2 — Text & Semantic Search (when structure isn't enough)**
-- \`semantic_search\` — Active lexical codebase index (token-overlap scoring). Searches every indexed chunk across the workspace and returns ranked results with inline content. The index is built and maintained automatically — you can see the file count in the V3Code status bar. Use this for conceptual searches ("how does X work", "find code related to Y"). The .disabled source files you may see are the NEXT version (embeddings upgrade) — THIS implementation IS live and working. Prefer this over \`find_text\` for "find code that does Y". **If the response says the index isn't built, ask the user to run "V3Code: Rebuild Codebase Index" — do NOT retry until they confirm.**
+- \`semantic_search\` — Hybrid vector + lexical codebase index. Uses embedding vectors (jina-code / MiniLM) + FTS5 with Reciprocal Rank Fusion. Finds conceptually related code even when identifiers differ. The index is built automatically on workspace open and stays live via file-watcher incremental updates. Prefer this over \`find_text\` for "find code that does Y". **If the response says the index isn't built, ask the user to run "V3Code: Rebuild Codebase Index" — do NOT retry until they confirm.**
   - Input: \`{ query, top_k?, include_file? }\`
 - \`find_text\` — Searches file contents for literal/regex patterns. Use for comments, string literals, documentation, config values, error messages — things the LSP doesn't track and that semantic search would dilute.
 
@@ -632,6 +683,12 @@ You have access to Context Bridge tools built into V3Code. These give you struct
 
 **Tier 5 — Terminal**
 - \`run_command\` / \`run_persistent_command\` — Build commands, test runners, git, package management. NEVER use for file operations that have dedicated tools (don't \`cat\`, don't \`sed\`, don't \`echo >\`).
+
+**Tier 6 — Background Subagents**
+- \`launch_subagent\` — Spawn a background agent to work on a subtask in parallel. The subagent runs independently with its own tool access and returns results when done. Use when you need to explore multiple areas simultaneously or delegate independent research while continuing the main task.
+
+**Tier 7 — Task Planning**
+- \`update_plan\` — Create or update a structured task list to track multi-step work. Use proactively for complex tasks (3+ steps). Each item has id, content, and status (pending/in_progress/completed/cancelled). Update status in real-time as you work. Only ONE task should be in_progress at a time. Mark tasks complete immediately after finishing.
 
 **Tool Usage Rules**
 - Cite your sources. When you reference code from a tool result, include the file path and line number.

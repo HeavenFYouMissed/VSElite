@@ -361,3 +361,61 @@ body {
 *::-webkit-scrollbar-thumb:hover { background: rgba(139, 92, 246, 0.32); }
 *::-webkit-scrollbar-track { background: transparent; }
 * { scrollbar-width: thin; scrollbar-color: rgba(139, 92, 246, 0.25) transparent; }
+
+/* ═══════════ Git View ═══════════ */
+.git-view { display: flex; flex-direction: column; height: 100%; overflow: hidden; padding: 8px; }
+.git-header { display: flex; align-items: center; gap: 8px; padding-bottom: 8px; border-bottom: 1px solid rgba(139, 92, 246, 0.18); margin-bottom: 8px; }
+.git-back { background: none; border: none; color: #8b949e; cursor: pointer; font-size: 12px; font-family: inherit; padding: 2px 6px; border-radius: 3px; }
+.git-back:hover { color: #fff; background: rgba(139, 92, 246, 0.2); }
+.git-title { font-weight: 700; color: #a78bfa; font-size: 13px; letter-spacing: 0.04em; }
+.git-branch-badge { background: rgba(95, 211, 95, 0.15); color: #7ee787; font-size: 11px; padding: 2px 8px; border-radius: 10px; font-family: monospace; }
+.git-refresh { background: none; border: none; color: #8b949e; cursor: pointer; font-size: 14px; margin-left: auto; }
+.git-refresh:hover { color: #fff; }
+.git-loading { color: #8b949e; font-size: 12px; padding: 16px; text-align: center; }
+
+.git-tabs { display: flex; gap: 4px; margin-bottom: 8px; }
+.git-tab { background: none; border: none; color: #6b7280; cursor: pointer; font-size: 11px; font-family: monospace; padding: 4px 10px; border-radius: 4px; transition: all 0.15s; }
+.git-tab:hover { color: #d1d5db; background: rgba(255,255,255,0.04); }
+.git-tab.active { color: #a78bfa; background: rgba(139, 92, 246, 0.12); }
+
+.git-body { flex: 1; overflow-y: auto; }
+.git-status-panel, .git-log-panel, .git-branches-panel { font-size: 12px; font-family: monospace; }
+.git-clean { color: #7ee787; padding: 12px; text-align: center; }
+.git-section { margin-bottom: 10px; }
+.git-section-label { color: #8b949e; font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 4px; }
+.git-file { padding: 2px 4px; border-radius: 3px; margin-bottom: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.git-file-mod { color: #ffa657; }
+.git-file-add { color: #7ee787; }
+.git-file-del { color: #ffa198; text-decoration: line-through; opacity: 0.7; }
+
+.git-actions { display: flex; gap: 6px; margin-top: 12px; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.06); }
+.git-action-btn { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: #d1d5db; font-size: 11px; font-family: monospace; padding: 5px 12px; border-radius: 4px; cursor: pointer; transition: all 0.15s; }
+.git-action-btn:hover { background: rgba(139, 92, 246, 0.15); border-color: rgba(139, 92, 246, 0.3); color: #fff; }
+.git-action-primary { background: rgba(139, 92, 246, 0.2); border-color: rgba(139, 92, 246, 0.35); color: #a78bfa; }
+.git-action-primary:hover { background: rgba(139, 92, 246, 0.3); color: #fff; }
+
+.git-log-entry { display: flex; gap: 8px; padding: 3px 4px; border-radius: 3px; }
+.git-log-entry:hover { background: rgba(255,255,255,0.03); }
+.git-hash { color: #a78bfa; flex-shrink: 0; font-size: 11px; }
+.git-msg { color: #d1d5db; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.git-branches-panel { padding: 4px; }
+.git-branch-line { padding: 3px 6px; border-radius: 3px; color: #8b949e; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.git-branch-line.active { color: #7ee787; font-weight: 600; }
+.git-branch-line:hover { background: rgba(255,255,255,0.03); }
+
+/* Side-panel git section */
+.panel-clickable { cursor: pointer; transition: background 0.15s; border-radius: 4px; }
+.panel-clickable:hover { background: rgba(139, 92, 246, 0.08); }
+.git-branch-text { color: #a78bfa; }
+.git-dirty { color: #ffa657; }
+.git-clean-text { color: #7ee787; }
+
+/* Voice pill */
+.voice-pill {
+  background: none; border: 1px solid rgba(139, 92, 246, 0.25); border-radius: 10px;
+  padding: 2px 6px; font-size: 11px; cursor: pointer; opacity: 0.5;
+  transition: opacity 0.2s, border-color 0.2s; flex-shrink: 0;
+}
+.voice-pill:hover { opacity: 0.8; border-color: rgba(139, 92, 246, 0.5); }
+.voice-pill--on { opacity: 1; border-color: #7ee787; }

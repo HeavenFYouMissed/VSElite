@@ -118,6 +118,13 @@ class VCompanionViewPane extends ViewPane {
 			else if (running === 'tool') { kind = 'tool'; detail = ss?.toolInfo?.toolName ?? ''; }
 			else if (running === 'awaiting_user') { kind = 'awaiting'; }
 			this._post({ type: 'agentEvent', kind, detail });
+			// When agent finishes (goes idle after work), trigger background memory if enough has happened
+			if (kind === 'idle' && this._lastAgentKind !== 'idle') {
+				this._bgCognitionMsgCount += 3; // agent sessions count as multiple turns of info
+				const { modelSelection } = this._vModelSelection();
+				if (modelSelection) this._scheduleBackgroundCognition(modelSelection);
+			}
+			this._lastAgentKind = kind;
 		}));
 
 		this._register(this.onDidChangeBodyVisibility(() => {
@@ -268,6 +275,11 @@ class VCompanionViewPane extends ViewPane {
 	private _vRequestId: string | null = null;
 	private readonly _memory: VCompanionMemory;
 	private _autoPilot = false;
+	private _bgCognitionLastRun = 0;
+	private _bgCognitionMsgCount = 0;
+	private _bgCognitionCooldownMs = 300_000; // 5 minutes between extractions
+	private _bgCognitionMinMessages = 6; // need at least 6 messages before first extraction
+	private _lastAgentKind: string = 'idle';
 
 	private _vModelSelection(): { modelSelection: ModelSelection | null; modelSelectionOptions: any } {
 		const s = this.settingsService.state;
@@ -376,7 +388,12 @@ class VCompanionViewPane extends ViewPane {
 				// V-only, no-approval save: detect `REMEMBER: <fact>` directive lines in his final
 				// text, persist them to memory, and strip them from what the user sees.
 				const cleaned = await this._handleRememberDirectives(res.text);
-				this._post({ type: 'rpc-stream', id: streamId, event: 'final', payload: cleaned });
+				// Only send final with text if there's something to show; suppress empty tool-only turns
+				if (cleaned && cleaned.trim()) {
+					this._post({ type: 'rpc-stream', id: streamId, event: 'final', payload: cleaned });
+				} else {
+					this._post({ type: 'rpc-stream', id: streamId, event: 'final', payload: '' });
+				}
 				this._pushCtx(modelSelection);
 				this._vRequestId = null;
 				return;
@@ -414,6 +431,64 @@ class VCompanionViewPane extends ViewPane {
 			max = getModelCapabilities(modelSelection.providerName, modelSelection.modelName, this.settingsService.state.overridesOfModel).contextWindow;
 		} catch { /* default */ }
 		this._post({ type: 'ctx', used, max });
+		this._scheduleBackgroundCognition(modelSelection);
+	}
+
+	private _scheduleBackgroundCognition(modelSelection: ModelSelection): void {
+		this._bgCognitionMsgCount++;
+		const now = Date.now();
+		if (this._bgCognitionMsgCount < this._bgCognitionMinMessages) return;
+		if (now - this._bgCognitionLastRun < this._bgCognitionCooldownMs) return;
+		this._bgCognitionLastRun = now;
+
+		const snapshot = this._vMessages
+			.filter((m: any) => m.role === 'user' || m.role === 'assistant')
+			.slice(-20)
+			.map((m: any) => `${m.role}: ${(typeof m.content === 'string' ? m.content : '').slice(0, 300)}`)
+			.join('\n');
+
+		if (snapshot.length < 100) return;
+
+		const extractionPrompt = `You are V's background memory process. Given this recent conversation excerpt between V and the user, extract 1-5 KEY FACTS worth remembering permanently. Focus on:
+- User decisions ("user chose X over Y")
+- User preferences ("user prefers dark themes", "user hates emojis")
+- Project facts ("project uses React + Tailwind", "auth is JWT-based")
+- Technical decisions ("bottleneck is gulp build at 3 min")
+- Workflow preferences ("user wants cursor-style diffs")
+
+Return ONLY a JSON array of strings. Each string is one fact. If nothing new is worth remembering, return [].
+
+Conversation:
+${snapshot}`;
+
+		const { modelSelection: ms } = this._vModelSelection();
+		if (!ms) return;
+
+		this.llmMessageService.sendLLMMessage({
+			messagesType: 'simple',
+			useProviderFor: 'Chat',
+			logging: { loggingName: 'V-bg-cognition' },
+			messages: { systemMessage: null, userMessages: [{ role: 'user', content: extractionPrompt }] },
+			modelSelection: ms,
+			onText: () => { },
+			onFinalMessage: async (response: any) => {
+				try {
+					const text = typeof response === 'string' ? response : (response as any)?.fullText ?? '';
+					const match = text.match(/\[[\s\S]*?\]/);
+					if (!match) return;
+					const facts: string[] = JSON.parse(match[0]);
+					if (!Array.isArray(facts) || !facts.length) return;
+					for (const fact of facts.slice(0, 5)) {
+						if (typeof fact === 'string' && fact.length > 5) {
+							await this._memory.remember('project', fact.trim(), ['auto-extracted']);
+						}
+					}
+				} catch { /* extraction failed silently — that's fine */ }
+			},
+			onError: () => { },
+			chatMode: 'gather',
+			modelSelectionOptions: { maxTokens: 400 },
+		} as any);
 	}
 
 	private async _dispatch(method: string, params: any): Promise<unknown> {
@@ -430,7 +505,8 @@ class VCompanionViewPane extends ViewPane {
 				const toolName = params?.toolName as string;
 				const fn = (this.toolsService.callTool as any)[toolName];
 				if (typeof fn !== 'function') { throw new Error('unknown tool: ' + toolName); }
-				return await fn(params?.params ?? {});
+				const raw = await fn(params?.params ?? {});
+				return (raw as any)?.result ?? raw;
 			}
 			case 'vWorkspaceSummary':
 				return await this._vWorkspaceSummary();
@@ -503,6 +579,28 @@ class VCompanionViewPane extends ViewPane {
 				await this.fileService.writeFile(real, VSBuffer.fromString(body));
 				await this.fileService.del(shadow);
 				return { ok: true, applied: real.fsPath };
+			}
+			case 'vGitStatus': {
+				const r = await this.toolsService.callTool['git_status']({});
+				const raw = (await r.result as any)?.status ?? '';
+				return { status: raw };
+			}
+			case 'vGitLog': {
+				const count = Number(params?.count ?? 10) || 10;
+				const r = await this.toolsService.callTool['git_log']({ count });
+				const raw = (await r.result as any)?.log ?? '';
+				return { log: raw };
+			}
+			case 'vGitBranch': {
+				const r = await this.toolsService.callTool['git_branch']({});
+				const res = await r.result as any;
+				return { branch: res?.branch ?? '', branches: res?.branches ?? '' };
+			}
+			case 'vGitDiff': {
+				const staged = !!params?.staged;
+				const r = await this.toolsService.callTool['git_diff']({ staged });
+				const raw = (await r.result as any)?.diff ?? '';
+				return { diff: raw };
 			}
 			default:
 				throw new Error('unknown method: ' + method);
@@ -584,13 +682,20 @@ class VCompanionViewPane extends ViewPane {
 		if (!home) { return undefined; }
 		try {
 			if (!(await this.fileService.exists(home))) { await this.fileService.createFolder(home); }
-			// seed a few starter skills so the page is useful before the full catalog lands
+			// Seed the full starter catalog. Re-seed if current count < expected (we expanded the catalog).
 			const stat = await this.fileService.resolve(home);
-			const hasAny = (stat.children ?? []).some(c => c.isDirectory);
-			if (!hasAny) {
+			let existingCount = 0;
+			for (const catDir of stat.children ?? []) {
+				if (!catDir.isDirectory) { continue; }
+				const catStat = await this.fileService.resolve(catDir.resource);
+				existingCount += (catStat.children ?? []).filter(c => c.isDirectory).length;
+			}
+			if (existingCount < STARTER_AGENT_SKILLS.length) {
 				for (const s of STARTER_AGENT_SKILLS) {
 					const f = URI.joinPath(home, s.category, s.name, 'SKILL.md');
-					await this.fileService.writeFile(f, VSBuffer.fromString(s.body));
+					if (!(await this.fileService.exists(f))) {
+						await this.fileService.writeFile(f, VSBuffer.fromString(s.body));
+					}
 				}
 			}
 		} catch { /* best effort */ }
@@ -785,8 +890,9 @@ When asked "can you send to the agent?" answer YES — "sure, what should I send
 - semantic_search, find_text, search_for_files, search_in_file, search_pathnames_only
 - get_file_context, get_file_dependencies, get_symbol_context, get_call_graph, pack_context
 - list_notes, get_project_briefing, read_file, ls_dir, get_dir_tree, read_lint_errors
-- web_search, git_status
-No edit/terminal/git_commit tools. Stage risky file ideas in .v/files/ (sandbox) for user approval.
+- web_search, git_status, git_diff, git_log, git_branch
+Git usage: you can freely read (git_status, git_diff, git_log, git_branch). For committing, use the /commit slash command or tell the user to run /commit — you cannot call git_commit directly in gather mode.
+Stage risky file ideas in .v/files/ (sandbox) for user approval.
 
 # CHOICES convention
 When offering paths, end with one line: CHOICES: option a | option b | option c (becomes clickable chips).
@@ -838,74 +944,112 @@ const STARTER_AGENT_SKILLS: { category: string; name: string; body: string }[] =
 	{
 		category: 'coding',
 		name: 'error-handling',
-		body: `---
-name: error-handling
-category: coding
-description: Add consistent, user-facing error handling — error UI (toast/banner), retry-with-backoff for network calls, and explicit loading/empty/error states. Use when wiring data loading, fetch calls, or anything that can fail.
----
-
-# error-handling
-
-When writing or reviewing code that can fail (network, parsing, IO):
-
-- Surface a clear, non-blocking error to the user (toast or inline banner). Never just \`console.warn\` and move on.
-- Add retry-with-backoff for transient network errors (e.g. 3 tries, exponential delay).
-- Render an explicit state for every async view: loading, empty, error, and success.
-- Never swallow errors silently. Log with context and give the user something actionable.
-`,
+		body: `---\nname: error-handling\ncategory: coding\ndescription: Add consistent error handling — error UI (toast/banner), retry-with-backoff for network calls, and explicit loading/empty/error states.\n---\n\n# error-handling\n\n- Surface clear, non-blocking errors to the user (toast or inline banner).\n- Add retry-with-backoff for transient network errors.\n- Render explicit states for every async view: loading, empty, error, success.\n- Never swallow errors silently.\n`,
 	},
 	{
 		category: 'coding',
 		name: 'code-formatting',
-		body: `---
-name: code-formatting
-category: coding
-description: Set up and enforce consistent formatting/linting — Prettier + ESLint (and Stylelint for CSS) with a drop-in config and pre-commit hook. Use when code style is inconsistent or before shipping.
----
-
-# code-formatting
-
-- Add Prettier as the single formatter; commit a \`.prettierrc\` with the project's conventions.
-- Add ESLint with \`eslint-config-prettier\` so lint rules don't fight the formatter.
-- For CSS, add Stylelint to catch what Prettier won't.
-- Wire a pre-commit hook (husky + lint-staged) that runs format + lint on staged files.
-- Format the whole tree once in a dedicated commit so future diffs stay clean.
-`,
+		body: `---\nname: code-formatting\ncategory: coding\ndescription: Set up consistent formatting — Prettier + ESLint with pre-commit hook.\n---\n\n# code-formatting\n\n- Add Prettier with a .prettierrc.\n- Add ESLint with eslint-config-prettier.\n- Wire a pre-commit hook (husky + lint-staged).\n- Format the whole tree once in a dedicated commit.\n`,
+	},
+	{
+		category: 'coding',
+		name: 'refactor-extract',
+		body: `---\nname: refactor-extract\ncategory: coding\ndescription: Extract repeated logic into reusable modules — identify code duplication, create shared utilities, reduce coupling.\n---\n\n# refactor-extract\n\n- Identify duplicated patterns (3+ occurrences) and extract into a shared module.\n- Name the extracted function/module by what it DOES, not where it came from.\n- Keep extracted pieces small — single responsibility.\n- Update all call sites and verify tests still pass.\n`,
+	},
+	{
+		category: 'coding',
+		name: 'type-safety',
+		body: `---\nname: type-safety\ncategory: coding\ndescription: Add or tighten TypeScript types — eliminate 'any', add discriminated unions, validate at boundaries.\n---\n\n# type-safety\n\n- Replace any/unknown with precise types or generics.\n- Use discriminated unions for state machines and message types.\n- Validate external data at IO boundaries (Zod, io-ts, manual checks).\n- Enable strict mode and fix all resulting errors.\n`,
+	},
+	{
+		category: 'coding',
+		name: 'dependency-audit',
+		body: `---\nname: dependency-audit\ncategory: coding\ndescription: Audit and clean dependencies — remove unused packages, check for vulnerabilities, pin versions.\n---\n\n# dependency-audit\n\n- Run npm audit / yarn audit and resolve critical/high issues.\n- Remove unused dependencies (depcheck or manual).\n- Pin major versions to avoid surprise breaks.\n- Document why non-obvious dependencies exist.\n`,
 	},
 	{
 		category: 'testing',
 		name: 'test-setup',
-		body: `---
-name: test-setup
-category: testing
-description: Stand up a test harness and write the first meaningful tests. Use for projects with pure functions or UI that has no tests yet.
----
-
-# test-setup
-
-- Pick a runner that fits the stack (Vitest/Jest for JS, Playwright for e2e).
-- Start with pure functions — they're the cheapest, highest-signal tests.
-- Cover the happy path, one edge case, and one failure case per unit.
-- Add a \`test\` script and wire it into CI so it runs on every push.
-`,
+		body: `---\nname: test-setup\ncategory: testing\ndescription: Stand up a test harness and write first meaningful tests.\n---\n\n# test-setup\n\n- Pick a runner that fits the stack (Vitest/Jest for JS, Playwright for e2e).\n- Start with pure functions — cheapest, highest-signal tests.\n- Cover happy path, one edge case, one failure per unit.\n- Add a test script and wire into CI.\n`,
+	},
+	{
+		category: 'testing',
+		name: 'snapshot-testing',
+		body: `---\nname: snapshot-testing\ncategory: testing\ndescription: Add snapshot tests for UI components to catch unintended visual/markup regressions.\n---\n\n# snapshot-testing\n\n- Add component render snapshots for critical UI paths.\n- Use inline snapshots for small outputs, file snapshots for complex markup.\n- Review snapshot diffs carefully — never blindly update.\n- Combine with visual regression tools for pixel-level checks.\n`,
+	},
+	{
+		category: 'testing',
+		name: 'e2e-testing',
+		body: `---\nname: e2e-testing\ncategory: testing\ndescription: Set up end-to-end tests for critical user flows using Playwright or Cypress.\n---\n\n# e2e-testing\n\n- Identify 3-5 critical user journeys (signup, checkout, data export, etc.).\n- Use Playwright or Cypress with page-object pattern.\n- Run in CI with retry logic for flaky network tests.\n- Keep e2e tests focused — don't duplicate unit test coverage.\n`,
 	},
 	{
 		category: 'web',
 		name: 'accessibility',
-		body: `---
-name: accessibility
-category: web
-description: Make UI accessible — semantic HTML, keyboard navigation, ARIA where needed, visible focus, and sufficient color contrast. Use when building or reviewing any user-facing interface.
----
-
-# accessibility
-
-- Use semantic elements (\`button\`, \`nav\`, \`main\`, headings in order) before reaching for ARIA.
-- Everything interactive must be keyboard-reachable with a visible focus ring.
-- Add ARIA roles/labels only where semantics fall short (custom widgets, icon buttons).
-- Verify color contrast meets WCAG AA (4.5:1 for text).
-- Respect \`prefers-reduced-motion\` for animations.
-`,
+		body: `---\nname: accessibility\ncategory: web\ndescription: Make UI accessible — semantic HTML, keyboard nav, ARIA, focus rings, color contrast.\n---\n\n# accessibility\n\n- Use semantic elements before ARIA.\n- Everything interactive must be keyboard-reachable with visible focus.\n- Verify color contrast meets WCAG AA (4.5:1).\n- Respect prefers-reduced-motion.\n`,
+	},
+	{
+		category: 'web',
+		name: 'performance',
+		body: `---\nname: performance\ncategory: web\ndescription: Optimize page load and runtime performance — code splitting, lazy loading, image optimization, bundle analysis.\n---\n\n# performance\n\n- Analyze bundle size (webpack-bundle-analyzer or equivalent).\n- Lazy-load routes and heavy components.\n- Optimize images (WebP, srcset, lazy loading).\n- Minimize main-thread work — defer non-critical scripts.\n- Target LCP < 2.5s, FID < 100ms, CLS < 0.1.\n`,
+	},
+	{
+		category: 'web',
+		name: 'responsive-design',
+		body: `---\nname: responsive-design\ncategory: web\ndescription: Ensure UI works across all screen sizes — mobile-first CSS, fluid grids, touch targets.\n---\n\n# responsive-design\n\n- Start mobile-first, layer up with min-width breakpoints.\n- Use fluid layouts (flex/grid) over fixed widths.\n- Touch targets: minimum 44x44px on mobile.\n- Test at 320px, 768px, 1024px, 1440px.\n- Hide/rearrange elements responsively — never just shrink.\n`,
+	},
+	{
+		category: 'web',
+		name: 'seo',
+		body: `---\nname: seo\ncategory: web\ndescription: Add SEO basics — meta tags, semantic HTML, Open Graph, sitemap, structured data.\n---\n\n# seo\n\n- Add title, meta description, and canonical URL to every page.\n- Use Open Graph + Twitter Card meta for social sharing.\n- Generate a sitemap.xml and robots.txt.\n- Use heading hierarchy (one h1, structured h2-h4).\n- Add structured data (JSON-LD) for rich search results.\n`,
+	},
+	{
+		category: 'security',
+		name: 'input-validation',
+		body: `---\nname: input-validation\ncategory: security\ndescription: Validate and sanitize all user input — prevent XSS, injection, and data corruption.\n---\n\n# input-validation\n\n- Validate input on both client (UX) and server (security).\n- Sanitize HTML output to prevent XSS (DOMPurify or equivalent).\n- Use parameterized queries for SQL — never string concatenation.\n- Reject unexpected types/shapes at API boundaries.\n- Set Content-Security-Policy headers.\n`,
+	},
+	{
+		category: 'security',
+		name: 'auth-hardening',
+		body: `---\nname: auth-hardening\ncategory: security\ndescription: Harden authentication — secure tokens, CSRF protection, rate limiting, session management.\n---\n\n# auth-hardening\n\n- Use httpOnly, secure, sameSite cookies for session tokens.\n- Add CSRF tokens to state-changing requests.\n- Rate-limit login/register endpoints.\n- Hash passwords with bcrypt/argon2 — never store plaintext.\n- Implement token refresh with short-lived access tokens.\n`,
+	},
+	{
+		category: 'security',
+		name: 'secrets-management',
+		body: `---\nname: secrets-management\ncategory: security\ndescription: Manage secrets safely — environment variables, .env files, secret rotation, no hardcoded keys.\n---\n\n# secrets-management\n\n- Never hardcode secrets in source code.\n- Use .env files locally, secret manager in production.\n- Add .env to .gitignore with a .env.example template.\n- Rotate secrets regularly — automate where possible.\n- Audit git history for accidentally committed secrets.\n`,
+	},
+	{
+		category: 'devops',
+		name: 'ci-pipeline',
+		body: `---\nname: ci-pipeline\ncategory: devops\ndescription: Set up a CI pipeline — lint, test, build, and deploy on every push.\n---\n\n# ci-pipeline\n\n- Run lint + format check on every PR.\n- Run unit tests and fail the build on any failure.\n- Build the production bundle to catch compile errors.\n- Deploy to staging on merge to main.\n- Add status badges to README.\n`,
+	},
+	{
+		category: 'devops',
+		name: 'docker-setup',
+		body: `---\nname: docker-setup\ncategory: devops\ndescription: Containerize the application — multi-stage Dockerfile, docker-compose for local dev, health checks.\n---\n\n# docker-setup\n\n- Use multi-stage builds (build stage → slim runtime image).\n- Pin base image versions (e.g. node:20-alpine).\n- Add docker-compose.yml for local development with hot reload.\n- Include a health check endpoint.\n- Keep images under 200MB where possible.\n`,
+	},
+	{
+		category: 'devops',
+		name: 'monitoring',
+		body: `---\nname: monitoring\ncategory: devops\ndescription: Add application monitoring — structured logging, error tracking, uptime checks, alerting.\n---\n\n# monitoring\n\n- Add structured logging (JSON format) with correlation IDs.\n- Wire error tracking (Sentry, Bugsnag, or equivalent).\n- Set up uptime monitoring for critical endpoints.\n- Configure alerts for error rate spikes and latency thresholds.\n- Dashboard key metrics (request rate, p95 latency, error rate).\n`,
+	},
+	{
+		category: 'api',
+		name: 'rest-design',
+		body: `---\nname: rest-design\ncategory: api\ndescription: Design clean REST APIs — consistent naming, proper HTTP methods, pagination, error responses.\n---\n\n# rest-design\n\n- Use plural nouns for resources (/users, /posts).\n- Use correct HTTP verbs (GET=read, POST=create, PUT=update, DELETE=remove).\n- Return consistent error format: { error: { code, message, details } }.\n- Paginate collections (cursor-based preferred over offset).\n- Version the API (/v1/) from day one.\n`,
+	},
+	{
+		category: 'api',
+		name: 'rate-limiting',
+		body: `---\nname: rate-limiting\ncategory: api\ndescription: Implement rate limiting — sliding window, per-user/IP limits, graceful 429 responses.\n---\n\n# rate-limiting\n\n- Use sliding window algorithm for smooth limits.\n- Rate-limit per user/API key, fall back to IP for unauthenticated.\n- Return 429 with Retry-After header.\n- Apply stricter limits to auth endpoints (login, register).\n- Log rate limit hits for abuse detection.\n`,
+	},
+	{
+		category: 'database',
+		name: 'schema-migrations',
+		body: `---\nname: schema-migrations\ncategory: database\ndescription: Set up database migrations — versioned schema changes, rollback support, seed data.\n---\n\n# schema-migrations\n\n- Use a migration tool (Prisma Migrate, knex, Flyway, Alembic).\n- Each migration is an atomic, reversible change.\n- Never edit a migration that's been deployed — create a new one.\n- Add seed scripts for dev/test data.\n- Run migrations in CI before tests.\n`,
+	},
+	{
+		category: 'database',
+		name: 'query-optimization',
+		body: `---\nname: query-optimization\ncategory: database\ndescription: Optimize slow database queries — indexes, query plans, N+1 detection, connection pooling.\n---\n\n# query-optimization\n\n- Add indexes for columns used in WHERE, JOIN, ORDER BY.\n- Use EXPLAIN/ANALYZE to verify query plans.\n- Detect and fix N+1 queries (use eager loading / DataLoader).\n- Set up connection pooling (PgBouncer or built-in).\n- Cache hot queries with short TTL.\n`,
 	},
 ];
 

@@ -38,7 +38,7 @@ export interface QueryExpanderApi {
 
 export interface QueryExpanderOptions {
 	/** Fired by the service when the user picks an expander. */
-	mode: 'local-llama' | 'chat-model';
+	mode: 'local-llama' | 'chat-model' | 'heuristic';
 	/** Optional local-llama config — model path is lazy-downloaded. */
 	llama?: { modelPath: string };
 	/** Chat-model callback — the service injects a closure that wraps

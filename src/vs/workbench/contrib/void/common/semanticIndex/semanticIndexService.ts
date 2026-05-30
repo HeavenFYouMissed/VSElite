@@ -23,9 +23,9 @@
  * — see `semanticIndexConfiguration.ts`.
  */
 
-import { join, relative } from 'path';
-import { promises as fs } from 'fs';
-import { homedir } from 'os';
+import { join, relative } from 'node:path';
+import { promises as fs } from 'node:fs';
+import { homedir } from 'node:os';
 
 import { Disposable } from '../../../../../base/common/lifecycle.js';
 import { Emitter } from '../../../../../base/common/event.js';

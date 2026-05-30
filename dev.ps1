@@ -67,13 +67,25 @@ function Build-React {
 
 # FAST path: copy the freshly-built react/out straight into the host output tree.
 # This bypasses the ~3-min gulp. Valid for React/CSS edits (not .ts service edits).
+function Copy-VoidCss {
+    $voidCssSrc = "$root\src\vs\workbench\contrib\void\browser\media\void.css"
+    $voidCssOut = "$root\out\vs\workbench\contrib\void\browser\media\void.css"
+    if (-not (Test-Path $voidCssOut)) {
+        Write-Host "  void.css not in out/ — run .\dev.ps1 -FullGulp once, or create out via gulp." -ForegroundColor Yellow
+        return $false
+    }
+    Copy-Item -Path $voidCssSrc -Destination $voidCssOut -Force
+    return $true
+}
+
 function Copy-ToHost {
     if (-not (Test-Path $hostOutDir)) {
         Write-Host "  Host output dir missing -- you must run a full gulp build at least once first (.\dev.ps1 -FullGulp)." -ForegroundColor Yellow
         return $false
     }
     Copy-Item -Path "$reactOutDir\*" -Destination $hostOutDir -Recurse -Force
-    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Copied React bundle to host. Press Ctrl+R in V3Code to reload." -ForegroundColor Green
+    Copy-VoidCss | Out-Null
+    Write-Host "[$(Get-Date -Format 'HH:mm:ss')] Copied React bundle + void.css to out/. Press Ctrl+R in V3Code to reload." -ForegroundColor Green
     return $true
 }
 
@@ -90,6 +102,7 @@ function Build-Gulp {
     }
     if ($LASTEXITCODE -ne 0) { Write-Host "  gulp compile-client FAILED (exit $LASTEXITCODE)" -ForegroundColor Red; return $false }
     Ensure-NlsFile
+    Copy-VoidCss | Out-Null
     Write-Host "  Gulp complete." -ForegroundColor Green
     return $true
 }

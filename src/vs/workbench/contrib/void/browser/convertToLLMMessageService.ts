@@ -18,8 +18,12 @@ import { URI } from '../../../../base/common/uri.js';
 import { EndOfLinePreference } from '../../../../editor/common/model.js';
 import { ToolName } from '../common/toolsServiceTypes.js';
 import { IMCPService } from '../common/mcpService.js';
+import { ISemanticIndexService } from '../common/semanticIndex/semanticIndexTypes.js';
 
-export const EMPTY_MESSAGE = '(empty message)'
+import { LLM_EMPTY_TEXT_PLACEHOLDER } from '../common/chatMessageContent.js'
+
+/** @deprecated use LLM_EMPTY_TEXT_PLACEHOLDER */
+export const EMPTY_MESSAGE = LLM_EMPTY_TEXT_PLACEHOLDER
 
 
 
@@ -113,6 +117,10 @@ const prepareMessages_openai_tools = (messages: SimpleLLMMessage[]): AnthropicOr
 					arguments: JSON.stringify(currMsg.rawParams)
 				}
 			}]
+		} else {
+			// Orphaned tool message (no preceding assistant with tool_calls) — skip it
+			// This happens when a stream is aborted mid-tool-call
+			continue
 		}
 
 		// add the tool
@@ -198,7 +206,11 @@ const prepareMessages_anthropic_tools = (messages: SimpleLLMMessage[], supportsA
 
 			// make it so the assistant called the tool
 			if (prevMsg?.role === 'assistant') {
-				if (typeof prevMsg.content === 'string') prevMsg.content = [{ type: 'text', text: prevMsg.content }]
+				if (typeof prevMsg.content === 'string') {
+					prevMsg.content = prevMsg.content.trim()
+						? [{ type: 'text', text: prevMsg.content }]
+						: []
+				}
 				prevMsg.content.push({ type: 'tool_use', id: currMsg.id, name: currMsg.name, input: currMsg.rawParams })
 			}
 
@@ -563,6 +575,7 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 		@IVoidSettingsService private readonly voidSettingsService: IVoidSettingsService,
 		@IVoidModelService private readonly voidModelService: IVoidModelService,
 		@IMCPService private readonly mcpService: IMCPService,
+		@ISemanticIndexService private readonly semanticIndexService: ISemanticIndexService,
 	) {
 		super()
 		// Eagerly load workspace instruction files (AGENTS.md, copilot-instructions, CLAUDE.md, .voidrules)
@@ -639,6 +652,46 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 		return ans.join('\n\n')
 	}
 
+
+	// Auto-context: skip injection for trivial messages.
+	private static readonly SKIP_PATTERNS = /^(ok|yes|no|thanks|thank you|sure|go|do it|please|lgtm|k|y|n|yep|nope|cool|great|nice|got it|understood|ack|fine|done|stop|continue|proceed|next|retry|again|right|correct)\.?!?$/i;
+	private static readonly AUTO_CONTEXT_MAX_CHARS = 6_000;
+	private static readonly AUTO_CONTEXT_TOP_K = 8;
+
+	private async _buildAutoContext(chatMessages: ChatMessage[], chatMode: ChatMode): Promise<string> {
+		if (chatMode !== 'agent' && chatMode !== 'gather') return '';
+
+		const status = this.semanticIndexService.getStatus();
+		if (status.state === 'uninitialized' || status.state === 'error' || status.filesIndexed === 0) return '';
+
+		let lastUserMsg = '';
+		for (let i = chatMessages.length - 1; i >= 0; i--) {
+			const msg = chatMessages[i];
+			if (msg.role === 'user') {
+				lastUserMsg = msg.content.trim();
+				break;
+			}
+		}
+		if (!lastUserMsg || lastUserMsg.length < 8 || ConvertToLLMMessageService.SKIP_PATTERNS.test(lastUserMsg)) return '';
+
+		try {
+			const hits = await this.semanticIndexService.retrieve(lastUserMsg, { topK: ConvertToLLMMessageService.AUTO_CONTEXT_TOP_K });
+			if (!hits.length) return '';
+
+			let budget = ConvertToLLMMessageService.AUTO_CONTEXT_MAX_CHARS;
+			const parts: string[] = [];
+			for (const hit of hits) {
+				const block = `### ${hit.chunk.file} (L${hit.chunk.startLine}-${hit.chunk.endLine}, ${hit.chunk.kind}: ${hit.chunk.name})\n\`\`\`${hit.chunk.language}\n${hit.content}\n\`\`\``;
+				if (block.length > budget) break;
+				budget -= block.length;
+				parts.push(block);
+			}
+			if (!parts.length) return '';
+			return `\n\n<AUTO_CODEBASE_CONTEXT>\nThe following code snippets were automatically retrieved from the codebase as potentially relevant to the user's latest message. Use them if helpful; do not mention this section to the user.\n\n${parts.join('\n\n')}\n</AUTO_CODEBASE_CONTEXT>`;
+		} catch {
+			return '';
+		}
+	}
 
 	// system message
 	private _generateChatMessagesSystemMessage = async (chatMode: ChatMode, specialToolFormat: 'openai-style' | 'anthropic-style' | 'gemini-style' | undefined) => {
@@ -761,9 +814,12 @@ class ConvertToLLMMessageService extends Disposable implements IConvertToLLMMess
 		const reservedOutputTokenSpace = getReservedOutputTokenSpace(providerName, modelName, { isReasoningEnabled, overridesOfModel })
 		const llmMessages = this._chatMessagesToSimpleMessages(chatMessages)
 
+		const autoContext = await this._buildAutoContext(chatMessages, chatMode);
+		const enrichedSystemMessage = systemMessage + autoContext;
+
 		const { messages, separateSystemMessage } = prepareMessages({
 			messages: llmMessages,
-			systemMessage,
+			systemMessage: enrichedSystemMessage,
 			aiInstructions,
 			supportsSystemMessage,
 			specialToolFormat,

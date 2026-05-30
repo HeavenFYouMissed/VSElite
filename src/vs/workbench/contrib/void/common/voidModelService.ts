@@ -18,7 +18,7 @@ export interface IVoidModelService {
 	getModelFromFsPath(fsPath: string): VoidModelType;
 	getModelSafe(uri: URI): Promise<VoidModelType>;
 	saveModel(uri: URI): Promise<void>;
-
+	disposeModel(uri: URI): void;
 }
 
 export const IVoidModelService = createDecorator<IVoidModelService>('voidVoidModelService');
@@ -76,7 +76,14 @@ class VoidModelService extends Disposable implements IVoidModelService {
 	getModelSafe = async (uri: URI): Promise<VoidModelType> => {
 		if (!(uri.fsPath in this._modelRefOfURI)) await this.initializeModel(uri);
 		return this.getModel(uri);
+	};
 
+	disposeModel = (uri: URI): void => {
+		const ref = this._modelRefOfURI[uri.fsPath];
+		if (ref) {
+			ref.dispose();
+			delete this._modelRefOfURI[uri.fsPath];
+		}
 	};
 
 	override dispose() {

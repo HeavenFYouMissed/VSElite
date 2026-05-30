@@ -202,7 +202,19 @@ _Recon finding (2026-05-27):_ The original "vendor `lsp-bridge.ts` into `common/
 - VS 2022 Community + C++ workload + Node.js build tools
 - Electron 34.3.2, React 19, Tailwind
 - `nvm use && npm install` → `npm run watch` → `.\scripts\code.bat --user-data-dir .\.tmp\user-data --extensions-dir .\.tmp\extensions`
-- Reload after edits: Ctrl+R inside dev window (don't restart full build)
+
+### CRITICAL: Build Rules (read this before running dev.ps1)
+
+| What you edited | Build command | Why |
+|---|---|---|
+| `.tsx` / `.css` under `react/src/` | `.\dev.ps1 -Once` (fast, ~15s) | React bundle only — Ctrl+R picks it up |
+| `.ts` under `browser/` or `common/` (e.g. `toolsService.ts`, `prompts.ts`, `chatThreadService.ts`) | `.\dev.ps1 -FullGulp` (~3 min) | These compile via gulp into `out/` — fast path skips them |
+| `.ts` under `electron-main/` (e.g. `webSearchChannel.ts`, `app.ts`) | `.\dev.ps1 -FullGulp` (~3 min) + **full V3Code restart** | Main process code loads ONCE at app launch — Ctrl+R does nothing |
+| `void.css` (workbench CSS) | `.\dev.ps1 -Once` copies it | Fast path handles this |
+
+**The #1 mistake**: editing a `.ts` service file, running `.\dev.ps1 -Once`, and wondering why nothing changed. The fast path ONLY rebuilds the React bundle. If you touched anything outside `react/src/`, you MUST use `-FullGulp`.
+
+**The #2 mistake**: editing `electron-main/` code, running `-FullGulp`, and only doing Ctrl+R. The main process keeps the OLD code in memory. You must fully quit + relaunch V3Code.
 
 ---
 

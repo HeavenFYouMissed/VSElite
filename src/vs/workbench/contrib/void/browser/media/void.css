@@ -109,20 +109,19 @@
 .void-scope,
 .void-scope * {
 	scrollbar-width: thin !important;
-	scrollbar-color: var(--void-bg-1) var(--void-bg-3) !important;
-	/* For Firefox */
+	scrollbar-color: var(--vscode-scrollbarSlider-background, rgba(121, 121, 121, 0.4)) transparent !important;
 }
 
 .void-scope::-webkit-scrollbar,
 .void-scope *::-webkit-scrollbar {
 	width: var(--scrollbar-vertical-width) !important;
 	height: var(--scrollbar-horizontal-height) !important;
-	background-color: var(--void-bg-3) !important;
+	background-color: transparent !important;
 }
 
 .void-scope::-webkit-scrollbar-thumb,
 .void-scope *::-webkit-scrollbar-thumb {
-	background-color: var(--void-bg-1) !important;
+	background-color: var(--vscode-scrollbarSlider-background, rgba(121, 121, 121, 0.4)) !important;
 	border-radius: 4px !important;
 	border: none !important;
 	-webkit-box-shadow: none !important;
@@ -131,25 +130,23 @@
 
 .void-scope::-webkit-scrollbar-thumb:hover,
 .void-scope *::-webkit-scrollbar-thumb:hover {
-	background-color: var(--void-bg-1) !important;
-	filter: brightness(1.1) !important;
+	background-color: var(--vscode-scrollbarSlider-hoverBackground, rgba(100, 100, 100, 0.7)) !important;
 }
 
 .void-scope::-webkit-scrollbar-thumb:active,
 .void-scope *::-webkit-scrollbar-thumb:active {
-	background-color: var(--void-bg-1) !important;
-	filter: brightness(1.2) !important;
+	background-color: var(--vscode-scrollbarSlider-activeBackground, rgba(191, 191, 191, 0.4)) !important;
 }
 
 .void-scope::-webkit-scrollbar-track,
 .void-scope *::-webkit-scrollbar-track {
-	background-color: var(--void-bg-3) !important;
+	background-color: transparent !important;
 	border: none !important;
 }
 
 .void-scope::-webkit-scrollbar-corner,
 .void-scope *::-webkit-scrollbar-corner {
-	background-color: var(--void-bg-3) !important;
+	background-color: transparent !important;
 }
 
 /* Add void-scrollable-element styles to match */
@@ -164,21 +161,19 @@
 .void-scrollable-element,
 .void-scrollable-element * {
 	scrollbar-width: thin !important;
-	/* For Firefox */
-	scrollbar-color: var(--void-bg-1) var(--void-bg-3) !important;
-	/* For Firefox */
+	scrollbar-color: var(--vscode-scrollbarSlider-background, rgba(121, 121, 121, 0.4)) transparent !important;
 }
 
 .void-scrollable-element::-webkit-scrollbar,
 .void-scrollable-element *::-webkit-scrollbar {
 	width: var(--scrollbar-vertical-width) !important;
 	height: var(--scrollbar-horizontal-height) !important;
-	background-color: var(--void-bg-3) !important;
+	background-color: transparent !important;
 }
 
 .void-scrollable-element::-webkit-scrollbar-thumb,
 .void-scrollable-element *::-webkit-scrollbar-thumb {
-	background-color: var(--void-bg-1) !important;
+	background-color: var(--vscode-scrollbarSlider-background, rgba(121, 121, 121, 0.4)) !important;
 	border-radius: 4px !important;
 	border: none !important;
 	-webkit-box-shadow: none !important;
@@ -187,25 +182,23 @@
 
 .void-scrollable-element::-webkit-scrollbar-thumb:hover,
 .void-scrollable-element *::-webkit-scrollbar-thumb:hover {
-	background-color: var(--void-bg-1) !important;
-	filter: brightness(1.1) !important;
+	background-color: var(--vscode-scrollbarSlider-hoverBackground, rgba(100, 100, 100, 0.7)) !important;
 }
 
 .void-scrollable-element::-webkit-scrollbar-thumb:active,
 .void-scrollable-element *::-webkit-scrollbar-thumb:active {
-	background-color: var(--void-bg-1) !important;
-	filter: brightness(1.2) !important;
+	background-color: var(--vscode-scrollbarSlider-activeBackground, rgba(191, 191, 191, 0.4)) !important;
 }
 
 .void-scrollable-element::-webkit-scrollbar-track,
 .void-scrollable-element *::-webkit-scrollbar-track {
-	background-color: var(--void-bg-3) !important;
+	background-color: transparent !important;
 	border: none !important;
 }
 
 .void-scrollable-element::-webkit-scrollbar-corner,
 .void-scrollable-element *::-webkit-scrollbar-corner {
-	background-color: var(--void-bg-3) !important;
+	background-color: transparent !important;
 }
 
 
@@ -560,8 +553,9 @@ background: linear-gradient(90deg, transparent, rgba(139, 92, 246, 0.5), transpa
 .monaco-workbench .part.auxiliarybar .void-scope [class*="Checkpoint"]::after,
 .monaco-workbench .part.auxiliarybar .void-scope [class*="checkpoint"]::after { right: 6%; }
 
-/* "Read file" / tool result boxes — give them a real card look */
-.monaco-workbench .part.auxiliarybar .void-scope button:has(> svg + *),
+/* "Read file" / tool result boxes — give them a real card look.
+   Exclude composer dropdown buttons (scope-tailwind → void-continue-composer-control). */
+.monaco-workbench .part.auxiliarybar .void-scope button:has(> svg + *):not(.void-continue-composer-control),
 .monaco-workbench .part.auxiliarybar .void-scope [class*="ToolCall"],
 .monaco-workbench .part.auxiliarybar .void-scope [class*="tool-call"],
 .monaco-workbench .part.auxiliarybar .void-scope [class*="ToolResult"],
@@ -574,11 +568,34 @@ box-shadow: 0 2px 8px -2px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(167, 139, 250,
 padding: 8px 10px !important;
 transition: all 0.2s ease;
 }
-.monaco-workbench .part.auxiliarybar .void-scope button:has(> svg + *):hover,
+.monaco-workbench .part.auxiliarybar .void-scope button:has(> svg + *):not(.void-continue-composer-control):hover,
 .monaco-workbench .part.auxiliarybar .void-scope [class*="ToolCall"]:hover,
 .monaco-workbench .part.auxiliarybar .void-scope [class*="tool-call"]:hover {
 border-color: rgba(167, 139, 250, 0.6) !important;
 box-shadow: 0 4px 16px -4px rgba(139, 92, 246, 0.4), inset 0 1px 0 rgba(167, 139, 250, 0.15) !important;
+}
+
+/* Composer mode/model dropdowns — flat VS Code list rows (no tool-card chrome) */
+.monaco-workbench .part.auxiliarybar .void-scope .void-continue-composer-control {
+background: transparent !important;
+background-image: none !important;
+border: none !important;
+border-left: none !important;
+border-radius: 0 !important;
+box-shadow: none !important;
+padding: 2px 8px !important;
+}
+.monaco-workbench .part.auxiliarybar .void-scope .void-continue-composer-control:hover {
+border: none !important;
+border-left: none !important;
+box-shadow: none !important;
+}
+.monaco-workbench .part.auxiliarybar .void-scope .void-continue-composer-control svg {
+width: 10px !important;
+height: 10px !important;
+min-width: 10px !important;
+min-height: 10px !important;
+flex-shrink: 0;
 }
 
 /* Filename / italic accent inside tool boxes — venom green */
@@ -608,86 +625,111 @@ flex-shrink: 0;
 }
 
 .v-chat-activity-banner--visible {
-max-height: 56px;
+max-height: 48px;
 opacity: 1;
 }
 
 .v-chat-activity-banner__inner {
 display: flex;
 align-items: center;
-justify-content: space-between;
-gap: 12px;
-min-height: 48px;
-padding: 6px 12px;
-background: linear-gradient(180deg, #160a2b 0%, #1d0f3d 55%, #13132b 100%);
-border-bottom: 1px solid rgba(139, 92, 246, 0.22);
-box-shadow: 0 4px 16px -8px rgba(139, 92, 246, 0.35);
+gap: 10px;
+height: 40px;
+padding: 0 12px;
+background: #1a1625;
+border-bottom: 1px solid rgba(139, 92, 246, 0.18);
+position: relative;
 }
+.v-chat-activity-banner__inner::before,
+.v-chat-activity-banner__inner::after {
+content: '';
+position: absolute;
+left: 0; right: 0;
+height: 1px;
+background: repeating-linear-gradient(135deg, rgba(139, 92, 246, 0.35) 0 1px, transparent 1px 4px);
+}
+.v-chat-activity-banner__inner::before { top: 0; }
+.v-chat-activity-banner__inner::after { bottom: 0; }
 
 .v-chat-activity-banner__alien {
 flex-shrink: 0;
 display: flex;
-align-items: flex-end;
-padding-left: 2px;
-filter: drop-shadow(0 0 6px rgba(78, 160, 59, 0.35));
+align-items: center;
+filter: drop-shadow(0 0 4px rgba(78, 160, 59, 0.3));
+}
+
+.v-chat-activity-hatch {
+font-family: ui-monospace, 'Cascadia Code', monospace;
+font-size: 11px;
+color: rgba(139, 92, 246, 0.4);
+overflow: hidden;
+white-space: nowrap;
+letter-spacing: -0.02em;
+flex-shrink: 1;
+min-width: 0;
 }
 
 .v-chat-activity-status {
-flex: 1;
-min-width: 0;
-font-family: ui-monospace, 'Cascadia Code', 'Consolas', monospace;
+display: flex;
+align-items: center;
+gap: 8px;
+font-family: ui-monospace, 'Cascadia Code', monospace;
 font-size: 11px;
-line-height: 1.25;
-color: #8888aa;
-text-align: right;
-}
-
-.v-chat-activity-status__frame {
-color: rgba(139, 92, 246, 0.55);
-letter-spacing: 0.02em;
-user-select: none;
-}
-
-.v-chat-activity-status__frame--bottom {
-margin-top: 2px;
-}
-
-.v-chat-activity-phrases {
-position: relative;
-height: 1.3em;
-margin: 2px 0;
-overflow: hidden;
-}
-
-.v-chat-activity-phrase {
-position: absolute;
-right: 0;
-left: 0;
-opacity: 0;
 white-space: nowrap;
-animation: v-phrase-cycle 10s infinite;
 }
 
-.v-chat-activity-phrase[data-accent="green"] { color: #5fd35f; text-shadow: 0 0 8px rgba(95, 211, 95, 0.35); }
-.v-chat-activity-phrase[data-accent="amethyst"] { color: #a78bfa; text-shadow: 0 0 8px rgba(167, 139, 250, 0.3); }
-.v-chat-activity-phrase[data-accent="brand"] { color: #9fff3d; text-shadow: 0 0 10px rgba(159, 255, 61, 0.4); }
+.v-chat-activity-scramble {
+font-size: 10px;
+letter-spacing: 0.04em;
+background: linear-gradient(90deg, #8B5CF6, #FF60FF, #8B5CF6);
+background-size: 200% 100%;
+-webkit-background-clip: text;
+background-clip: text;
+color: transparent;
+animation: v-scramble-shift 2s linear infinite;
+}
+@keyframes v-scramble-shift {
+0% { background-position: 0% 50%; }
+100% { background-position: 200% 50%; }
+}
 
-@keyframes v-phrase-cycle {
-0%, 16% { opacity: 1; transform: translateY(0); }
-18%, 100% { opacity: 0; transform: translateY(-3px); }
+.v-chat-activity-word {
+font-weight: 600;
+letter-spacing: 0.06em;
+text-transform: lowercase;
+background: linear-gradient(90deg, #8B5CF6, #5fd35f);
+-webkit-background-clip: text;
+background-clip: text;
+color: transparent;
+}
+.v-chat-activity-word[data-phrase="planning"] {
+background: linear-gradient(90deg, #a78bfa, #FF60FF);
+-webkit-background-clip: text;
+background-clip: text;
+}
+.v-chat-activity-word[data-phrase="v3code"] {
+background: linear-gradient(90deg, #5fd35f, #9fff3d);
+-webkit-background-clip: text;
+background-clip: text;
 }
 
 /* Pill switch above composer */
 .v-activity-banner-pill {
 display: inline-flex;
 align-items: center;
-gap: 8px;
+gap: 6px;
 cursor: pointer;
 user-select: none;
-font-size: 10px;
-color: #666688;
-letter-spacing: 0.03em;
-text-transform: lowercase;
+font-size: 11px;
+font-family: ui-monospace, 'Cascadia Code', monospace;
+padding: 3px 10px 3px 6px;
+border-radius: 12px;
+background: rgba(255, 255, 255, 0.03);
+border: 1px solid rgba(255, 255, 255, 0.06);
+transition: all 0.15s;
+}
+.v-activity-banner-pill:hover {
+background: rgba(139, 92, 246, 0.08);
+border-color: rgba(139, 92, 246, 0.2);
 }
 
 .v-activity-banner-pill__input {
@@ -700,62 +742,94 @@ pointer-events: none;
 
 .v-activity-banner-pill__track {
 position: relative;
-width: 32px;
-height: 18px;
+width: 26px;
+height: 14px;
 border-radius: 999px;
-background: rgba(248, 113, 113, 0.25);
-border: 1px solid rgba(248, 113, 113, 0.45);
-transition: background 0.2s ease, border-color 0.2s ease;
+background: rgba(100, 100, 120, 0.3);
+transition: background 0.2s ease;
 }
 
 .v-activity-banner-pill__input:checked + .v-activity-banner-pill__track {
-background: rgba(52, 211, 153, 0.2);
-border-color: rgba(52, 211, 153, 0.55);
+background: rgba(139, 92, 246, 0.4);
 }
 
 .v-activity-banner-pill__thumb {
 position: absolute;
 top: 2px;
 left: 2px;
-width: 12px;
-height: 12px;
+width: 10px;
+height: 10px;
 border-radius: 50%;
-background: #f87171;
-box-shadow: 0 1px 4px rgba(0, 0, 0, 0.35);
+background: #8b949e;
 transition: transform 0.2s ease, background 0.2s ease;
 }
 
 .v-activity-banner-pill__input:checked + .v-activity-banner-pill__track .v-activity-banner-pill__thumb {
-transform: translateX(14px);
-background: #34d399;
+transform: translateX(12px);
+background: #a78bfa;
 }
 
 .v-activity-banner-pill__label {
-opacity: 0.85;
+color: #6b7280;
 }
 
 .v-activity-banner-pill:hover .v-activity-banner-pill__label {
-color: #8888aa;
+color: #a78bfa;
 }
 
 /* Compact dot in chat header when banner is off */
 .v-activity-banner-dot {
-width: 10px;
-height: 10px;
+width: 8px;
+height: 8px;
 border-radius: 50%;
 border: none;
 padding: 0;
 cursor: pointer;
-background: #f87171;
-box-shadow: 0 0 6px rgba(248, 113, 113, 0.55);
+background: #6b7280;
+box-shadow: 0 0 4px rgba(107, 114, 128, 0.4);
 transition: background 0.2s ease, box-shadow 0.2s ease, transform 0.15s ease;
 }
 
 .v-activity-banner-dot[data-on="true"] {
-background: #34d399;
-box-shadow: 0 0 8px rgba(52, 211, 153, 0.55);
+background: #a78bfa;
+box-shadow: 0 0 6px rgba(139, 92, 246, 0.5);
 }
 
 .v-activity-banner-dot:hover {
-transform: scale(1.15);
+transform: scale(1.2);
+}
+
+/* Chat messages scrollbar — targeted override for visibility (Cursor-style) */
+.void-scope .v3code-chat-messages-scroll {
+	scrollbar-width: thin !important;
+	scrollbar-color: var(--vscode-scrollbarSlider-background, rgba(121, 121, 121, 0.4)) transparent !important;
+	scrollbar-gutter: stable;
+}
+.void-scope .v3code-chat-messages-scroll::-webkit-scrollbar {
+	width: 8px !important;
+}
+.void-scope .v3code-chat-messages-scroll::-webkit-scrollbar-track {
+	background: transparent !important;
+}
+.void-scope .v3code-chat-messages-scroll::-webkit-scrollbar-thumb {
+	background: var(--vscode-scrollbarSlider-background, rgba(121, 121, 121, 0.4)) !important;
+	border-radius: 4px !important;
+}
+.void-scope .v3code-chat-messages-scroll::-webkit-scrollbar-thumb:hover {
+	background: var(--vscode-scrollbarSlider-hoverBackground, rgba(100, 100, 100, 0.7)) !important;
+}
+.void-scope .v3code-chat-messages-scroll::-webkit-scrollbar-thumb:active {
+	background: var(--vscode-scrollbarSlider-activeBackground, rgba(191, 191, 191, 0.4)) !important;
+}
+
+/* Thinking pulse animation for tab indicators */
+@keyframes v3code-pulse {
+	0%, 100% { opacity: 1; transform: scale(1); }
+	50% { opacity: 0.4; transform: scale(0.85); }
+}
+
+/* Todo item fade-in (matches Cursor ui-todo-fade-in) */
+@keyframes v3code-todo-fade-in {
+	from { opacity: 0; transform: translateY(4px); }
+	to { opacity: 1; transform: translateY(0); }
 }

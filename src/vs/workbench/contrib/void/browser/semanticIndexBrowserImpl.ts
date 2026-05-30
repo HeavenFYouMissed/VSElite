@@ -33,11 +33,9 @@
  *     something (enabled toggle, auto-rebuild, custom exclude patterns).
  */
 
-// Side-effect: registers the workbench startup contribution that forces this
-// (Delayed) singleton to instantiate on workspace open and refreshes the index
-// when workspace folders change. Imported here (rather than editing
-// void.contribution.ts) so the trigger ships with the indexer it drives.
-import './semanticIndexAutoStart.js';
+// NOTE: semanticIndexAutoStart.js is now imported from void.contribution.ts
+// alongside the full semanticIndexService (common/semanticIndex/semanticIndexService.ts).
+// This browser-side impl is retained as a fallback reference but no longer active.
 import { Disposable } from '../../../../base/common/lifecycle.js';
 import { Emitter, Event } from '../../../../base/common/event.js';
 import { URI } from '../../../../base/common/uri.js';
@@ -255,14 +253,13 @@ export class SemanticIndexBrowserImpl extends Disposable implements ISemanticInd
 		}));
 
 		// Eager init on next microtask so the workbench layout has settled.
-		// NOTE: embeddings (@xenova/transformers) are gated OFF by default -- the package
-		// isn't bundled in the renderer, and a dynamic import throws a module-resolution
-		// error that spams the console. Lexical retrieval is the default. Flip
-		// ENABLE_EMBEDDINGS once embeddings are served behind a node-side IPC boundary.
-		const ENABLE_EMBEDDINGS = false;
+		// Embeddings: attempt to load @xenova/transformers in the renderer. If the
+		// dynamic import fails (module not bundled, WASM unavailable), we silently
+		// fall back to lexical-only retrieval. The try/catch in _tryLoadEmbeddings
+		// prevents console spam — only a single info log is emitted on failure.
 		queueMicrotask(() => {
 			void this._initAndMaybeRebuild();
-			if (ENABLE_EMBEDDINGS) { void this._tryLoadEmbeddings(); }
+			void this._tryLoadEmbeddings();
 		});
 	}
 
@@ -631,6 +628,7 @@ export class SemanticIndexBrowserImpl extends Disposable implements ISemanticInd
 		const kind: ChunkKind = 'block';
 
 		const ids = new Set<string>();
+		const pendingChunks: { id: string; text: string; chunk: IndexedChunk }[] = [];
 		const step = WINDOW_LINES - WINDOW_OVERLAP;
 		for (let start = 0; start < lines.length; start += step) {
 			const end = Math.min(start + WINDOW_LINES, lines.length);
@@ -645,14 +643,23 @@ export class SemanticIndexBrowserImpl extends Disposable implements ISemanticInd
 			const contentHash = await sha256Hex(slice);
 			const tokens = new Set(tokenize(slice));
 			const name = `${relPath}:${startLine}-${endLine}`;
-			this.chunks.set(id, {
+			const chunk: IndexedChunk = {
 				id, file: relPath, startLine, endLine, kind, name,
 				language, contentHash, content: slice, tokens
-			});
+			};
+			this.chunks.set(id, chunk);
 			ids.add(id);
+			pendingChunks.push({ id, text: slice, chunk });
 			if (end >= lines.length) break;
 		}
 		this.fileToChunks.set(relPath, ids);
+
+		if (this._embeddingsAvailable && pendingChunks.length > 0) {
+			for (const { chunk, text } of pendingChunks) {
+				const emb = await this._computeEmbedding(text);
+				if (emb) chunk.embedding = emb;
+			}
+		}
 	}
 
 	/**
@@ -668,6 +675,7 @@ export class SemanticIndexBrowserImpl extends Disposable implements ISemanticInd
 				quantized: true,
 			});
 			this._embeddingsAvailable = true;
+			this.setStatus({ modelId: 'bge-small-en-v1.5 (hybrid)' }, true);
 			this.logService.info('[v3code-index] Embeddings model loaded (bge-small-en-v1.5)');
 		} catch (err) {
 			this._embeddingsAvailable = false;
@@ -751,9 +759,12 @@ export class SemanticIndexBrowserImpl extends Disposable implements ISemanticInd
 			},
 			content: s.chunk.content,
 			score: s.score,
-			signals: { terms: s.overlap, vec: s.vecScore }
+			signals: this._embeddingsAvailable
+				? { terms: s.overlap, vec: s.vecScore }
+				: { terms: s.overlap }
 		}));
 	}
 }
 
+// Registration moved to common/semanticIndex/semanticIndexService.ts (full pipeline).
 registerSingleton(ISemanticIndexService, SemanticIndexBrowserImpl, InstantiationType.Delayed);
