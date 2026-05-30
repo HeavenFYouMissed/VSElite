@@ -1013,7 +1013,7 @@ const MCPServersList = () => {
 		</div>
 	}
 	else {
-		const entries = Object.entries(mcpServiceState.mcpServerOfName)
+		const entries = Object.entries(mcpServiceState.mcpServerOfName).filter(([name]) => !name.includes('context-bridge'))
 		if (entries.length === 0) {
 			content = <div className="text-void-fg-3 text-sm mt-2">
 				No servers found

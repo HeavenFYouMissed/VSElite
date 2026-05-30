@@ -1462,7 +1462,7 @@ const AssistantMessageComponent = ({ chatMessage, isCheckpointGhost, isCommitted
 	if (!visibleDisplay && !reasoningStr) return null
 
 	const onCopy = () => {
-		const text = visibleDisplay || chatMessage.reasoning || ''
+		const text = visibleDisplay || reasoningStr || ''
 		navigator.clipboard.writeText(text)
 		setShowCopied(true)
 		setTimeout(() => setShowCopied(false), 1500)
@@ -1471,7 +1471,7 @@ const AssistantMessageComponent = ({ chatMessage, isCheckpointGhost, isCommitted
 	return <>
 		{/* reasoning token */}
 		{hasReasoning &&
-			<div className={`${isCheckpointGhost ? 'opacity-50' : ''}`}>
+			<div className={`${isCheckpointGhost ? 'opacity-50' : ''}`} style={{ marginBottom: visibleDisplay ? '0' : '-2px' }}>
 				<ReasoningWrapper isDoneReasoning={isDoneReasoning} isStreaming={!isCommitted}>
 					<SmallProseWrapper>
 						<ChatMarkdownRender
