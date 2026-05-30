@@ -113,7 +113,7 @@
 
 .file-icons-enabled .show-file-icons .vs_code_editor_walkthrough\.md-name-file-icon.md-ext-file-icon.ext-file-icon.markdown-lang-file-icon.file-icon::before {
 	content: ' ';
-	background-image: url('../../../../browser/media/void-icon-sm.png'); /* // Void */
+	background-image: url('../../../../browser/media/code-icon.svg');
 }
 
 .monaco-workbench .part.editor > .content .walkThroughContent .mac-only,
@@ -155,6 +155,7 @@
 	color: var(--vscode-textPreformat-foreground);
 	background-color: var(--vscode-textPreformat-background);
 	border-radius: 3px;
+	border: 1px solid var(--vscode-textPreformat-border);
 }
 
 .monaco-workbench .part.editor > .content .walkThroughContent .monaco-editor {
