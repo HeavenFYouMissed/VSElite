@@ -6,7 +6,7 @@
 
 import React, { useMemo, useState, useCallback } from 'react'
 import { Search, Plus, ChevronLeft, MessageSquare, Pin, Archive, Trash2, MoreHorizontal, Store } from 'lucide-react'
-import { useAccessor, useChatThreadsState, useFullChatThreadsStreamState } from '../util/services.js'
+import { useAccessor, useChatThreadsState, useFullChatThreadsStreamState, useMCPServiceState } from '../util/services.js'
 import { ThreadType } from '../../../chatThreadService.js'
 
 const threadTitle = (thread: ThreadType): string => {
@@ -140,108 +140,264 @@ const CellActions = ({ thread, onPin, onArchive, onDelete }: {
 	)
 }
 
-type MarketplaceItem = {
-	name: string
-	description: string
-	category: string
-	icon?: string
+// ─── MCP Marketplace (grey/black only, real favicons, actual install) ───────────
+
+import { MCP_CATALOG, MCP_CATEGORIES, McpServer, iconUrl } from './mcpCatalog.js'
+import { VSBuffer } from '../../../../../../../base/common/buffer.js'
+import { URI } from '../../../../../../../base/common/uri.js'
+
+type TileState = 'idle' | 'env-prompt' | 'installing' | 'installed' | 'error'
+
+const TOKEN = {
+	bg: '#0a0a0a', surface: '#141414', surface2: '#1e1e1e', surface3: '#262626',
+	border: '#2a2a2a', border2: '#383838',
+	fg: '#e6e6e6', fgMuted: '#888888', fgDim: '#555555',
+	accent: '#9fff3d', accentFg: '#0a0a0a',
+	errorFg: '#ff6b6b',
+} as const
+
+const ServerIcon = ({ server }: { server: McpServer }) => {
+	const [failed, setFailed] = useState(false)
+	if (failed) {
+		return (
+			<div style={{
+				width: '28px', height: '28px', borderRadius: '6px', flexShrink: 0,
+				background: TOKEN.surface3, display: 'flex', alignItems: 'center', justifyContent: 'center',
+				color: TOKEN.fgMuted, fontSize: '13px', fontWeight: 600,
+			}}>{server.name[0]}</div>
+		)
+	}
+	return (
+		<img
+			src={iconUrl(server)}
+			alt=""
+			width={28} height={28}
+			style={{ borderRadius: '6px', flexShrink: 0 }}
+			onError={() => setFailed(true)}
+		/>
+	)
 }
 
-const MARKETPLACE_ITEMS: MarketplaceItem[] = [
-	{ name: 'Datadog', description: 'Use Datadog directly...', category: 'Featured', icon: '📊' },
-	{ name: 'Slack', description: 'Slack MCP server...', category: 'Featured', icon: '💬' },
-	{ name: 'Figma', description: 'Plugin that includes...', category: 'Featured', icon: '🎨' },
-	{ name: 'Linear', description: 'Cursor Plugin for...', category: 'Featured', icon: '📐' },
-	{ name: 'ScyllaDB', description: 'Official ScyllaDB a...', category: 'Infrastructure', icon: '🗄️' },
-	{ name: 'ParadeDB', description: 'Teach agents how...', category: 'Infrastructure', icon: '🐘' },
-	{ name: 'Twilio', description: 'Twilio Skills MCP...', category: 'Infrastructure', icon: '📱' },
-	{ name: 'Vantage', description: 'Query cloud costs...', category: 'Infrastructure', icon: '💰' },
-	{ name: 'Azure', description: 'Microsoft Azure...', category: 'Infrastructure', icon: '☁️' },
-	{ name: 'Temporal', description: 'Comprehensive sk...', category: 'Infrastructure', icon: '⏱️' },
-	{ name: 'Desktop Commander', description: 'Terminal, file, and process management MCP', category: 'Agent Orchestration', icon: '🖥️' },
-	{ name: 'Firecrawl', description: 'Web scraping and crawling', category: 'Data & Analytics', icon: '🔥' },
-]
+const EnvPromptRow = ({ envKeys, onSubmit, onCancel }: {
+	envKeys: string[],
+	onSubmit: (vals: Record<string, string>) => void,
+	onCancel: () => void,
+}) => {
+	const [vals, setVals] = useState<Record<string, string>>(() => {
+		const m: Record<string, string> = {}
+		for (const k of envKeys) m[k] = ''
+		return m
+	})
+	const allFilled = envKeys.every(k => vals[k]?.trim())
+	return (
+		<div style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '6px 0' }}>
+			{envKeys.map(k => (
+				<input
+					key={k}
+					type="text"
+					placeholder={k}
+					value={vals[k] || ''}
+					onChange={e => setVals(p => ({ ...p, [k]: e.target.value }))}
+					style={{
+						width: '100%', boxSizing: 'border-box',
+						height: '24px', borderRadius: '4px', fontSize: '11px',
+						background: TOKEN.surface2, color: TOKEN.fg,
+						border: `1px solid ${TOKEN.border2}`, padding: '2px 6px', outline: 'none',
+					}}
+				/>
+			))}
+			<div style={{ display: 'flex', gap: '4px' }}>
+				<button onClick={() => onSubmit(vals)} disabled={!allFilled} style={{
+					flex: 1, height: '22px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, cursor: allFilled ? 'pointer' : 'default',
+					background: allFilled ? TOKEN.accent : TOKEN.surface3,
+					color: allFilled ? TOKEN.accentFg : TOKEN.fgDim,
+					border: 'none', opacity: allFilled ? 1 : 0.5,
+				}}>Install</button>
+				<button onClick={onCancel} style={{
+					height: '22px', borderRadius: '4px', fontSize: '11px', cursor: 'pointer',
+					background: 'transparent', color: TOKEN.fgMuted, border: `1px solid ${TOKEN.border2}`, padding: '0 8px',
+				}}>Cancel</button>
+			</div>
+		</div>
+	)
+}
 
-const CATEGORIES = ['Featured', 'Infrastructure', 'Data & Analytics', 'Agent Orchestration', 'Productivity', 'Payments']
+const MarketplaceTile = ({ server, installedNames, onInstall }: {
+	server: McpServer,
+	installedNames: Set<string>,
+	onInstall: (server: McpServer, env?: Record<string, string>) => Promise<void>,
+}) => {
+	const isAlreadyInstalled = installedNames.has(server.id) || installedNames.has(server.name.toLowerCase())
+	const [state, setState] = useState<TileState>(isAlreadyInstalled ? 'installed' : 'idle')
+	const [errorMsg, setErrorMsg] = useState('')
+
+	const handleGet = async (env?: Record<string, string>) => {
+		setState('installing')
+		setErrorMsg('')
+		try {
+			await onInstall(server, env)
+			setState('installed')
+		} catch (e: any) {
+			setState('error')
+			setErrorMsg(e?.message || 'Install failed')
+		}
+	}
+
+	const handleClick = () => {
+		if (state === 'installed' || state === 'installing') return
+		if (server.install.env && server.install.env.length > 0 && state !== 'env-prompt') {
+			setState('env-prompt')
+			return
+		}
+		handleGet()
+	}
+
+	return (
+		<div style={{
+			display: 'flex', flexDirection: 'column', padding: '8px 8px',
+			borderBottom: `1px solid ${TOKEN.border}`,
+		}}>
+			<div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+				<ServerIcon server={server} />
+				<div style={{ flex: 1, minWidth: 0 }}>
+					<div style={{ fontSize: '12px', fontWeight: 500, color: TOKEN.fg, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+						{server.name}
+					</div>
+					<div style={{ fontSize: '11px', color: TOKEN.fgMuted, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: '16px' }}>
+						{server.description}
+					</div>
+				</div>
+				<button
+					onClick={handleClick}
+					disabled={state === 'installed' || state === 'installing'}
+					style={{
+						padding: '3px 12px', borderRadius: '4px', fontSize: '11px', fontWeight: 500, flexShrink: 0,
+						cursor: state === 'idle' || state === 'error' ? 'pointer' : 'default',
+						background: state === 'installed' ? 'transparent' : state === 'installing' ? TOKEN.surface3 : 'transparent',
+						color: state === 'installed' ? TOKEN.fgDim : state === 'error' ? TOKEN.errorFg : TOKEN.fg,
+						border: state === 'installed' ? `1px solid ${TOKEN.border}` : `1px solid ${TOKEN.border2}`,
+						opacity: state === 'installing' ? 0.6 : 1,
+					}}
+				>
+					{state === 'idle' || state === 'env-prompt' ? 'Get' : state === 'installing' ? 'Installing...' : state === 'installed' ? 'Installed' : 'Retry'}
+				</button>
+			</div>
+			{state === 'env-prompt' && server.install.env && (
+				<EnvPromptRow
+					envKeys={server.install.env}
+					onSubmit={(vals) => handleGet(vals)}
+					onCancel={() => setState('idle')}
+				/>
+			)}
+			{state === 'error' && errorMsg && (
+				<div style={{ fontSize: '10px', color: TOKEN.errorFg, paddingTop: '4px' }}>{errorMsg}</div>
+			)}
+		</div>
+	)
+}
 
 const MarketplaceView = () => {
+	const accessor = useAccessor()
+	const mcpState = useMCPServiceState()
+	const fileService = accessor.get('IFileService')
+	const pathService = accessor.get('IPathService')
 	const [search, setSearch] = useState('')
-	const [selectedCat, setSelectedCat] = useState<string | null>(null)
+	const [activeCategory, setActiveCategory] = useState<typeof MCP_CATEGORIES[number]>('All')
+
+	const installedNames = useMemo(() => {
+		const names = new Set<string>()
+		for (const name of Object.keys(mcpState.mcpServerOfName)) {
+			names.add(name.toLowerCase())
+		}
+		return names
+	}, [mcpState.mcpServerOfName])
 
 	const filtered = useMemo(() => {
-		let items = MARKETPLACE_ITEMS
-		if (selectedCat) items = items.filter(i => i.category === selectedCat)
+		let items = MCP_CATALOG
+		if (activeCategory !== 'All') {
+			items = items.filter(s => s.category === activeCategory)
+		}
 		if (search.trim()) {
 			const q = search.toLowerCase()
-			items = items.filter(i => i.name.toLowerCase().includes(q) || i.description.toLowerCase().includes(q))
+			items = items.filter(s => s.name.toLowerCase().includes(q) || s.description.toLowerCase().includes(q))
 		}
 		return items
-	}, [search, selectedCat])
+	}, [search, activeCategory])
+
+	const handleInstall = useCallback(async (server: McpServer, env?: Record<string, string>) => {
+		const userHome = await pathService.userHome()
+		const configUri = URI.joinPath(userHome, '.v3code', 'mcp.json')
+
+		let existing: Record<string, any> = { mcpServers: {} }
+		try {
+			const content = await fileService.readFile(configUri)
+			existing = JSON.parse(content.value.toString())
+			if (!existing.mcpServers) existing.mcpServers = {}
+		} catch { /* file doesn't exist yet */ }
+
+		let entry: Record<string, any>
+		if (server.transport === 'http') {
+			entry = { url: server.install.url }
+		} else {
+			entry = { command: server.install.command, args: server.install.args }
+			if (env && Object.keys(env).length > 0) {
+				entry.env = env
+			}
+		}
+
+		existing.mcpServers[server.id] = entry
+		const buffer = VSBuffer.fromString(JSON.stringify(existing, null, 2))
+		await fileService.writeFile(configUri, buffer)
+	}, [fileService, pathService])
 
 	return (
 		<div style={{ flex: 1, overflow: 'auto', padding: '0 8px 16px' }}>
-			{/* Category pills */}
-			<div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '4px 4px 8px' }}>
-				<button
-					onClick={() => setSelectedCat(null)}
+			{/* Search */}
+			<div style={{ padding: '0 4px 8px', position: 'relative' }}>
+				<Search size={12} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: TOKEN.fgMuted, pointerEvents: 'none' }} />
+				<input
+					type='text' value={search} onChange={e => setSearch(e.target.value)}
+					placeholder='Search Agents...'
 					style={{
-						padding: '3px 8px', borderRadius: '10px', border: 'none', cursor: 'pointer',
-						fontSize: '11px',
-						background: !selectedCat ? 'var(--vscode-focusBorder, #007acc)' : 'var(--vscode-badge-background, rgba(255,255,255,0.08))',
-						color: !selectedCat ? '#fff' : 'var(--vscode-descriptionForeground)',
+						width: '100%', height: '28px', borderRadius: '6px', boxSizing: 'border-box',
+						border: `1px solid ${TOKEN.border}`,
+						background: TOKEN.surface, color: TOKEN.fg, fontSize: '11px',
+						padding: '4px 8px 4px 28px', outline: 'none',
 					}}
-				>All</button>
-				{CATEGORIES.map(cat => (
+				/>
+			</div>
+			{/* Category pills */}
+			<div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '0 4px 10px' }}>
+				{MCP_CATEGORIES.map(cat => (
 					<button
 						key={cat}
-						onClick={() => setSelectedCat(cat === selectedCat ? null : cat)}
+						onClick={() => setActiveCategory(cat)}
 						style={{
-							padding: '3px 8px', borderRadius: '10px', border: 'none', cursor: 'pointer',
-							fontSize: '11px',
-							background: cat === selectedCat ? 'var(--vscode-focusBorder, #007acc)' : 'var(--vscode-badge-background, rgba(255,255,255,0.08))',
-							color: cat === selectedCat ? '#fff' : 'var(--vscode-descriptionForeground)',
+							padding: '3px 10px', borderRadius: '10px', fontSize: '11px', cursor: 'pointer',
+							border: `1px solid ${activeCategory === cat ? TOKEN.border2 : TOKEN.border}`,
+							background: activeCategory === cat ? TOKEN.surface3 : 'transparent',
+							color: activeCategory === cat ? TOKEN.fg : TOKEN.fgMuted,
+							fontWeight: activeCategory === cat ? 500 : 400,
 						}}
 					>{cat}</button>
 				))}
 			</div>
-
-			{/* Items */}
-			<div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
-				{filtered.map(item => (
-					<div
-						key={item.name}
-						style={{
-							display: 'flex', alignItems: 'center', gap: '10px',
-							padding: '8px 8px', borderRadius: '6px', cursor: 'pointer',
-						}}
-						onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-						onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
-					>
-						<span style={{ fontSize: '18px', flexShrink: 0, width: '28px', textAlign: 'center' }}>
-							{item.icon || '📦'}
-						</span>
-						<div style={{ flex: 1, minWidth: 0 }}>
-							<div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--vscode-foreground)' }}>
-								{item.name}
-							</div>
-							<div style={{
-								fontSize: '11px', color: 'var(--vscode-descriptionForeground)',
-								overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
-							}}>
-								{item.description}
-							</div>
-						</div>
-						<button style={{
-							padding: '3px 10px', borderRadius: '4px', border: 'none', cursor: 'pointer',
-							fontSize: '11px', fontWeight: 500, flexShrink: 0,
-							background: 'var(--vscode-button-background, #0078d4)',
-							color: 'var(--vscode-button-foreground, #fff)',
-						}}>
-							Get
-						</button>
-					</div>
+			{/* Tiles */}
+			<div style={{ display: 'flex', flexDirection: 'column' }}>
+				{filtered.map(server => (
+					<MarketplaceTile
+						key={server.id}
+						server={server}
+						installedNames={installedNames}
+						onInstall={handleInstall}
+					/>
 				))}
 			</div>
+			{filtered.length === 0 && (
+				<div style={{ fontSize: '11px', color: TOKEN.fgDim, textAlign: 'center', padding: '20px 8px' }}>
+					No servers match your search.
+				</div>
+			)}
 		</div>
 	)
 }
