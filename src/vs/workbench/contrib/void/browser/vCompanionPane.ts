@@ -1230,13 +1230,13 @@ Output JSON only: {"sharpened":"<the rewritten prompt>","rationale":"<one short 
 		if (!this._rootContainer || !this._rootContainer.isConnected) {
 			this._rootContainer = findParentWithClass(this._container, 'monaco-scrollable-element') ?? undefined;
 		}
-		this._webview.value.layoutWebviewOverElement(this._container, dimension, this._rootContainer);
+		this._webview.value.setAnchorElement(this._container, this._rootContainer);
 		// The panel open/resize has a ~200ms animation; reposition once it settles so the
 		// webview doesn't get stuck at a stale size.
 		clearTimeout(this._repositionTimeout);
 		this._repositionTimeout = setTimeout(() => {
 			if (this._container && this._webview.value) {
-				this._webview.value.layoutWebviewOverElement(this._container, dimension, this._rootContainer);
+				this._webview.value.setAnchorElement(this._container, this._rootContainer);
 			}
 		}, 200);
 	}

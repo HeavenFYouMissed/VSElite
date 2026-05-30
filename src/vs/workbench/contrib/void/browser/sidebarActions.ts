@@ -84,7 +84,7 @@ registerAction2(class extends Action2 {
 			title: localize2('voidCmdL', 'V3Code: Add Selection to Chat'),
 			keybinding: {
 				primary: KeyMod.CtrlCmd | KeyCode.KeyL,
-				weight: KeybindingWeight.VoidExtension
+				weight: KeybindingWeight.WorkbenchContrib
 			}
 		});
 	}
@@ -152,7 +152,7 @@ registerAction2(class extends Action2 {
 			title: 'New Chat',
 			keybinding: {
 				primary: KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.KeyL,
-				weight: KeybindingWeight.VoidExtension,
+				weight: KeybindingWeight.WorkbenchContrib,
 			},
 			icon: { id: 'add' },
 			menu: [{ id: MenuId.ViewTitle, group: 'navigation', when: ContextKeyExpr.equals('view', VOID_VIEW_ID), }],

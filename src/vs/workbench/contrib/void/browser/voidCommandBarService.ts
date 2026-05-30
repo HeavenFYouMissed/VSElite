@@ -576,7 +576,7 @@ registerAction2(class extends Action2 {
 			keybinding: {
 				primary: KeyMod.CtrlCmd | KeyMod.Alt | KeyMod.Shift | KeyCode.Enter,
 				mac: { primary: KeyMod.WinCtrl | KeyMod.Alt | KeyCode.Enter },
-				weight: KeybindingWeight.VoidExtension,
+				weight: KeybindingWeight.WorkbenchContrib,
 			}
 		});
 	}
@@ -619,7 +619,7 @@ registerAction2(class extends Action2 {
 			keybinding: {
 				primary: KeyMod.CtrlCmd | KeyMod.Alt | KeyMod.Shift | KeyCode.Backspace,
 				mac: { primary: KeyMod.WinCtrl | KeyMod.Alt | KeyCode.Backspace },
-				weight: KeybindingWeight.VoidExtension,
+				weight: KeybindingWeight.WorkbenchContrib,
 			}
 		});
 	}
@@ -660,7 +660,7 @@ registerAction2(class extends Action2 {
 			keybinding: {
 				primary: KeyMod.CtrlCmd | KeyMod.Alt | KeyMod.Shift | KeyCode.DownArrow,
 				mac: { primary: KeyMod.WinCtrl | KeyMod.Alt | KeyCode.DownArrow },
-				weight: KeybindingWeight.VoidExtension,
+				weight: KeybindingWeight.WorkbenchContrib,
 			}
 		});
 	}
@@ -687,7 +687,7 @@ registerAction2(class extends Action2 {
 			keybinding: {
 				primary: KeyMod.CtrlCmd | KeyMod.Alt | KeyMod.Shift | KeyCode.UpArrow,
 				mac: { primary: KeyMod.WinCtrl | KeyMod.Alt | KeyCode.UpArrow },
-				weight: KeybindingWeight.VoidExtension,
+				weight: KeybindingWeight.WorkbenchContrib,
 			}
 		});
 	}
@@ -714,7 +714,7 @@ registerAction2(class extends Action2 {
 			keybinding: {
 				primary: KeyMod.CtrlCmd | KeyMod.Alt | KeyMod.Shift | KeyCode.RightArrow,
 				mac: { primary: KeyMod.WinCtrl | KeyMod.Alt | KeyCode.RightArrow },
-				weight: KeybindingWeight.VoidExtension,
+				weight: KeybindingWeight.WorkbenchContrib,
 			}
 		});
 	}
@@ -741,7 +741,7 @@ registerAction2(class extends Action2 {
 			keybinding: {
 				primary: KeyMod.CtrlCmd | KeyMod.Alt | KeyMod.Shift | KeyCode.LeftArrow,
 				mac: { primary: KeyMod.WinCtrl | KeyMod.Alt | KeyCode.LeftArrow },
-				weight: KeybindingWeight.VoidExtension,
+				weight: KeybindingWeight.WorkbenchContrib,
 			}
 		});
 	}
@@ -767,7 +767,7 @@ registerAction2(class extends Action2 {
 			title: localize2('voidAcceptFileAction', 'V3Code: Accept All Diffs in Current File'),
 			keybinding: {
 				primary: KeyMod.Alt | KeyMod.Shift | KeyCode.Enter,
-				weight: KeybindingWeight.VoidExtension,
+				weight: KeybindingWeight.WorkbenchContrib,
 			}
 		});
 	}
@@ -798,7 +798,7 @@ registerAction2(class extends Action2 {
 			title: localize2('voidRejectFileAction', 'V3Code: Reject All Diffs in Current File'),
 			keybinding: {
 				primary: KeyMod.Alt | KeyMod.Shift | KeyCode.Backspace,
-				weight: KeybindingWeight.VoidExtension,
+				weight: KeybindingWeight.WorkbenchContrib,
 			}
 		});
 	}
@@ -829,7 +829,7 @@ registerAction2(class extends Action2 {
 			title: localize2('voidAcceptAllDiffsAction', 'V3Code: Accept All Diffs in All Files'),
 			keybinding: {
 				primary: KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.Enter,
-				weight: KeybindingWeight.VoidExtension,
+				weight: KeybindingWeight.WorkbenchContrib,
 			}
 		});
 	}
@@ -854,7 +854,7 @@ registerAction2(class extends Action2 {
 			title: localize2('voidRejectAllDiffsAction', 'V3Code: Reject All Diffs in All Files'),
 			keybinding: {
 				primary: KeyMod.CtrlCmd | KeyMod.Shift | KeyCode.Backspace,
-				weight: KeybindingWeight.VoidExtension,
+				weight: KeybindingWeight.WorkbenchContrib,
 			}
 		});
 	}

@@ -108,7 +108,7 @@ export class VibeModeService extends Disposable implements IVibeModeService {
 
 			// Hide editor so the auxiliary bar (chat) takes over the main canvas
 			if (this.layoutService.isVisible(Parts.EDITOR_PART, mainWindow)) {
-				this.layoutService.setPartHidden(true, Parts.EDITOR_PART, mainWindow);
+				this.layoutService.setPartHidden(true, Parts.EDITOR_PART);
 			}
 
 			// Show auxiliary bar (where chat lives) — now full width
@@ -132,7 +132,7 @@ export class VibeModeService extends Disposable implements IVibeModeService {
 		try {
 			if (this._preVibeLayout) {
 				// Restore editor first so other parts size correctly around it
-				this.layoutService.setPartHidden(this._preVibeLayout.editorHidden, Parts.EDITOR_PART, mainWindow);
+				this.layoutService.setPartHidden(this._preVibeLayout.editorHidden, Parts.EDITOR_PART);
 				this.layoutService.setPartHidden(this._preVibeLayout.sidebarHidden, Parts.SIDEBAR_PART);
 				this.layoutService.setPartHidden(this._preVibeLayout.auxBarHidden, Parts.AUXILIARYBAR_PART);
 				this.layoutService.setPartHidden(this._preVibeLayout.panelHidden, Parts.PANEL_PART);

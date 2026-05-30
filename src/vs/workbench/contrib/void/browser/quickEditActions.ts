@@ -41,7 +41,7 @@ registerAction2(class extends Action2 {
 			title: localize2('voidQuickEditAction', 'V3Code: Quick Edit'),
 			keybinding: {
 				primary: KeyMod.CtrlCmd | KeyCode.KeyK,
-				weight: KeybindingWeight.VoidExtension,
+				weight: KeybindingWeight.WorkbenchContrib,
 				when: ContextKeyExpr.deserialize('editorFocus && !terminalFocus'),
 			}
 		});

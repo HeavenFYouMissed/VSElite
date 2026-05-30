@@ -89,7 +89,7 @@ class NextEditPredictionService extends Disposable {
 			provideInlineCompletions: async (model, position) => {
 				return { items: this._predict(model, position) };
 			},
-			freeInlineCompletions: () => { },
+			disposeInlineCompletions: () => { },
 		}));
 	}
 
