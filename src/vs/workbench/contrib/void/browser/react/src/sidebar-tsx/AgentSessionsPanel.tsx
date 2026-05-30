@@ -442,7 +442,7 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 		<div style={{
 			display: 'flex', flexDirection: 'column',
 			height: '100%', width: '100%',
-			background: 'var(--vscode-sideBar-background)',
+			background: 'var(--surface, #131316)',
 			outline: 'none',
 		}}>
 			{/* Header */}
@@ -458,8 +458,8 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 						style={{
 							background: 'none', border: 'none', cursor: 'pointer',
 							padding: '2px 6px', borderRadius: '6px',
-							color: 'var(--vscode-foreground)',
-							opacity: 0.5, display: 'flex', alignItems: 'center',
+							color: 'var(--fg-muted, #A0A0A8)',
+							display: 'flex', alignItems: 'center',
 						}}
 						title='Collapse panel'
 					>
@@ -474,15 +474,15 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 							display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px',
 							width: '100%', minHeight: '28px', padding: '6px 12px',
 							borderRadius: '6px',
-							border: '1px solid var(--vscode-commandCenter-inactiveBorder, rgba(128,128,128,0.2))',
+							border: '1px solid var(--border, #2A2A30)',
 							background: 'transparent',
-							color: 'var(--vscode-foreground)',
+							color: 'var(--fg, #ECECEE)',
 							fontSize: '12px', cursor: 'pointer',
 						}}
 					>
 						<Plus size={13} />
 						<span style={{ flex: 1, textAlign: 'left' }}>New Agent</span>
-						<span style={{ color: 'var(--vscode-descriptionForeground)', fontSize: '11px' }}>Ctrl+N</span>
+						<span style={{ color: 'var(--fg-dim, #6B6B73)', fontSize: '11px' }}>Ctrl+N</span>
 					</button>
 
 					<button
@@ -492,8 +492,8 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 							width: '100%', minHeight: '28px', padding: '6px 12px',
 							borderRadius: '6px',
 							border: 'none',
-							background: showMarketplace ? 'var(--vscode-list-activeSelectionBackground, rgba(255,255,255,0.06))' : 'transparent',
-							color: 'var(--vscode-foreground)',
+							background: showMarketplace ? 'var(--surface-3, #222227)' : 'transparent',
+							color: showMarketplace ? 'var(--fg, #ECECEE)' : 'var(--fg-muted, #A0A0A8)',
 							fontSize: '12px', cursor: 'pointer',
 						}}
 					>
@@ -504,7 +504,7 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 					<div style={{ display: 'flex', flex: 1, position: 'relative', width: '100%' }}>
 						<Search size={12} style={{
 							position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)',
-							color: 'var(--vscode-descriptionForeground)', pointerEvents: 'none',
+							color: 'var(--fg-dim, #6B6B73)', pointerEvents: 'none',
 						}} />
 						<input
 							type='text'
@@ -514,12 +514,12 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 							style={{
 								width: '100%', height: '28px',
 								borderRadius: '6px', boxSizing: 'border-box',
-								border: '1px solid var(--vscode-commandCenter-inactiveBorder, rgba(128,128,128,0.15))',
-								background: 'var(--vscode-input-background, transparent)',
-								color: 'var(--vscode-input-foreground, var(--vscode-foreground))',
+								border: '1px solid var(--border, #2A2A30)',
+								background: 'var(--surface-2, #1A1A1E)',
+								color: 'var(--fg, #ECECEE)',
 								fontSize: '12px', lineHeight: '16px',
 								padding: '6px 8px 6px 26px',
-								outline: 'none', opacity: 0.85,
+								outline: 'none',
 							}}
 						/>
 					</div>
@@ -543,14 +543,14 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 								height: '24px', padding: '0 6px',
 							}}>
 								<span style={{
-									color: 'var(--vscode-descriptionForeground)',
+									color: 'var(--fg-dim, #6B6B73)',
 									fontSize: '11px', lineHeight: '14px',
 									flex: 1,
 								}}>
 									{group.label}
 								</span>
 								{group.label === 'Pinned' && (
-									<Pin size={10} style={{ color: 'var(--vscode-descriptionForeground)', opacity: 0.5 }} />
+									<Pin size={10} style={{ color: 'var(--fg-dim, #6B6B73)' }} />
 								)}
 							</div>
 
@@ -570,24 +570,24 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 												borderRadius: '6px', cursor: 'pointer',
 												padding: '5px 6px', position: 'relative',
 												background: isActive
-													? 'var(--vscode-list-activeSelectionBackground, rgba(255,255,255,0.06))'
+													? 'var(--surface-3, #222227)'
 													: 'transparent',
 											}}
-											onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-											onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = isActive ? 'var(--vscode-list-activeSelectionBackground, rgba(255,255,255,0.06))' : 'transparent' }}
+											onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'var(--surface-2, #1A1A1E)' }}
+											onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = isActive ? 'var(--surface-3, #222227)' : 'transparent' }}
 										>
 											<div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
 												{isRunning ? (
 													<span style={{
 														width: '5px', height: '5px', borderRadius: '50%',
-														background: 'var(--vscode-progressBar-background, #0078d4)',
+														background: 'var(--accent, #8FD96A)',
 														animation: 'v3code-pulse 1.5s ease-in-out infinite',
 													}} />
 												) : (
 													<MessageSquare size={13} style={{
 														color: isActive
-															? 'var(--vscode-foreground)'
-															: 'var(--vscode-descriptionForeground)',
+															? 'var(--fg, #ECECEE)'
+															: 'var(--fg-dim, #6B6B73)',
 													}} />
 												)}
 											</div>
@@ -596,15 +596,14 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 												<span style={{
 													fontSize: '12px', lineHeight: '16px',
 													overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
-													color: isActive ? 'var(--vscode-foreground)' : 'var(--vscode-descriptionForeground)',
+													color: isActive ? 'var(--fg, #ECECEE)' : 'var(--fg-muted, #A0A0A8)',
 												}}>
 													{threadTitle(thread)}
 												</span>
 												{stats.files > 0 && (
 													<span style={{
 														fontSize: '11px', lineHeight: '14px',
-														color: 'var(--vscode-descriptionForeground)',
-														opacity: 0.7,
+														color: 'var(--fg-dim, #6B6B73)',
 													}}>
 														{stats.files} File{stats.files !== 1 ? 's' : ''}
 													</span>
@@ -629,7 +628,7 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 
 					{sortedThreads.length === 0 && (
 						<div style={{
-							color: 'var(--vscode-descriptionForeground)',
+							color: 'var(--fg-dim, #6B6B73)',
 							fontSize: '12px', padding: '4px 12px',
 						}}>
 							{searchQuery ? 'No matching agents' : 'No agents yet'}
@@ -642,11 +641,11 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 			<div style={{
 				display: 'flex', alignItems: 'center', flexShrink: 0,
 				gap: '8px', padding: '8px 12px',
-				borderTop: '1px solid var(--vscode-commandCenter-inactiveBorder, rgba(128,128,128,0.1))',
+				borderTop: '1px solid var(--border, #2A2A30)',
 			}}>
 				<span style={{
-					color: 'var(--vscode-descriptionForeground)',
-					fontSize: '11px', flex: 1, opacity: 0.6,
+					color: 'var(--fg-dim, #6B6B73)',
+					fontSize: '11px', flex: 1,
 				}}>
 					{sortedThreads.length} agent{sortedThreads.length !== 1 ? 's' : ''}
 				</span>
