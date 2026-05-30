@@ -801,14 +801,25 @@ export class ToolsService implements IToolsService {
 			if (!parentThreadId || !parentToolId || !this._subagentLauncher) {
 				return { result: { subagentThreadId: '', result: 'Error: subagent launch requires a parent thread context and the subagent launcher must be registered.', status: 'error' as const } }
 			}
-			const res = await this._subagentLauncher({
+			// Fire-and-forget: launch subagent in background, return immediately
+			// so the parent agent can continue working while the subagent runs.
+			const desc = description || 'Background task'
+			const subagentPromise = this._subagentLauncher({
 				parentThreadId,
 				parentToolId,
-				description: description || 'Background task',
+				description: desc,
 				prompt: prompt || '(no prompt)',
 				readOnly: readOnly ?? true,
 			})
-			return { result: res }
+			// Don't await — let the subagent run independently.
+			// The subagent's result will be visible via the agent panel and subagentState.
+			subagentPromise.then(res => {
+				// Subagent completed — result is tracked in chatThreadService.subagentState
+				console.log(`[subagent] ${desc} finished: ${res.status}`)
+			}).catch(err => {
+				console.error(`[subagent] ${desc} error:`, err)
+			})
+			return { result: { subagentThreadId: `(launching)`, result: `Subagent "${desc}" launched in background. Continue with your main task — you will see results in the agent panel.`, status: 'completed' as const } }
 		},
 	}
 

@@ -5,7 +5,7 @@
  *--------------------------------------------------------------------------------------*/
 
 import React, { useMemo, useState, useCallback } from 'react'
-import { Search, Plus, ChevronLeft, MessageSquare } from 'lucide-react'
+import { Search, Plus, ChevronLeft, MessageSquare, Pin, Archive, Trash2, MoreHorizontal, Store } from 'lucide-react'
 import { useAccessor, useChatThreadsState, useFullChatThreadsStreamState } from '../util/services.js'
 import { ThreadType } from '../../../chatThreadService.js'
 
@@ -37,22 +37,213 @@ const groupByDate = (threads: ThreadType[]): { label: string, threads: ThreadTyp
 	const yesterday = new Date(today.getTime() - 86400000)
 	const weekAgo = new Date(today.getTime() - 7 * 86400000)
 
-	const groups: { label: string, threads: ThreadType[] }[] = [
+	const pinned = threads.filter(t => t.isPinned && !t.isArchived)
+	const unpinned = threads.filter(t => !t.isPinned && !t.isArchived)
+
+	const groups: { label: string, threads: ThreadType[] }[] = []
+
+	if (pinned.length > 0) {
+		groups.push({ label: 'Pinned', threads: pinned })
+	}
+
+	const dateGroups: { label: string, threads: ThreadType[] }[] = [
 		{ label: 'Today', threads: [] },
 		{ label: 'Yesterday', threads: [] },
 		{ label: 'This Week', threads: [] },
 		{ label: 'Older', threads: [] },
 	]
 
-	for (const t of threads) {
+	for (const t of unpinned) {
 		const d = t.lastModified ? new Date(t.lastModified) : new Date(0)
-		if (d >= today) groups[0].threads.push(t)
-		else if (d >= yesterday) groups[1].threads.push(t)
-		else if (d >= weekAgo) groups[2].threads.push(t)
-		else groups[3].threads.push(t)
+		if (d >= today) dateGroups[0].threads.push(t)
+		else if (d >= yesterday) dateGroups[1].threads.push(t)
+		else if (d >= weekAgo) dateGroups[2].threads.push(t)
+		else dateGroups[3].threads.push(t)
 	}
 
-	return groups.filter(g => g.threads.length > 0)
+	for (const g of dateGroups) {
+		if (g.threads.length > 0) groups.push(g)
+	}
+
+	return groups
+}
+
+const CellActions = ({ thread, onPin, onArchive, onDelete }: {
+	thread: ThreadType,
+	onPin: () => void,
+	onArchive: () => void,
+	onDelete: () => void,
+}) => {
+	const [showMenu, setShowMenu] = useState(false)
+
+	return (
+		<div style={{ position: 'relative', display: 'flex', alignItems: 'center' }}>
+			<button
+				onClick={e => { e.stopPropagation(); setShowMenu(v => !v) }}
+				style={{
+					background: 'none', border: 'none', cursor: 'pointer', padding: '2px',
+					color: 'var(--vscode-descriptionForeground)', borderRadius: '3px',
+					display: 'flex', alignItems: 'center',
+				}}
+			>
+				<MoreHorizontal size={12} />
+			</button>
+			{showMenu && (
+				<div
+					style={{
+						position: 'absolute', right: 0, top: '100%', zIndex: 20,
+						background: 'var(--vscode-menu-background, var(--vscode-dropdown-background, #2d2d30))',
+						border: '1px solid var(--vscode-menu-border, var(--vscode-dropdown-border, #454545))',
+						borderRadius: '4px', padding: '2px 0',
+						boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+						minWidth: '120px',
+					}}
+					onMouseLeave={() => setShowMenu(false)}
+				>
+					<button
+						onClick={e => { e.stopPropagation(); onPin(); setShowMenu(false) }}
+						style={{
+							display: 'flex', alignItems: 'center', gap: '8px', width: '100%',
+							padding: '4px 10px', background: 'none', border: 'none', cursor: 'pointer',
+							color: 'var(--vscode-menu-foreground, var(--vscode-foreground))',
+							fontSize: '12px', textAlign: 'left',
+						}}
+					>
+						<Pin size={12} /> {thread.isPinned ? 'Unpin' : 'Pin'}
+					</button>
+					<button
+						onClick={e => { e.stopPropagation(); onArchive(); setShowMenu(false) }}
+						style={{
+							display: 'flex', alignItems: 'center', gap: '8px', width: '100%',
+							padding: '4px 10px', background: 'none', border: 'none', cursor: 'pointer',
+							color: 'var(--vscode-menu-foreground, var(--vscode-foreground))',
+							fontSize: '12px', textAlign: 'left',
+						}}
+					>
+						<Archive size={12} /> {thread.isArchived ? 'Unarchive' : 'Archive'}
+					</button>
+					<div style={{ height: '1px', background: 'var(--vscode-menu-separatorBackground, rgba(128,128,128,0.2))', margin: '2px 0' }} />
+					<button
+						onClick={e => { e.stopPropagation(); onDelete(); setShowMenu(false) }}
+						style={{
+							display: 'flex', alignItems: 'center', gap: '8px', width: '100%',
+							padding: '4px 10px', background: 'none', border: 'none', cursor: 'pointer',
+							color: 'var(--vscode-errorForeground, #f44747)',
+							fontSize: '12px', textAlign: 'left',
+						}}
+					>
+						<Trash2 size={12} /> Delete
+					</button>
+				</div>
+			)}
+		</div>
+	)
+}
+
+type MarketplaceItem = {
+	name: string
+	description: string
+	category: string
+	icon?: string
+}
+
+const MARKETPLACE_ITEMS: MarketplaceItem[] = [
+	{ name: 'Datadog', description: 'Use Datadog directly...', category: 'Featured', icon: '📊' },
+	{ name: 'Slack', description: 'Slack MCP server...', category: 'Featured', icon: '💬' },
+	{ name: 'Figma', description: 'Plugin that includes...', category: 'Featured', icon: '🎨' },
+	{ name: 'Linear', description: 'Cursor Plugin for...', category: 'Featured', icon: '📐' },
+	{ name: 'ScyllaDB', description: 'Official ScyllaDB a...', category: 'Infrastructure', icon: '🗄️' },
+	{ name: 'ParadeDB', description: 'Teach agents how...', category: 'Infrastructure', icon: '🐘' },
+	{ name: 'Twilio', description: 'Twilio Skills MCP...', category: 'Infrastructure', icon: '📱' },
+	{ name: 'Vantage', description: 'Query cloud costs...', category: 'Infrastructure', icon: '💰' },
+	{ name: 'Azure', description: 'Microsoft Azure...', category: 'Infrastructure', icon: '☁️' },
+	{ name: 'Temporal', description: 'Comprehensive sk...', category: 'Infrastructure', icon: '⏱️' },
+	{ name: 'Desktop Commander', description: 'Terminal, file, and process management MCP', category: 'Agent Orchestration', icon: '🖥️' },
+	{ name: 'Firecrawl', description: 'Web scraping and crawling', category: 'Data & Analytics', icon: '🔥' },
+]
+
+const CATEGORIES = ['Featured', 'Infrastructure', 'Data & Analytics', 'Agent Orchestration', 'Productivity', 'Payments']
+
+const MarketplaceView = () => {
+	const [search, setSearch] = useState('')
+	const [selectedCat, setSelectedCat] = useState<string | null>(null)
+
+	const filtered = useMemo(() => {
+		let items = MARKETPLACE_ITEMS
+		if (selectedCat) items = items.filter(i => i.category === selectedCat)
+		if (search.trim()) {
+			const q = search.toLowerCase()
+			items = items.filter(i => i.name.toLowerCase().includes(q) || i.description.toLowerCase().includes(q))
+		}
+		return items
+	}, [search, selectedCat])
+
+	return (
+		<div style={{ flex: 1, overflow: 'auto', padding: '0 8px 16px' }}>
+			{/* Category pills */}
+			<div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', padding: '4px 4px 8px' }}>
+				<button
+					onClick={() => setSelectedCat(null)}
+					style={{
+						padding: '3px 8px', borderRadius: '10px', border: 'none', cursor: 'pointer',
+						fontSize: '11px',
+						background: !selectedCat ? 'var(--vscode-focusBorder, #007acc)' : 'var(--vscode-badge-background, rgba(255,255,255,0.08))',
+						color: !selectedCat ? '#fff' : 'var(--vscode-descriptionForeground)',
+					}}
+				>All</button>
+				{CATEGORIES.map(cat => (
+					<button
+						key={cat}
+						onClick={() => setSelectedCat(cat === selectedCat ? null : cat)}
+						style={{
+							padding: '3px 8px', borderRadius: '10px', border: 'none', cursor: 'pointer',
+							fontSize: '11px',
+							background: cat === selectedCat ? 'var(--vscode-focusBorder, #007acc)' : 'var(--vscode-badge-background, rgba(255,255,255,0.08))',
+							color: cat === selectedCat ? '#fff' : 'var(--vscode-descriptionForeground)',
+						}}
+					>{cat}</button>
+				))}
+			</div>
+
+			{/* Items */}
+			<div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+				{filtered.map(item => (
+					<div
+						key={item.name}
+						style={{
+							display: 'flex', alignItems: 'center', gap: '10px',
+							padding: '8px 8px', borderRadius: '6px', cursor: 'pointer',
+						}}
+						onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
+						onMouseLeave={e => { e.currentTarget.style.background = 'transparent' }}
+					>
+						<span style={{ fontSize: '18px', flexShrink: 0, width: '28px', textAlign: 'center' }}>
+							{item.icon || '📦'}
+						</span>
+						<div style={{ flex: 1, minWidth: 0 }}>
+							<div style={{ fontSize: '12px', fontWeight: 500, color: 'var(--vscode-foreground)' }}>
+								{item.name}
+							</div>
+							<div style={{
+								fontSize: '11px', color: 'var(--vscode-descriptionForeground)',
+								overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+							}}>
+								{item.description}
+							</div>
+						</div>
+						<button style={{
+							padding: '3px 10px', borderRadius: '4px', border: 'none', cursor: 'pointer',
+							fontSize: '11px', fontWeight: 500, flexShrink: 0,
+							background: 'var(--vscode-button-background, #0078d4)',
+							color: 'var(--vscode-button-foreground, #fff)',
+						}}>
+							Get
+						</button>
+					</div>
+				))}
+			</div>
+		</div>
+	)
 }
 
 export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
@@ -61,14 +252,25 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 	const { allThreads, currentThreadId } = useChatThreadsState()
 	const streamState = useFullChatThreadsStreamState()
 	const [searchQuery, setSearchQuery] = useState('')
+	const [showArchived, setShowArchived] = useState(false)
+	const [showMarketplace, setShowMarketplace] = useState(false)
 
 	const sortedThreads = useMemo(() => {
-		const threads = Object.values(allThreads ?? {})
+		let threads = Object.values(allThreads ?? {})
 			.sort((a, b) => (b.lastModified ?? '').localeCompare(a.lastModified ?? ''))
-		if (!searchQuery.trim()) return threads
-		const q = searchQuery.toLowerCase()
-		return threads.filter(t => threadTitle(t).toLowerCase().includes(q))
-	}, [allThreads, searchQuery])
+		if (!showArchived) {
+			threads = threads.filter(t => !t.isArchived)
+		}
+		if (searchQuery.trim()) {
+			const q = searchQuery.toLowerCase()
+			threads = threads.filter(t => threadTitle(t).toLowerCase().includes(q))
+		}
+		return threads
+	}, [allThreads, searchQuery, showArchived])
+
+	const archivedCount = useMemo(() => {
+		return Object.values(allThreads ?? {}).filter(t => t.isArchived).length
+	}, [allThreads])
 
 	const groups = useMemo(() => groupByDate(sortedThreads), [sortedThreads])
 
@@ -87,12 +289,11 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 			background: 'var(--vscode-sideBar-background)',
 			outline: 'none',
 		}}>
-			{/* Header — .agent-sidebar-header: padding 12px, gap 6px */}
+			{/* Header */}
 			<div style={{
 				display: 'flex', flexDirection: 'column', flexShrink: 0,
 				gap: '6px', padding: '12px',
 			}}>
-				{/* Top row — .agent-sidebar-header-top-row: gap 8px, min-height 22px */}
 				<div style={{
 					display: 'flex', alignItems: 'center', gap: '8px', minHeight: '22px',
 				}}>
@@ -110,9 +311,7 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 					</button>
 				</div>
 
-				{/* Input row — .agent-sidebar-input-row: gap 4px */}
 				<div style={{ display: 'flex', flexDirection: 'column', gap: '4px', width: '100%' }}>
-					{/* New agent button — .agent-sidebar-new-agent-button: radius 6px, min-h 28px, 6px 12px padding */}
 					<button
 						onClick={handleNewAgent}
 						style={{
@@ -130,7 +329,22 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 						<span style={{ color: 'var(--vscode-descriptionForeground)', fontSize: '11px' }}>Ctrl+N</span>
 					</button>
 
-					{/* Search — .agent-sidebar-search-input: h 28px, radius 6px, font 12px, padding 6px 8px */}
+					<button
+						onClick={() => setShowMarketplace(v => !v)}
+						style={{
+							display: 'flex', alignItems: 'center', gap: '6px',
+							width: '100%', minHeight: '28px', padding: '6px 12px',
+							borderRadius: '6px',
+							border: 'none',
+							background: showMarketplace ? 'var(--vscode-list-activeSelectionBackground, rgba(255,255,255,0.06))' : 'transparent',
+							color: 'var(--vscode-foreground)',
+							fontSize: '12px', cursor: 'pointer',
+						}}
+					>
+						<Store size={13} />
+						<span style={{ flex: 1, textAlign: 'left' }}>Marketplace</span>
+					</button>
+
 					<div style={{ display: 'flex', flex: 1, position: 'relative', width: '100%' }}>
 						<Search size={12} style={{
 							position: 'absolute', left: '8px', top: '50%', transform: 'translateY(-50%)',
@@ -156,20 +370,18 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 				</div>
 			</div>
 
-			{/* Body — .agent-sidebar-body: flex 1, min-h 0, overflow hidden, padding-top 4px */}
+			{/* Body */}
 			<div style={{
 				display: 'flex', flex: 1, flexDirection: 'column',
 				minHeight: 0, overflow: 'hidden', paddingTop: '4px',
 			}}>
-				{/* Sections — .agent-sidebar-sections: gap 1px, padding 0 8px 16px */}
-				<div style={{
+				{showMarketplace ? <MarketplaceView /> : <div style={{
 					display: 'flex', flexDirection: 'column', gap: '1px',
 					padding: '0 8px 16px',
 					overflow: 'auto', flex: 1,
 				}}>
 					{groups.map(group => (
 						<div key={group.label} style={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
-							{/* Section title — .agent-sidebar-section-title: h 24px, padding 0 6px */}
 							<div style={{
 								display: 'flex', alignItems: 'center', gap: 0,
 								height: '24px', padding: '0 6px',
@@ -177,12 +389,15 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 								<span style={{
 									color: 'var(--vscode-descriptionForeground)',
 									fontSize: '11px', lineHeight: '14px',
+									flex: 1,
 								}}>
 									{group.label}
 								</span>
+								{group.label === 'Pinned' && (
+									<Pin size={10} style={{ color: 'var(--vscode-descriptionForeground)', opacity: 0.5 }} />
+								)}
 							</div>
 
-							{/* List — .agent-sidebar-list: gap 1px, padding-bottom 11px */}
 							<div style={{ display: 'flex', flexDirection: 'column', gap: '1px', paddingBottom: '11px' }}>
 								{group.threads.map(thread => {
 									const isActive = thread.id === currentThreadId
@@ -192,9 +407,10 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 									return (
 										<div
 											key={thread.id}
+											className='group'
 											onClick={() => handleSelectThread(thread.id)}
 											style={{
-												display: 'flex', alignItems: 'center', gap: '12px',
+												display: 'flex', alignItems: 'center', gap: '8px',
 												borderRadius: '6px', cursor: 'pointer',
 												padding: '5px 6px', position: 'relative',
 												background: isActive
@@ -202,9 +418,8 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 													: 'transparent',
 											}}
 											onMouseEnter={e => { if (!isActive) e.currentTarget.style.background = 'rgba(255,255,255,0.04)' }}
-											onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = 'transparent' }}
+											onMouseLeave={e => { if (!isActive) e.currentTarget.style.background = isActive ? 'var(--vscode-list-activeSelectionBackground, rgba(255,255,255,0.06))' : 'transparent' }}
 										>
-											{/* Icon — .agent-sidebar-cell-icon */}
 											<div style={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
 												{isRunning ? (
 													<span style={{
@@ -221,9 +436,7 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 												)}
 											</div>
 
-											{/* Content — .agent-sidebar-cell-content-wrapper */}
 											<div style={{ flex: 1, minWidth: 0, display: 'flex', flexDirection: 'column' }}>
-												{/* Title — .agent-sidebar-cell-text: 12px, 16px line-height */}
 												<span style={{
 													fontSize: '12px', lineHeight: '16px',
 													overflow: 'hidden', whiteSpace: 'nowrap', textOverflow: 'ellipsis',
@@ -231,8 +444,6 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 												}}>
 													{threadTitle(thread)}
 												</span>
-
-												{/* Subtitle — .agent-sidebar-cell-subtitle: 11px, 14px line-height */}
 												{stats.files > 0 && (
 													<span style={{
 														fontSize: '11px', lineHeight: '14px',
@@ -242,6 +453,16 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 														{stats.files} File{stats.files !== 1 ? 's' : ''}
 													</span>
 												)}
+											</div>
+
+											{/* Hover actions */}
+											<div className='opacity-0 group-hover:opacity-100 transition-opacity' style={{ flexShrink: 0 }}>
+												<CellActions
+													thread={thread}
+													onPin={() => thread.isPinned ? chatThreadsService.unpinThread(thread.id) : chatThreadsService.pinThread(thread.id)}
+													onArchive={() => thread.isArchived ? chatThreadsService.unarchiveThread(thread.id) : chatThreadsService.archiveThread(thread.id)}
+													onDelete={() => chatThreadsService.deleteThread(thread.id)}
+												/>
 											</div>
 										</div>
 									)
@@ -258,22 +479,33 @@ export const AgentSessionsPanel = ({ onClose }: { onClose: () => void }) => {
 							{searchQuery ? 'No matching agents' : 'No agents yet'}
 						</div>
 					)}
-				</div>
+				</div>}
 			</div>
 
-			{/* Footer — .agent-sidebar-footer: gap 4px, padding 8px 12px */}
+			{/* Footer */}
 			<div style={{
 				display: 'flex', alignItems: 'center', flexShrink: 0,
-				gap: '4px', padding: '8px 12px',
+				gap: '8px', padding: '8px 12px',
 				borderTop: '1px solid var(--vscode-commandCenter-inactiveBorder, rgba(128,128,128,0.1))',
 			}}>
 				<span style={{
 					color: 'var(--vscode-descriptionForeground)',
-					fontSize: '11px', overflow: 'hidden', textOverflow: 'ellipsis',
-					whiteSpace: 'nowrap', opacity: 0.6,
+					fontSize: '11px', flex: 1, opacity: 0.6,
 				}}>
 					{sortedThreads.length} agent{sortedThreads.length !== 1 ? 's' : ''}
 				</span>
+				{archivedCount > 0 && (
+					<button
+						onClick={() => setShowArchived(v => !v)}
+						style={{
+							background: 'none', border: 'none', cursor: 'pointer',
+							color: 'var(--vscode-descriptionForeground)',
+							fontSize: '11px', opacity: 0.6, padding: '0 2px',
+						}}
+					>
+						<Archive size={11} /> {showArchived ? 'Hide' : 'Show'} archived ({archivedCount})
+					</button>
+				)}
 			</div>
 		</div>
 	)

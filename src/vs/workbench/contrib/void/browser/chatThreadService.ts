@@ -116,6 +116,8 @@ export type ThreadType = {
 	id: string; // store the id here too
 	createdAt: string; // ISO string
 	lastModified: string; // ISO string
+	isPinned?: boolean;
+	isArchived?: boolean;
 
 	messages: ChatMessage[];
 	filesWithUserChanges: Set<string>;
@@ -260,6 +262,10 @@ export interface IChatThreadService {
 	// thread selector
 	deleteThread(threadId: string): void;
 	duplicateThread(threadId: string): void;
+	pinThread(threadId: string): void;
+	unpinThread(threadId: string): void;
+	archiveThread(threadId: string): void;
+	unarchiveThread(threadId: string): void;
 
 	// exposed getters/setters
 	// these all apply to current thread
@@ -1744,14 +1750,10 @@ We only need to do it for files that were edited since `from`, ie files between 
 
 
 	openNewThread() {
-		// if a thread with 0 messages already exists, switch to it
-		const { allThreads: currentThreads } = this.state
-		for (const threadId in currentThreads) {
-			if (currentThreads[threadId]!.messages.length === 0) {
-				// switch to the existing empty thread and exit
-				this.switchToThread(threadId)
-				return
-			}
+		// if the CURRENT thread is empty, stay on it (no-op)
+		const { allThreads: currentThreads, currentThreadId } = this.state
+		if (currentThreadId && currentThreads[currentThreadId]?.messages.length === 0) {
+			return
 		}
 		// otherwise, start a new thread
 		const newThread = newThreadObject()
@@ -1790,6 +1792,28 @@ We only need to do it for files that were edited since `from`, ie files between 
 			...currentThreads,
 			[newThread.id]: newThread,
 		}
+		this._storeAllThreads(newThreads)
+		this._setState({ allThreads: newThreads })
+	}
+
+	pinThread(threadId: string): void {
+		this._updateThreadMeta(threadId, { isPinned: true })
+	}
+	unpinThread(threadId: string): void {
+		this._updateThreadMeta(threadId, { isPinned: false })
+	}
+	archiveThread(threadId: string): void {
+		this._updateThreadMeta(threadId, { isArchived: true })
+	}
+	unarchiveThread(threadId: string): void {
+		this._updateThreadMeta(threadId, { isArchived: false })
+	}
+
+	private _updateThreadMeta(threadId: string, update: Partial<Pick<ThreadType, 'isPinned' | 'isArchived'>>) {
+		const { allThreads } = this.state
+		const thread = allThreads[threadId]
+		if (!thread) return
+		const newThreads = { ...allThreads, [threadId]: { ...thread, ...update } }
 		this._storeAllThreads(newThreads)
 		this._setState({ allThreads: newThreads })
 	}
@@ -2033,7 +2057,14 @@ We only need to do it for files that were edited since `from`, ie files between 
 		})
 
 		// Add the prompt as a user message on the subagent thread
-		const subagentSystemPrompt = `You are a background subagent performing a focused task. Complete the task below and return a concise summary of your findings.\n\nTask: ${prompt}`
+		const subagentSystemPrompt = `You are a background subagent performing a focused task. Complete the task below and return a concise summary of your findings.
+
+IMPORTANT CONSTRAINTS:
+- Do NOT use terminal commands (run_command, run_persistent_command, open_persistent_terminal). Terminal tools are not available to subagents.
+- Use only read/search tools: read_file, ls_dir, get_dir_tree, search_for_files, search_pathnames_only, search_in_file, semantic_search, find_text, read_lint_errors.
+- Be concise and focused. Return your findings as a clear summary.
+
+Task: ${prompt}`
 		this._addMessageToThread(subThreadId, {
 			role: 'user',
 			content: subagentSystemPrompt,

@@ -282,6 +282,10 @@ class VoidSettingsService extends Disposable implements IVoidSettingsService {
 			// autoapprove is now an obj not a boolean (1.2.5)
 			if (typeof readS.globalSettings.autoApprove === 'boolean') readS.globalSettings.autoApprove = {}
 
+			// auto-approve edits and terminal by default for agent mode
+			if (readS.globalSettings.autoApprove.edits === undefined) readS.globalSettings.autoApprove.edits = true
+			if (readS.globalSettings.autoApprove.terminal === undefined) readS.globalSettings.autoApprove.terminal = true
+
 			// 1.3.5 add source control feature
 			if (readS.modelSelectionOfFeature && !readS.modelSelectionOfFeature['SCM']) {
 				readS.modelSelectionOfFeature['SCM'] = deepClone(readS.modelSelectionOfFeature['Chat'])

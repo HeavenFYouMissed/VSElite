@@ -216,21 +216,13 @@ registerAction2(class extends Action2 {
 		});
 	}
 	async run(accessor: ServicesAccessor): Promise<void> {
-
-		// do not do anything if there are no messages (without this it clears all of the user's selections if the button is pressed)
-		// TODO the history button should be disabled in this case so we can remove this logic
-		const thread = accessor.get(IChatThreadService).getCurrentThread()
-		if (thread.messages.length === 0) {
-			return;
-		}
-
+		const chatThreadService = accessor.get(IChatThreadService)
 		const metricsService = accessor.get(IMetricsService)
 
-		const commandService = accessor.get(ICommandService)
-
 		metricsService.capture('Chat Navigation', { type: 'History' })
-		commandService.executeCommand(VOID_CMD_SHIFT_L_ACTION_ID)
 
+		// Navigate to landing page (which shows PastThreadsList) by opening a new/empty thread
+		chatThreadService.openNewThread()
 	}
 })
 

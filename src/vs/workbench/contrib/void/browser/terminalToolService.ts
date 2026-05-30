@@ -12,7 +12,7 @@ import { createDecorator } from '../../../../platform/instantiation/common/insta
 import { TerminalLocation } from '../../../../platform/terminal/common/terminal.js';
 import { IWorkspaceContextService } from '../../../../platform/workspace/common/workspace.js';
 import { ITerminalService, ITerminalInstance, ICreateTerminalOptions } from '../../../../workbench/contrib/terminal/browser/terminal.js';
-import { MAX_TERMINAL_BG_COMMAND_TIME, MAX_TERMINAL_CHARS, MAX_TERMINAL_INACTIVE_TIME } from '../common/prompt/prompts.js';
+import { MAX_TERMINAL_BG_COMMAND_TIME, MAX_TERMINAL_CHARS, MAX_TERMINAL_INACTIVE_TIME, MAX_TERMINAL_WALL_CLOCK_TIME } from '../common/prompt/prompts.js';
 import { TerminalResolveReason } from '../common/toolsServiceTypes.js';
 import { timeout } from '../../../../base/common/async.js';
 
@@ -274,9 +274,13 @@ export class TerminalToolService extends Disposable implements ITerminalToolServ
 		}
 		else {
 			const { cwd } = params
-			terminal = await this._createTerminal({ cwd: cwd, config: undefined, hidden: true })
+			// Use location: Panel so xterm initializes (hidden terminals lack a DOM, blocking shell integration)
+			terminal = await this._createTerminal({ cwd: cwd, config: { hideFromUser: false }, hidden: false })
 			this.temporaryTerminalInstanceOfId[params.terminalId] = terminal
 		}
+
+		// Brief wait for shell integration to attach after terminal creation
+		await timeout(500)
 
 		const interrupt = () => {
 			terminal.dispose()
@@ -302,7 +306,10 @@ export class TerminalToolService extends Disposable implements ITerminalToolServ
 			// Prefer the structured command-detection capability when available
 
 			const waitUntilDone = new Promise<void>(resolve => {
-				if (!cmdCap) return
+				if (!cmdCap) {
+					// No shell integration — rely on inactivity + wall-clock timeouts
+					return
+				}
 				const l = cmdCap.onCommandFinished(cmd => {
 					if (resolveReason) return // already resolved
 					resolveReason = { type: 'done', exitCode: cmd.exitCode ?? 0 };
@@ -321,6 +328,7 @@ export class TerminalToolService extends Disposable implements ITerminalToolServ
 				// timeout after X seconds
 				new Promise<void>((res) => {
 					setTimeout(() => {
+						if (resolveReason) return
 						resolveReason = { type: 'timeout' };
 						res()
 					}, MAX_TERMINAL_BG_COMMAND_TIME * 1000)
@@ -343,16 +351,32 @@ export class TerminalToolService extends Disposable implements ITerminalToolServ
 					resetTimer();
 				})
 
+			// Wall-clock safety net — prevents infinite hangs when shell integration is missing
+			// and the command keeps producing output (resetting the inactivity timer)
+			const waitUntilWallClock = new Promise<void>(res => {
+				const wallId = setTimeout(() => {
+					if (resolveReason) return
+					resolveReason = { type: 'timeout' }
+					res()
+				}, MAX_TERMINAL_WALL_CLOCK_TIME * 1000)
+				disposables.push(toDisposable(() => clearTimeout(wallId)))
+			})
+
 			// wait for result
-			await Promise.any([waitUntilDone, waitUntilInterrupt])
+			await Promise.any([waitUntilDone, waitUntilInterrupt, waitUntilWallClock])
 				.finally(() => disposables.forEach(d => d.dispose()))
 
 
 
-			// read result if timed out, since we didn't get it (could clean this code up but it's ok)
+			// read result if timed out, since we didn't get it from CommandDetection
 			if (resolveReason?.type === 'timeout') {
-				const terminalId = isPersistent ? params.persistentTerminalId : params.terminalId
-				result = await this.readTerminal(terminalId)
+				try {
+					const terminalId = isPersistent ? params.persistentTerminalId : params.terminalId
+					result = await this.readTerminal(terminalId)
+				} catch {
+					// xterm buffer might not be available (e.g. terminal not yet rendered)
+					result = '(terminal output unavailable)'
+				}
 			}
 
 			if (!isPersistent) {

@@ -29,6 +29,7 @@ export const MAX_CHILDREN_URIs_PAGE = 500
 export const MAX_TERMINAL_CHARS = 100_000
 export const MAX_TERMINAL_INACTIVE_TIME = 8 // seconds
 export const MAX_TERMINAL_BG_COMMAND_TIME = 5
+export const MAX_TERMINAL_WALL_CLOCK_TIME = 120 // seconds — absolute max for any terminal command
 
 
 // Maximum character limits for prefix and suffix context
@@ -510,11 +511,11 @@ IMPORTANT query guidelines:
 	// --- Background Subagent ---
 	launch_subagent: {
 		name: 'launch_subagent',
-		description: `Launch a background subagent to perform a task autonomously in parallel. The subagent runs in a separate thread with its own context and tool access, and returns a result when done. Use this when you need to:
+		description: `Launch a background subagent to perform a task autonomously in parallel. This call returns IMMEDIATELY — the subagent runs asynchronously in its own thread. You should CONTINUE WORKING on the main task right away. Use this when you need to:
 - Explore multiple parts of the codebase simultaneously
 - Research a topic while continuing to work on the main task
 - Delegate an independent subtask (e.g. "find all usages of X" while you work on Y)
-The subagent has access to all read-only tools (read_file, search, semantic_search, etc.) and optionally write tools. You will receive the subagent's result as this tool's output once it completes.`,
+The subagent has access to read-only tools (read_file, search, semantic_search, etc.) but NOT terminal commands. Do NOT delegate tasks requiring terminal execution. The subagent's progress is visible in the agent panel sidebar.`,
 		params: {
 			description: { description: 'Short title for this subagent task (shown in UI). Example: "Find authentication flow"' },
 			prompt: { description: 'Detailed instructions for the subagent. Be specific about what to search for, analyze, or produce. The subagent does NOT have access to the parent conversation history.' },
@@ -685,7 +686,7 @@ You have access to Context Bridge tools built into V3Code. These give you struct
 - \`run_command\` / \`run_persistent_command\` — Build commands, test runners, git, package management. NEVER use for file operations that have dedicated tools (don't \`cat\`, don't \`sed\`, don't \`echo >\`).
 
 **Tier 6 — Background Subagents**
-- \`launch_subagent\` — Spawn a background agent to work on a subtask in parallel. The subagent runs independently with its own tool access and returns results when done. Use when you need to explore multiple areas simultaneously or delegate independent research while continuing the main task.
+- \`launch_subagent\` — Spawn a background agent to work on a subtask in parallel. The subagent runs asynchronously — you get an immediate response and can CONTINUE WORKING on the main task while it runs. The subagent's progress is visible in the agent panel. Use when you need to explore multiple areas simultaneously or delegate independent research. IMPORTANT: The subagent does NOT have terminal access — it can only use read/search/semantic tools. Do NOT delegate tasks that require running commands.
 
 **Tier 7 — Task Planning**
 - \`update_plan\` — Create or update a structured task list to track multi-step work. Use proactively for complex tasks (3+ steps). Each item has id, content, and status (pending/in_progress/completed/cancelled). Update status in real-time as you work. Only ONE task should be in_progress at a time. Mark tasks complete immediately after finishing.

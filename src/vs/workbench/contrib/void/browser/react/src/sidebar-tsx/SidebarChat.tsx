@@ -3984,7 +3984,27 @@ export const SidebarChat = () => {
 				style={{ color: 'var(--vscode-descriptionForeground)' }}
 			>
 				<IconLoading className='w-3 h-3 opacity-80' />
-				<span>{queuedMessageCount > 0 ? `${queuedMessageCount} message${queuedMessageCount > 1 ? 's' : ''} waiting` : 'Working'}</span>
+				<span className='flex-1'>{queuedMessageCount > 0 ? `${queuedMessageCount} message${queuedMessageCount > 1 ? 's' : ''} waiting` : 'Working'}</span>
+				{queuedMessageCount > 0 && (
+					<button
+						type='button'
+						className='opacity-70 hover:opacity-100 transition-opacity'
+						style={{
+							background: 'none', border: 'none', cursor: 'pointer', padding: '2px 6px',
+							color: 'var(--vscode-foreground)', fontSize: '11px', borderRadius: '3px',
+						}}
+						title='Force process queued messages'
+						onClick={() => {
+							try {
+								const chatThreadsService = accessor.get('IChatThreadService')
+								const threadId = chatThreadsService.state.currentThreadId
+								chatThreadsService.abortRunning(threadId)
+							} catch { }
+						}}
+					>
+						▶ Force
+					</button>
+				)}
 			</div>
 		)}
 		<div className='px-2 pb-2'>
